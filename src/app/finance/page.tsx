@@ -13,11 +13,11 @@ import {
   TableFooter,
 } from '@/components/ui/table'
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs'
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { TrendingUp, TrendingDown, WalletCards, CheckCircle, Trash2 } from 'lucide-react'
@@ -101,183 +101,189 @@ export default function FinancePage() {
         </p>
       </div>
 
-      <Tabs defaultValue="receivable" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="receivable">Accounts Receivable</TabsTrigger>
-          <TabsTrigger value="payable">Accounts Payable</TabsTrigger>
-          <TabsTrigger value="prepaid">Customer Deposits</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="receivable">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+      <Accordion type="single" collapsible className="w-full space-y-4" defaultValue="receivable">
+        <AccordionItem value="receivable" className="border rounded-lg">
+           <Card>
+                <AccordionTrigger className="p-6 text-lg font-semibold hover:no-underline">
+                   <div className="flex items-center gap-2">
                         <TrendingUp className="h-6 w-6 text-red-500" />
                         Accounts Receivable
-                    </CardTitle>
-                    <CardDescription>
-                        Customers you have sold to on credit. Click 'Mark as Paid' once they settle their debt.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Customer</TableHead>
-                                <TableHead>Product</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead className="text-right">Amount</TableHead>
-                                <TableHead className="text-right">Action</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {receivables.length > 0 ? (
-                                receivables.map((item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell>
-                                            <div className="font-medium">{item.name}</div>
-                                            <div className="text-sm text-muted-foreground">{item.phone}</div>
-                                        </TableCell>
-                                        <TableCell>{item.product}</TableCell>
-                                        <TableCell>{format(item.date, 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell className="text-right">TSh {item.amount.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" onClick={() => handleMarkAsPaid(item.id, 'receivable')}>
-                                                <CheckCircle className="mr-2 h-4 w-4"/>
-                                                Mark as Paid
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                    <CardHeader className="pt-0">
+                        <CardDescription>
+                            Customers you have sold to on credit. Click 'Mark as Paid' once they settle their debt.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-24">No outstanding credits. All customers have paid.</TableCell>
+                                    <TableHead>Customer</TableHead>
+                                    <TableHead>Product</TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-right">Action</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                         <TableFooter>
-                            <TableRow>
-                                <TableCell colSpan={3} className="font-bold text-lg">Total Receivable</TableCell>
-                                <TableCell className="text-right font-bold text-lg">TSh {totalReceivable.toLocaleString()}</TableCell>
-                                <TableCell></TableCell>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
-                </CardContent>
-            </Card>
-        </TabsContent>
-
-        <TabsContent value="payable">
+                            </TableHeader>
+                            <TableBody>
+                                {receivables.length > 0 ? (
+                                    receivables.map((item) => (
+                                        <TableRow key={item.id}>
+                                            <TableCell>
+                                                <div className="font-medium">{item.name}</div>
+                                                <div className="text-sm text-muted-foreground">{item.phone}</div>
+                                            </TableCell>
+                                            <TableCell>{item.product}</TableCell>
+                                            <TableCell>{format(item.date, 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell className="text-right">TSh {item.amount.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="outline" size="sm" onClick={() => handleMarkAsPaid(item.id, 'receivable')}>
+                                                    <CheckCircle className="mr-2 h-4 w-4"/>
+                                                    Mark as Paid
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center h-24">No outstanding credits. All customers have paid.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                             <TableFooter>
+                                <TableRow>
+                                    <TableCell colSpan={3} className="font-bold text-lg">Total Receivable</TableCell>
+                                    <TableCell className="text-right font-bold text-lg">TSh {totalReceivable.toLocaleString()}</TableCell>
+                                    <TableCell></TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                    </CardContent>
+                 </Card>
+            </AccordionContent>
+        </AccordionItem>
+        
+        <AccordionItem value="payable" className="border rounded-lg">
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                 <AccordionTrigger className="p-6 text-lg font-semibold hover:no-underline">
+                     <div className="flex items-center gap-2">
                         <TrendingDown className="h-6 w-6 text-green-500" />
                         Accounts Payable
-                    </CardTitle>
-                    <CardDescription>
-                        Suppliers you have purchased from on credit. Click 'Mark as Paid' once you settle the debt.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Supplier</TableHead>
-                                <TableHead>Product</TableHead>
-                                <TableHead>Due Date</TableHead>
-                                <TableHead className="text-right">Amount</TableHead>
-                                <TableHead className="text-right">Action</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {payables.length > 0 ? (
-                                payables.map((item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell><div className="font-medium">{item.supplierName}</div></TableCell>
-                                        <TableCell>{item.product}</TableCell>
-                                        <TableCell>{format(item.date, 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell className="text-right">TSh {item.amount.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" onClick={() => handleMarkAsPaid(item.id, 'payable')}>
-                                                <CheckCircle className="mr-2 h-4 w-4"/>
-                                                Mark as Paid
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                    <CardHeader className="pt-0">
+                        <CardDescription>
+                            Suppliers you have purchased from on credit. Click 'Mark as Paid' once you settle the debt.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-24">No outstanding payables. All suppliers have been paid.</TableCell>
+                                    <TableHead>Supplier</TableHead>
+                                    <TableHead>Product</TableHead>
+                                    <TableHead>Due Date</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-right">Action</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                         <TableFooter>
-                            <TableRow>
-                                <TableCell colSpan={3} className="font-bold text-lg">Total Payable</TableCell>
-                                <TableCell className="text-right font-bold text-lg">TSh {totalPayable.toLocaleString()}</TableCell>
-                                <TableCell></TableCell>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
-                </CardContent>
-            </Card>
-        </TabsContent>
-        
-        <TabsContent value="prepaid">
+                            </TableHeader>
+                            <TableBody>
+                                {payables.length > 0 ? (
+                                    payables.map((item) => (
+                                        <TableRow key={item.id}>
+                                            <TableCell><div className="font-medium">{item.supplierName}</div></TableCell>
+                                            <TableCell>{item.product}</TableCell>
+                                            <TableCell>{format(item.date, 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell className="text-right">TSh {item.amount.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="outline" size="sm" onClick={() => handleMarkAsPaid(item.id, 'payable')}>
+                                                    <CheckCircle className="mr-2 h-4 w-4"/>
+                                                    Mark as Paid
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center h-24">No outstanding payables. All suppliers have been paid.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                             <TableFooter>
+                                <TableRow>
+                                    <TableCell colSpan={3} className="font-bold text-lg">Total Payable</TableCell>
+                                    <TableCell className="text-right font-bold text-lg">TSh {totalPayable.toLocaleString()}</TableCell>
+                                    <TableCell></TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="prepaid" className="border rounded-lg">
              <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                <AccordionTrigger className="p-6 text-lg font-semibold hover:no-underline">
+                    <div className="flex items-center gap-2">
                         <WalletCards className="h-6 w-6 text-blue-500" />
                         Customer Deposits (Prepaid)
-                    </CardTitle>
-                    <CardDescription>
-                        Customers with a prepaid balance. This balance is automatically used on their next order, or you can manually mark it as refunded.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Customer</TableHead>
-                                <TableHead className="text-right">Prepaid Amount</TableHead>
-                                <TableHead className="text-right">Action</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {prepayments.length > 0 ? (
-                                prepayments.map((item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell>
-                                            <div className="font-medium">{item.customerName}</div>
-                                            <div className="text-sm text-muted-foreground">{item.phone}</div>
-                                        </TableCell>
-                                        <TableCell className="text-right">TSh {item.prepaidAmount.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" onClick={() => handleUsePrepayment(item.id)}>
-                                                <Trash2 className="mr-2 h-4 w-4"/>
-                                                Mark as Used/Refunded
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
+                    </div>
+                </AccordionTrigger>
+                 <AccordionContent>
+                    <CardHeader className="pt-0">
+                        <CardDescription>
+                            Customers with a prepaid balance. This balance is automatically used on their next order, or you can manually mark it as refunded.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={3} className="text-center h-24">No customer deposits found.</TableCell>
+                                    <TableHead>Customer</TableHead>
+                                    <TableHead className="text-right">Prepaid Amount</TableHead>
+                                    <TableHead className="text-right">Action</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                        <TableFooter>
-                            <TableRow>
-                                <TableCell className="font-bold text-lg">Total Deposits</TableCell>
-                                <TableCell className="text-right font-bold text-lg">TSh {totalPrepayment.toLocaleString()}</TableCell>
-                                <TableCell></TableCell>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
-                </CardContent>
-            </Card>
-        </TabsContent>
-      </Tabs>
+                            </TableHeader>
+                            <TableBody>
+                                {prepayments.length > 0 ? (
+                                    prepayments.map((item) => (
+                                        <TableRow key={item.id}>
+                                            <TableCell>
+                                                <div className="font-medium">{item.customerName}</div>
+                                                <div className="text-sm text-muted-foreground">{item.phone}</div>
+                                            </TableCell>
+                                            <TableCell className="text-right">TSh {item.prepaidAmount.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="outline" size="sm" onClick={() => handleUsePrepayment(item.id)}>
+                                                    <Trash2 className="mr-2 h-4 w-4"/>
+                                                    Mark as Used/Refunded
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="text-center h-24">No customer deposits found.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                            <TableFooter>
+                                <TableRow>
+                                    <TableCell className="font-bold text-lg">Total Deposits</TableCell>
+                                    <TableCell className="text-right font-bold text-lg">TSh {totalPrepayment.toLocaleString()}</TableCell>
+                                    <TableCell></TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   )
 }
