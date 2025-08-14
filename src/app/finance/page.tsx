@@ -86,7 +86,7 @@ export default function FinancePage() {
 
 
   return (
-    <div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
+    <div className="w-full max-w-2xl mx-auto flex flex-col gap-8">
       <div className="text-left">
         <h1 className="text-3xl font-bold font-headline">
           Finance Management
