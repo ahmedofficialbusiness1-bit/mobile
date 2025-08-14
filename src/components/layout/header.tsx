@@ -3,20 +3,35 @@
 import * as React from 'react'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { usePathname } from 'next/navigation'
+import { Home, Cpu, FileText, ShoppingCart, Truck, Warehouse, Factory, Banknote, Landmark, ShieldCheck, Briefcase, UserCheck, Building2, Telescope, GanttChartSquare, Network } from 'lucide-react'
+
+
+const navItems = [
+  { href: '/', label: 'Dashboard', icon: Home },
+  { href: '/co-pilot', label: 'AI Co-Pilot', icon: Cpu },
+  { href: '/sales', label: 'Sales & POS', icon: ShoppingCart },
+  { href: '/purchases', label: 'Purchases', icon: Truck },
+  { href: '/inventory', label: 'Inventory', icon: Warehouse },
+  { href: '/production', label: 'Production', icon: Factory },
+  { href: '/finance', label: 'Finance', icon: Banknote },
+  { href: '/tax', label: 'Tax & Compliance', icon: Landmark },
+  { href: '/hr', label: 'HR & Payroll', icon: UserCheck },
+  { href: '/crm', label: 'CRM & Field Sales', icon: Telescope },
+  { href: '/procurement', label: 'Procurement', icon: Building2 },
+  { href: '/projects', label: 'Projects & Jobs', icon: GanttChartSquare },
+  { href: '/grc', label: 'Governance & Risk', icon: ShieldCheck },
+  { href: '/bi', label: 'BI & Forecasting', icon: Briefcase },
+  { href: '/integrations', label: 'Integrations', icon: Network },
+  { href: '/receipts', label: 'Digital Receipts', icon: FileText },
+]
 
 const getPageTitle = (path: string) => {
-  switch (path) {
-    case '/':
-      return 'Dashboard'
-    case '/co-pilot':
-      return 'AI Co-Pilot'
-    case '/receipts':
-      return 'Digital Receipts'
-    case '/integrations':
-      return 'WhatsApp & USSD'
-    default:
-      return 'DiraBiz'
-  }
+    for (const item of navItems) {
+        if (path.startsWith(item.href) && (item.href !== '/' || path === '/')) {
+            return item.label;
+        }
+    }
+    return 'DiraBiz';
 }
 
 export function AppHeader() {

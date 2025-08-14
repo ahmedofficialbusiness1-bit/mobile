@@ -12,15 +12,43 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar'
 import { Logo } from '@/components/logo'
-import { Home, Cpu, FileText, MessageSquare, User } from 'lucide-react'
+import {
+  Home,
+  Cpu,
+  FileText,
+  ShoppingCart,
+  Truck,
+  Warehouse,
+  Factory,
+  Banknote,
+  Landmark,
+  ShieldCheck,
+  Briefcase,
+  UserCheck,
+  Building2,
+  Telescope,
+  GanttChartSquare,
+  Network,
+} from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },
   { href: '/co-pilot', label: 'AI Co-Pilot', icon: Cpu },
+  { href: '/sales', label: 'Sales & POS', icon: ShoppingCart },
+  { href: '/purchases', label: 'Purchases', icon: Truck },
+  { href: '/inventory', label: 'Inventory', icon: Warehouse },
+  { href: '/production', label: 'Production', icon: Factory },
+  { href: '/finance', label: 'Finance', icon: Banknote },
+  { href: '/tax', label: 'Tax & Compliance', icon: Landmark },
+  { href: '/hr', label: 'HR & Payroll', icon: UserCheck },
+  { href: '/crm', label: 'CRM & Field Sales', icon: Telescope },
+  { href: '/procurement', label: 'Procurement', icon: Building2 },
+  { href: '/projects', label: 'Projects & Jobs', icon: GanttChartSquare },
+  { href: '/grc', label: 'Governance & Risk', icon: ShieldCheck },
+  { href: '/bi', label: 'BI & Forecasting', icon: Briefcase },
+  { href: '/integrations', label: 'Integrations', icon: Network },
   { href: '/receipts', label: 'Digital Receipts', icon: FileText },
-  { href: '/integrations', label: 'WhatsApp & USSD', icon: MessageSquare },
 ]
 
 export function AppSidebar() {
@@ -36,7 +64,7 @@ export function AppSidebar() {
           <SidebarMenuItem key={item.href}>
             <SidebarMenuButton
               asChild
-              isActive={pathname === item.href}
+              isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
               className="font-headline"
             >
               <Link href={item.href}>
