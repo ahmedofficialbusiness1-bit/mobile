@@ -6,6 +6,7 @@ import {
   Users,
   CreditCard,
   Package,
+  Calendar as CalendarIcon,
 } from 'lucide-react'
 import {
   Card,
@@ -23,7 +24,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   Bar,
   BarChart,
@@ -33,6 +33,11 @@ import {
   Tooltip,
 } from 'recharts'
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
+import { format } from 'date-fns'
+import { cn } from '@/lib/utils'
 
 const chartData = [
   { month: 'Jan', sales: 186 },
@@ -76,29 +81,35 @@ const transactions = [
   },
 ]
 
-type Period = 'today' | 'week' | 'year'
 
 export default function DashboardPage() {
-  const [activePeriod, setActivePeriod] = useState<Period>('today')
+  const [date, setDate] = useState<Date | undefined>(new Date())
 
   return (
     <div className="flex flex-col gap-8">
        <div className="flex justify-start gap-2">
-        <Button 
-          variant={activePeriod === 'today' ? 'default' : 'outline'}
-          onClick={() => setActivePeriod('today')}>
-          Today
-        </Button>
-        <Button 
-          variant={activePeriod === 'week' ? 'default' : 'outline'}
-          onClick={() => setActivePeriod('week')}>
-          This Week
-        </Button>
-        <Button 
-          variant={activePeriod === 'year' ? 'default' : 'outline'}
-          onClick={() => setActivePeriod('year')}>
-          This Year
-        </Button>
+         <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={"outline"}
+                className={cn(
+                  "w-[280px] justify-start text-left font-normal",
+                  !date && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date ? format(date, "PPP") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={setDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
       </div>
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
         <Card>
