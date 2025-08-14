@@ -14,10 +14,11 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, CreditCard, Undo } from 'lucide-react'
+import { CheckCircle, CreditCard, Undo, Menu } from 'lucide-react'
 import { useFinancials, PaymentMethod } from '@/context/financial-context'
 import { PaymentDialog } from '@/components/payment-dialog'
 import { cn } from '@/lib/utils'
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet'
 
 function PlaceholderCard({ title, description }: { title: string, description: string }) {
     return (
@@ -260,33 +261,65 @@ const financeNavItems = [
     { id: 'cash', label: 'Cash Flow' }
 ]
 
+function FinanceNav({ activeTab, setActiveTab, isSheet = false }: { activeTab: string, setActiveTab: (id: string) => void, isSheet?: boolean }) {
+    const NavWrapper = ({ children }: { children: React.ReactNode }) => 
+        isSheet ? <>{children}</> : <nav className="hidden md:flex flex-col gap-2 sticky top-20">{children}</nav>;
+        
+    const navItems = financeNavItems.map(item => {
+        const button = (
+            <Button
+                key={item.id}
+                variant={activeTab === item.id ? 'default' : 'ghost'}
+                onClick={() => setActiveTab(item.id)}
+                className="justify-start"
+            >
+                {item.label}
+            </Button>
+        );
+
+        if (isSheet) {
+            return <SheetClose asChild key={item.id}>{button}</SheetClose>;
+        }
+        return button;
+    });
+
+    return <NavWrapper>{navItems}</NavWrapper>;
+}
+
 export default function FinancePage() {
     const [activeTab, setActiveTab] = React.useState('accounts');
 
     return (
         <div className="flex flex-col gap-8">
-            <div className="text-left">
-                <h1 className="text-3xl font-bold font-headline">
-                    Finance Management
-                </h1>
-                <p className="text-muted-foreground mt-2 max-w-2xl">
-                    Track and manage your company's financial health, from debts to customer deposits.
-                </p>
+            <div className="text-left flex justify-between items-center">
+                <div>
+                    <h1 className="text-3xl font-bold font-headline">
+                        Finance Management
+                    </h1>
+                    <p className="text-muted-foreground mt-2 max-w-2xl">
+                        Track and manage your company's financial health, from debts to customer deposits.
+                    </p>
+                </div>
+                <div className="md:hidden">
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button variant="outline">
+                                <Menu className="mr-2 h-4 w-4"/>
+                                Open Menu
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left">
+                            <h2 className="text-lg font-semibold p-4">Finance Menu</h2>
+                            <div className="flex flex-col gap-2 p-4">
+                               <FinanceNav activeTab={activeTab} setActiveTab={setActiveTab} isSheet={true} />
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-8 items-start">
-                <nav className="flex flex-col gap-2 sticky top-20">
-                    {financeNavItems.map(item => (
-                        <Button
-                            key={item.id}
-                            variant={activeTab === item.id ? 'default' : 'ghost'}
-                            onClick={() => setActiveTab(item.id)}
-                            className="justify-start"
-                        >
-                            {item.label}
-                        </Button>
-                    ))}
-                </nav>
+                <FinanceNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
                 <div className="min-w-0">
                     {activeTab === 'accounts' && <AccountsView />}
