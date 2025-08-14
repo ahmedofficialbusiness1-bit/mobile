@@ -24,9 +24,17 @@ interface PaymentDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (paymentMethod: PaymentMethod) => void;
+  title?: string;
+  description?: string;
 }
 
-export function PaymentDialog({ isOpen, onClose, onSubmit }: PaymentDialogProps) {
+export function PaymentDialog({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  title = "Mark as Paid", 
+  description = "Select the payment method used to settle this transaction." 
+}: PaymentDialogProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
 
   const handleSubmit = () => {
@@ -37,9 +45,9 @@ export function PaymentDialog({ isOpen, onClose, onSubmit }: PaymentDialogProps)
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Mark as Paid</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Select the payment method used to settle this transaction.
+            {description}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, CheckCircle2, MoreHorizontal } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { PlusCircle, CheckCircle2, MoreHorizontal, Search } from 'lucide-react';
 import { ExpenseForm } from './expense-form';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -17,6 +18,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { PaymentDialog } from '@/components/payment-dialog';
+import type { PaymentMethod } from '@/context/financial-context';
 
 export interface Expense {
   id: string;
@@ -25,21 +28,25 @@ export interface Expense {
   amount: number;
   date: Date;
   status: 'Pending' | 'Approved';
+  paymentMethod?: PaymentMethod;
 }
 
 const initialExpenses: Expense[] = [
-  { id: 'exp-001', description: 'Umeme wa LUKU ofisini', category: 'Umeme', amount: 50000, date: new Date(2024, 4, 20), status: 'Approved' },
+  { id: 'exp-001', description: 'Umeme wa LUKU ofisini', category: 'Umeme', amount: 50000, date: new Date(2024, 4, 20), status: 'Approved', paymentMethod: 'Mobile' },
   { id: 'exp-002', description: 'Nauli ya kwenda kwa mteja', category: 'Usafiri', amount: 15000, date: new Date(2024, 4, 22), status: 'Pending' },
-  { id: 'exp-003', description: 'Manunuzi ya karatasi na wino', category: 'Manunuzi Ofisi', amount: 75000, date: new Date(2024, 4, 18), status: 'Approved' },
+  { id: 'exp-003', description: 'Manunuzi ya karatasi na wino', category: 'Manunuzi Ofisi', amount: 75000, date: new Date(2024, 4, 18), status: 'Approved', paymentMethod: 'Cash' },
   { id: 'exp-004', description: 'Malipo ya vocha za simu', category: 'Mawasiliano', amount: 20000, date: new Date(2024, 4, 23), status: 'Pending' },
 ];
 
 export default function ExpensesView() {
   const [expenses, setExpenses] = React.useState<Expense[]>(initialExpenses);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
+  const [selectedExpenseId, setSelectedExpenseId] = React.useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = React.useState('');
   const { toast } = useToast();
 
-  const handleSaveExpense = (expenseData: Omit<Expense, 'id' | 'status'>) => {
+  const handleSaveExpense = (expenseData: Omit<Expense, 'id' | 'status' | 'paymentMethod'>) => {
     const newExpense: Expense = {
       id: `exp-${Date.now()}`,
       status: 'Pending',
@@ -50,24 +57,39 @@ export default function ExpensesView() {
       title: "Tarakilishi Limeongezwa",
       description: "Tarakilishi jipya linasubiri kuthibitishwa.",
     });
+    setIsFormOpen(false);
   };
 
-  const handleApproveExpense = (id: string) => {
+  const openApprovalDialog = (id: string) => {
+    setSelectedExpenseId(id);
+    setIsPaymentDialogOpen(true);
+  }
+
+  const handleApproveExpense = (paymentMethod: PaymentMethod) => {
+    if (!selectedExpenseId) return;
+
     setExpenses(prev =>
-      prev.map(exp => (exp.id === id ? { ...exp, status: 'Approved' } : exp))
+      prev.map(exp => (exp.id === selectedExpenseId ? { ...exp, status: 'Approved', paymentMethod } : exp))
     );
     toast({
       title: "Tarakilishi Limethibitishwa",
-      description: "Tarakilishi sasa litahesabiwa kwenye vitabu vya fedha.",
+      description: `Tarakilishi limelipwa kwa ${paymentMethod} na litahesabiwa kwenye vitabu vya fedha.`,
       variant: 'default',
     });
+    setIsPaymentDialogOpen(false);
+    setSelectedExpenseId(null);
   };
+  
+  const filteredExpenses = expenses.filter(expense => 
+    expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    expense.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const totalPending = expenses
+  const totalPending = filteredExpenses
     .filter(e => e.status === 'Pending')
     .reduce((sum, e) => sum + e.amount, 0);
 
-  const totalApproved = expenses
+  const totalApproved = filteredExpenses
     .filter(e => e.status === 'Approved')
     .reduce((sum, e) => sum + e.amount, 0);
 
@@ -85,6 +107,17 @@ export default function ExpensesView() {
           </Button>
         </CardHeader>
         <CardContent>
+           <div className="mb-4">
+             <div className="relative w-full max-w-sm">
+               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+               <Input 
+                  placeholder="Tafuta kwa maelezo au aina..." 
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -93,13 +126,14 @@ export default function ExpensesView() {
                   <TableHead>Aina</TableHead>
                   <TableHead>Tarehe</TableHead>
                   <TableHead>Hali</TableHead>
+                  <TableHead>Njia ya Malipo</TableHead>
                   <TableHead className="text-right">Kiasi</TableHead>
                   <TableHead className="text-center">Kitendo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {expenses.length > 0 ? (
-                  expenses.map(expense => (
+                {filteredExpenses.length > 0 ? (
+                  filteredExpenses.map(expense => (
                     <TableRow key={expense.id}>
                       <TableCell className="font-medium whitespace-nowrap">{expense.description}</TableCell>
                       <TableCell>{expense.category}</TableCell>
@@ -114,13 +148,14 @@ export default function ExpensesView() {
                           {expense.status === 'Approved' ? 'Limethibitishwa' : 'Inasubiri'}
                         </Badge>
                       </TableCell>
+                       <TableCell>{expense.paymentMethod || '---'}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">TSh {expense.amount.toLocaleString()}</TableCell>
                       <TableCell className="text-center">
                         {expense.status === 'Pending' && (
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleApproveExpense(expense.id)}
+                            onClick={() => openApprovalDialog(expense.id)}
                           >
                             <CheckCircle2 className="mr-2 h-4 w-4" />
                             Thibitisha
@@ -131,21 +166,21 @@ export default function ExpensesView() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      Hakuna matumizi yaliyoandikwa bado.
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      Hakuna matumizi yanayofanana na ulivyotafuta.
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">
-                  <TableCell colSpan={4}>Jumla (Yaliyothibitishwa)</TableCell>
+                  <TableCell colSpan={5}>Jumla (Yaliyothibitishwa)</TableCell>
                   <TableCell className="text-right" colSpan={2}>
                     TSh {totalApproved.toLocaleString()}
                   </TableCell>
                 </TableRow>
                  <TableRow>
-                  <TableCell colSpan={4} className="font-semibold text-amber-700">Jumla (Yanayosubiri)</TableCell>
+                  <TableCell colSpan={5} className="font-semibold text-amber-700">Jumla (Yanayosubiri)</TableCell>
                   <TableCell className="text-right font-semibold text-amber-700" colSpan={2}>
                     TSh {totalPending.toLocaleString()}
                   </TableCell>
@@ -159,6 +194,13 @@ export default function ExpensesView() {
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         onSave={handleSaveExpense}
+      />
+      <PaymentDialog
+        isOpen={isPaymentDialogOpen}
+        onClose={() => setIsPaymentDialogOpen(false)}
+        onSubmit={handleApproveExpense}
+        title="Thibitisha Matumizi"
+        description="Chagua njia ya malipo iliyotumika kwa matumizi haya."
       />
     </>
   );
