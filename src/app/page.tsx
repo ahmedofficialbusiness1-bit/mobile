@@ -66,7 +66,7 @@ type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit";
 
 interface Transaction {
     name: string;
-    email: string;
+    phone: string;
     amount: number;
     status: 'Paid' | 'Credit';
     date: Date;
@@ -83,7 +83,7 @@ interface Payable {
 
 interface CustomerPrepayment {
     customerName: string;
-    email: string;
+    phone: string;
     prepaidAmount: number;
 }
 
@@ -91,35 +91,35 @@ interface CustomerPrepayment {
 // Unified dummy data with dates, payment methods and products
 const allTransactions: Transaction[] = [
   // 2024 May
-  { name: 'Liam Johnson', email: 'liam@example.com', amount: 45000, status: 'Paid', date: new Date('2024-05-20'), paymentMethod: 'Mobile', product: 'Mchele' },
-  { name: 'Olivia Smith', email: 'olivia@example.com', amount: 30000, status: 'Paid', date: new Date('2024-05-20'), paymentMethod: 'Cash', product: 'Unga' },
-  { name: 'Noah Williams', email: 'noah@example.com', amount: 60000, status: 'Credit', date: new Date('2024-05-18'), paymentMethod: 'Credit', product: 'Sukari' },
-  { name: 'Emma Brown', email: 'emma@example.com', amount: 85000, status: 'Paid', date: new Date('2024-05-15'), paymentMethod: 'Bank', product: 'Mafuta' },
-  { name: 'James Jones', email: 'james@example.com', amount: 20000, status: 'Paid', date: new Date('2024-05-12'), paymentMethod: 'Mobile', product: 'Sabuni' },
+  { name: 'Liam Johnson', phone: '+255712345678', amount: 45000, status: 'Paid', date: new Date('2024-05-20'), paymentMethod: 'Mobile', product: 'Mchele' },
+  { name: 'Olivia Smith', phone: '+255755123456', amount: 30000, status: 'Paid', date: new Date('2024-05-20'), paymentMethod: 'Cash', product: 'Unga' },
+  { name: 'Noah Williams', phone: '+255688990011', amount: 60000, status: 'Credit', date: new Date('2024-05-18'), paymentMethod: 'Credit', product: 'Sukari' },
+  { name: 'Emma Brown', phone: '+255788112233', amount: 85000, status: 'Paid', date: new Date('2024-05-15'), paymentMethod: 'Bank', product: 'Mafuta' },
+  { name: 'James Jones', phone: '+255655443322', amount: 20000, status: 'Paid', date: new Date('2024-05-12'), paymentMethod: 'Mobile', product: 'Sabuni' },
   
   // 2024 April
-  { name: 'Ava Garcia', email: 'ava@example.com', amount: 50000, status: 'Paid', date: new Date('2024-04-25'), paymentMethod: 'Cash', product: 'Mchele' },
-  { name: 'Isabella Miller', email: 'isabella@example.com', amount: 35000, status: 'Paid', date: new Date('2024-04-22'), paymentMethod: 'Bank', product: 'Unga' },
-  { name: 'Sophia Davis', email: 'sophia@example.com', amount: 75000, status: 'Credit', date: new Date('2024-04-18'), paymentMethod: 'Credit', product: 'Nido' },
-  { name: 'Mia Rodriguez', email: 'mia@example.com', amount: 55000, status: 'Paid', date: new Date('2024-04-11'), paymentMethod: 'Mobile', product: 'Sukari' },
+  { name: 'Ava Garcia', phone: '+255714556677', amount: 50000, status: 'Paid', date: new Date('2024-04-25'), paymentMethod: 'Cash', product: 'Mchele' },
+  { name: 'Isabella Miller', phone: '+255766778899', amount: 35000, status: 'Paid', date: new Date('2024-04-22'), paymentMethod: 'Bank', product: 'Unga' },
+  { name: 'Sophia Davis', phone: '+255677889900', amount: 75000, status: 'Credit', date: new Date('2024-04-18'), paymentMethod: 'Credit', product: 'Nido' },
+  { name: 'Mia Rodriguez', phone: '+255718990011', amount: 55000, status: 'Paid', date: new Date('2024-04-11'), paymentMethod: 'Mobile', product: 'Sukari' },
   
   // 2024 March
-  { name: 'Lucas Wilson', email: 'lucas@example.com', amount: 90000, status: 'Paid', date: new Date('2024-03-30'), paymentMethod: 'Bank', product: 'Mchele' },
-  { name: 'Zoe Martinez', email: 'zoe@example.com', amount: 40000, status: 'Paid', date: new Date('2024-03-15'), paymentMethod: 'Cash', product: 'Unga' },
+  { name: 'Lucas Wilson', phone: '+255622334455', amount: 90000, status: 'Paid', date: new Date('2024-03-30'), paymentMethod: 'Bank', product: 'Mchele' },
+  { name: 'Zoe Martinez', phone: '+255713445566', amount: 40000, status: 'Paid', date: new Date('2024-03-15'), paymentMethod: 'Cash', product: 'Unga' },
 
 
   // 2024 February
-  { name: 'Amelia Harris', email: 'amelia@example.com', amount: 48000, status: 'Paid', date: new Date('2024-02-15'), paymentMethod: 'Mobile', product: 'Sabuni'},
+  { name: 'Amelia Harris', phone: '+255758990011', amount: 48000, status: 'Paid', date: new Date('2024-02-15'), paymentMethod: 'Mobile', product: 'Sabuni'},
   
   // 2024 January
-  { name: 'Elijah Clark', email: 'elijah@example.com', amount: 72000, status: 'Paid', date: new Date('2024-01-20'), paymentMethod: 'Bank', product: 'Nido'},
+  { name: 'Elijah Clark', phone: '+255689001122', amount: 72000, status: 'Paid', date: new Date('2024-01-20'), paymentMethod: 'Bank', product: 'Nido'},
 
   // 2023 Data
-  { name: 'Henry Moore', email: 'henry@example.com', amount: 7500, status: 'Paid', date: new Date('2023-12-15'), paymentMethod: 'Cash', product: 'Sukari' },
-  { name: 'Grace Taylor', email: 'grace@example.com', amount: 9500, status: 'Paid', date: new Date('2023-11-05'), paymentMethod: 'Mobile', product: 'Mchele' },
-  { name: 'Benjamin Anderson', email: 'benjamin@example.com', amount: 12000, status: 'Paid', date: new Date('2023-10-10'), paymentMethod: 'Bank', product: 'Unga'},
-  { name: 'Charlotte Thomas', email: 'charlotte@example.com', amount: 21000, status: 'Credit', date: new Date('2023-09-22'), paymentMethod: 'Credit', product: 'Mafuta'},
-  { name: 'Daniel White', email: 'daniel@example.com', amount: 13000, status: 'Paid', date: new Date('2023-08-01'), paymentMethod: 'Mobile', product: 'Sabuni'},
+  { name: 'Henry Moore', phone: '+255717654321', amount: 7500, status: 'Paid', date: new Date('2023-12-15'), paymentMethod: 'Cash', product: 'Sukari' },
+  { name: 'Grace Taylor', phone: '+255754987654', amount: 9500, status: 'Paid', date: new Date('2023-11-05'), paymentMethod: 'Mobile', product: 'Mchele' },
+  { name: 'Benjamin Anderson', phone: '+255688123789', amount: 12000, status: 'Paid', date: new Date('2023-10-10'), paymentMethod: 'Bank', product: 'Unga'},
+  { name: 'Charlotte Thomas', phone: '+255787456123', amount: 21000, status: 'Credit', date: new Date('2023-09-22'), paymentMethod: 'Credit', product: 'Mafuta'},
+  { name: 'Daniel White', phone: '+255655789456', amount: 13000, status: 'Paid', date: new Date('2023-08-01'), paymentMethod: 'Mobile', product: 'Sabuni'},
 ];
 
 const allPayables: Payable[] = [
@@ -129,9 +129,9 @@ const allPayables: Payable[] = [
 ];
 
 const allPrepayments: CustomerPrepayment[] = [
-    { customerName: "Asha Bakari", email: "asha@example.com", prepaidAmount: 15000 },
-    { customerName: "John Okello", email: "john.okello@example.com", prepaidAmount: 50000 },
-    { customerName: "Fatuma Said", email: "fatuma.s@example.com", prepaidAmount: 22500 },
+    { customerName: "Asha Bakari", phone: "+255712112233", prepaidAmount: 15000 },
+    { customerName: "John Okello", phone: "+255756445566", prepaidAmount: 50000 },
+    { customerName: "Fatuma Said", phone: "+255688776655", prepaidAmount: 22500 },
 ];
 
 
@@ -216,7 +216,7 @@ export default function DashboardPage() {
         
         const totalRevenue = filteredTransactions.reduce((acc, t) => acc + (t.status === 'Paid' ? t.amount : 0), 0);
         const sales = filteredTransactions.length;
-        const newCustomers = new Set(filteredTransactions.map(t => t.email)).size;
+        const newCustomers = new Set(filteredTransactions.map(t => t.phone)).size;
 
         const paymentBreakdown = filteredTransactions.reduce((acc, t) => {
             if (t.status === 'Paid') {
@@ -499,7 +499,7 @@ export default function DashboardPage() {
                     <TableCell>
                       <div className="font-medium">{transaction.name}</div>
                       <div className="hidden text-sm text-muted-foreground md:inline">
-                        {transaction.email}
+                        {transaction.phone}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -681,7 +681,7 @@ export default function DashboardPage() {
                                     <TableRow key={index}>
                                         <TableCell>
                                             <div className="font-medium">{item.name}</div>
-                                            <div className="text-sm text-muted-foreground">{item.email}</div>
+                                            <div className="text-sm text-muted-foreground">{item.phone}</div>
                                         </TableCell>
                                         <TableCell>{item.product}</TableCell>
                                         <TableCell className="text-right">TSh {item.amount.toLocaleString()}</TableCell>
@@ -761,7 +761,7 @@ export default function DashboardPage() {
                                     <TableRow key={index}>
                                         <TableCell>
                                             <div className="font-medium">{item.customerName}</div>
-                                             <div className="text-sm text-muted-foreground">{item.email}</div>
+                                             <div className="text-sm text-muted-foreground">{item.phone}</div>
                                         </TableCell>
                                         <TableCell className="text-right">TSh {item.prepaidAmount.toLocaleString()}</TableCell>
                                     </TableRow>
@@ -779,5 +779,7 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
 
     
