@@ -19,40 +19,18 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { PaymentDialog } from '@/components/payment-dialog';
-import type { PaymentMethod } from '@/context/financial-context';
-
-export interface Expense {
-  id: string;
-  description: string;
-  category: 'Umeme' | 'Maji' | 'Usafiri' | 'Mawasiliano' | 'Kodi' | 'Manunuzi Ofisi' | 'Matangazo' | 'Mengineyo';
-  amount: number;
-  date: Date;
-  status: 'Pending' | 'Approved';
-  paymentMethod?: PaymentMethod;
-}
-
-const initialExpenses: Expense[] = [
-  { id: 'exp-001', description: 'Umeme wa LUKU ofisini', category: 'Umeme', amount: 50000, date: new Date(2024, 4, 20), status: 'Approved', paymentMethod: 'Mobile' },
-  { id: 'exp-002', description: 'Nauli ya kwenda kwa mteja', category: 'Usafiri', amount: 15000, date: new Date(2024, 4, 22), status: 'Pending' },
-  { id: 'exp-003', description: 'Manunuzi ya karatasi na wino', category: 'Manunuzi Ofisi', amount: 75000, date: new Date(2024, 4, 18), status: 'Approved', paymentMethod: 'Cash' },
-  { id: 'exp-004', description: 'Malipo ya vocha za simu', category: 'Mawasiliano', amount: 20000, date: new Date(2024, 4, 23), status: 'Pending' },
-];
+import { useFinancials, type PaymentMethod, type Expense, type AddExpenseData } from '@/context/financial-context';
 
 export default function ExpensesView() {
-  const [expenses, setExpenses] = React.useState<Expense[]>(initialExpenses);
+  const { expenses, addExpense, approveExpense } = useFinancials();
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [selectedExpenseId, setSelectedExpenseId] = React.useState<string | null>(null);
   const [searchTerm, setSearchTerm] = React.useState('');
   const { toast } = useToast();
 
-  const handleSaveExpense = (expenseData: Omit<Expense, 'id' | 'status' | 'paymentMethod'>) => {
-    const newExpense: Expense = {
-      id: `exp-${Date.now()}`,
-      status: 'Pending',
-      ...expenseData,
-    };
-    setExpenses(prev => [newExpense, ...prev]);
+  const handleSaveExpense = (expenseData: AddExpenseData) => {
+    addExpense(expenseData);
     toast({
       title: "Tarakilishi Limeongezwa",
       description: "Tarakilishi jipya linasubiri kuthibitishwa.",
@@ -68,9 +46,7 @@ export default function ExpensesView() {
   const handleApproveExpense = (paymentMethod: PaymentMethod) => {
     if (!selectedExpenseId) return;
 
-    setExpenses(prev =>
-      prev.map(exp => (exp.id === selectedExpenseId ? { ...exp, status: 'Approved', paymentMethod } : exp))
-    );
+    approveExpense(selectedExpenseId, paymentMethod);
     toast({
       title: "Tarakilishi Limethibitishwa",
       description: `Tarakilishi limelipwa kwa ${paymentMethod} na litahesabiwa kwenye vitabu vya fedha.`,

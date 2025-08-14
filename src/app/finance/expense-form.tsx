@@ -14,12 +14,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import type { Expense } from './expenses-view';
+import type { AddExpenseData } from '@/context/financial-context';
 
 interface ExpenseFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (expenseData: Omit<Expense, 'id' | 'status'>) => void;
+  onSave: (expenseData: AddExpenseData) => void;
 }
 
 const formSchema = z.object({
