@@ -15,6 +15,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { PayslipDialog, type PayrollData } from './payslip-dialog';
+
 
 interface Employee {
   id: string;
@@ -50,6 +52,7 @@ export default function PayrollView() {
   const [employees, setEmployees] = React.useState<Employee[]>(initialEmployees);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [selectedEmployee, setSelectedEmployee] = React.useState<Employee | null>(null);
+  const [payslipEmployee, setPayslipEmployee] = React.useState<PayrollData | null>(null);
 
   const handleAddEmployee = () => {
     setSelectedEmployee(null);
@@ -59,6 +62,10 @@ export default function PayrollView() {
   const handleEditEmployee = (employee: Employee) => {
     setSelectedEmployee(employee);
     setIsFormOpen(true);
+  }
+
+  const handleViewPayslip = (employee: PayrollData) => {
+    setPayslipEmployee(employee);
   }
 
   const handleDeleteEmployee = (id: string) => {
@@ -85,12 +92,13 @@ export default function PayrollView() {
       const totalDeductions = nssf + otherDeductions;
       const taxableIncome = emp.salary - nssf; // NSSF is deducted before tax
       const paye = calculatePAYE(taxableIncome);
-      const netSalary = taxableIncome - paye - otherDeductions;
+      const netSalary = emp.salary - totalDeductions - paye;
       return {
           ...emp,
+          nssf,
+          paye,
           totalDeductions,
           taxableIncome,
-          paye,
           netSalary,
       }
   })
@@ -170,7 +178,7 @@ export default function PayrollView() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
                                 <DropdownMenuItem onClick={() => handleEditEmployee(employee)}>Edit</DropdownMenuItem>
-                                <DropdownMenuItem>View Payslip</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleViewPayslip(employee)}>View Payslip</DropdownMenuItem>
                                 <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteEmployee(employee.id)}>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -203,6 +211,11 @@ export default function PayrollView() {
         onClose={() => setIsFormOpen(false)}
         onSave={handleSaveEmployee}
         employee={selectedEmployee}
+      />
+      <PayslipDialog
+        isOpen={!!payslipEmployee}
+        onClose={() => setPayslipEmployee(null)}
+        payrollData={payslipEmployee}
       />
     </>
   );
