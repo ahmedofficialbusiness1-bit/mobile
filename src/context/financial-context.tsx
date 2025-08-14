@@ -112,83 +112,6 @@ export interface Expense {
 
 export type AddExpenseData = Omit<Expense, 'id' | 'status' | 'paymentMethod'>;
 
-// --- Initial Mock Data ---
-const initialTransactions: Transaction[] = [
-    { id: 'txn-001', name: 'Liam Johnson', phone: '+255712345678', amount: 45000, status: 'Paid', date: new Date(2024, 4, 20), paymentMethod: 'Mobile', product: 'Mchele' },
-    { id: 'txn-002', name: 'Olivia Smith', phone: '+255755123456', amount: 30000, status: 'Paid', date: new Date(2024, 4, 20), paymentMethod: 'Cash', product: 'Unga' },
-    { id: 'rec-001', name: 'Noah Williams', phone: '+255688990011', amount: 60000, status: 'Credit', date: new Date(2024, 4, 18), paymentMethod: 'Credit', product: 'Sukari' },
-    { id: 'txn-003', name: 'Emma Brown', phone: '+255788112233', amount: 85000, status: 'Paid', date: new Date(2024, 4, 15), paymentMethod: 'Bank', product: 'Mafuta' },
-    { id: 'txn-004', name: 'James Jones', phone: '+255655443322', amount: 20000, status: 'Paid', date: new Date(2024, 4, 12), paymentMethod: 'Mobile', product: 'Sabuni' },
-    { id: 'txn-005', name: 'Ava Garcia', phone: '+255714556677', amount: 50000, status: 'Paid', date: new Date(2024, 3, 25), paymentMethod: 'Cash', product: 'Mchele' },
-    { id: 'txn-006', name: 'Isabella Miller', phone: '+255766778899', amount: 35000, status: 'Paid', date: new Date(2024, 3, 22), paymentMethod: 'Bank', product: 'Unga' },
-    { id: 'rec-002', name: 'Sophia Davis', phone: '+255677889900', amount: 75000, status: 'Credit', date: new Date(2024, 3, 18), paymentMethod: 'Credit', product: 'Nido' },
-    { id: 'txn-007', name: 'Mia Rodriguez', phone: '+255718990011', amount: 55000, status: 'Paid', date: new Date(2024, 3, 11), paymentMethod: 'Mobile', product: 'Sukari' },
-    { id: 'txn-008', name: 'Lucas Wilson', phone: '+255622334455', amount: 90000, status: 'Paid', date: new Date(2024, 2, 30), paymentMethod: 'Bank', product: 'Mchele' },
-    { id: 'txn-009', name: 'Zoe Martinez', phone: '+255713445566', amount: 40000, status: 'Paid', date: new Date(2024, 2, 15), paymentMethod: 'Cash', product: 'Unga' },
-    { id: 'txn-010', name: 'Amelia Harris', phone: '+255758990011', amount: 48000, status: 'Paid', date: new Date(2024, 1, 15), paymentMethod: 'Mobile', product: 'Sabuni'},
-    { id: 'txn-011', name: 'Elijah Clark', phone: '+255689001122', amount: 72000, status: 'Paid', date: new Date(2024, 0, 20), paymentMethod: 'Bank', product: 'Nido'},
-    { id: 'txn-012', name: 'Henry Moore', phone: '+255717654321', amount: 7500, status: 'Paid', date: new Date(2023, 11, 15), paymentMethod: 'Cash', product: 'Sukari' },
-    { id: 'txn-013', name: 'Grace Taylor', phone: '+255754987654', amount: 9500, status: 'Paid', date: new Date(2023, 10, 5), paymentMethod: 'Mobile', product: 'Mchele' },
-    { id: 'txn-014', name: 'Benjamin Anderson', phone: '+255688123789', amount: 12000, status: 'Paid', date: new Date(2023, 9, 10), paymentMethod: 'Bank', product: 'Unga'},
-    { id: 'rec-003', name: 'Charlotte Thomas', phone: '+255787456123', amount: 21000, status: 'Credit', date: new Date(2023, 8, 22), paymentMethod: 'Credit', product: 'Mafuta'},
-    { id: 'txn-015', name: 'Daniel White', phone: '+255655789456', amount: 13000, status: 'Paid', date: new Date(2023, 7, 1), paymentMethod: 'Mobile', product: 'Sabuni'},
-];
-
-const initialPayables: Payable[] = [
-    { id: 'pay-001', supplierName: "Azam Mills", product: "Unga wa Ngano (50kg)", amount: 2500000, date: new Date(2024, 4, 10), status: 'Unpaid'},
-    { id: 'pay-002', supplierName: "Kilombero Sugar", product: "Sukari (20 bags)", amount: 1800000, date: new Date(2024, 4, 2), status: 'Unpaid'},
-    { id: 'pay-003', supplierName: "Korie Oils", product: "Mafuta ya Alizeti (100L)", amount: 3200000, date: new Date(2024, 3, 28), status: 'Unpaid'},
-];
-
-const initialPrepayments: CustomerPrepayment[] = [
-    { id: 'pre-001', customerName: "Asha Bakari", phone: "+255712112233", prepaidAmount: 15000, date: new Date(2024, 4, 20), status: 'Active' },
-    { id: 'pre-002', customerName: "John Okello", phone: "+255756445566", prepaidAmount: 50000, date: new Date(2024, 4, 15), status: 'Active' },
-    { id: 'pre-003', customerName: "Fatuma Said", phone: "+255688776655", prepaidAmount: 22500, date: new Date(2024, 4, 1), status: 'Active' },
-];
-
-const initialProducts: Product[] = [
-    { id: 'PROD-001', name: 'Mchele', initialStock: 100, currentStock: 80, entryDate: new Date(2024, 3, 1) },
-    { id: 'PROD-002', name: 'Unga', initialStock: 200, currentStock: 150, entryDate: new Date(2024, 2, 15) },
-    { id: 'PROD-003', name: 'Mafuta', initialStock: 50, currentStock: 45, entryDate: new Date(2024, 0, 10) },
-    { id: 'PROD-004', name: 'Sabuni', initialStock: 120, currentStock: 70, entryDate: new Date(2024, 1, 5) },
-    { id: 'PROD-005', name: 'Sukari', initialStock: 300, currentStock: 100, entryDate: new Date(2024, 4, 1) },
-    { id: 'PROD-006', name: 'Nido', initialStock: 80, currentStock: 75, entryDate: new Date(2023, 10, 20) },
-];
-
-const initialEmployees: Employee[] = [
-  { id: 'emp-001', name: 'Asha Juma', position: 'Sales Manager', salary: 1200000, avatar: 'https://placehold.co/40x40.png' },
-  { id: 'emp-002', name: 'David Chen', position: 'Accountant', salary: 950000, avatar: 'https://placehold.co/40x40.png' },
-  { id: 'emp-003', name: 'Fatuma Said', position: 'Marketing Officer', salary: 750000, avatar: 'https://placehold.co/40x40.png' },
-];
-
-const initialCapital: CapitalContribution[] = [
-  { id: 'cap-001', date: new Date(2023, 0, 15), description: 'Initial Capital Injection', type: 'Cash', amount: 25000000 },
-  { id: 'cap-002', date: new Date(2023, 5, 10), description: 'Toyota Hilux van for delivery', type: 'Asset', amount: 15000000 },
-  { id: 'cap-003', date: new Date(2024, 2, 1), description: 'Owner loan to business', type: 'Liability', amount: 5000000 },
-];
-
-const initialAssets: Asset[] = initialCapital
-    .filter(c => c.type === 'Asset')
-    .map(c => ({
-        id: c.id,
-        name: c.description,
-        cost: c.amount,
-        acquisitionDate: c.date,
-        depreciationRate: 25, // Default rate
-        status: 'Active',
-        accumulatedDepreciation: 0,
-        netBookValue: c.amount,
-        source: 'Capital'
-    }));
-
-const initialExpenses: Expense[] = [
-  { id: 'exp-001', description: 'Umeme wa LUKU ofisini', category: 'Umeme', amount: 50000, date: new Date(2024, 4, 20), status: 'Approved', paymentMethod: 'Mobile' },
-  { id: 'exp-002', description: 'Nauli ya kwenda kwa mteja', category: 'Usafiri', amount: 15000, date: new Date(2024, 4, 22), status: 'Pending' },
-  { id: 'exp-003', description: 'Manunuzi ya karatasi na wino', category: 'Manunuzi Ofisi', amount: 75000, date: new Date(2024, 4, 18), status: 'Approved', paymentMethod: 'Cash' },
-  { id: 'exp-004', description: 'Malipo ya vocha za simu', category: 'Mawasiliano', amount: 20000, date: new Date(2024, 4, 23), status: 'Pending' },
-];
-
-
 // --- Context Definition ---
 interface FinancialContextType {
     transactions: Transaction[];
@@ -243,21 +166,16 @@ const calculateDepreciation = (asset: Asset): { accumulatedDepreciation: number;
 
 // --- Context Provider ---
 export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
-    const [payables, setPayables] = useState<Payable[]>(initialPayables);
-    const [prepayments, setPrepayments] = useState<CustomerPrepayment[]>(initialPrepayments);
-    const [products, setProducts] = useState<Product[]>(initialProducts);
-    const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [payables, setPayables] = useState<Payable[]>([]);
+    const [prepayments, setPrepayments] = useState<CustomerPrepayment[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [payrollHistory, setPayrollHistory] = useState<PayrollRun[]>([]);
-    const [capitalContributions, setCapitalContributions] = useState<CapitalContribution[]>(initialCapital);
+    const [capitalContributions, setCapitalContributions] = useState<CapitalContribution[]>([]);
     const [ownerLoans, setOwnerLoans] = useState<OwnerLoan[]>([]);
-    const [assets, setAssets] = useState<Asset[]>(() => {
-         return initialAssets.map(asset => {
-            const { accumulatedDepreciation, netBookValue } = calculateDepreciation(asset);
-            return { ...asset, accumulatedDepreciation, netBookValue };
-        });
-    });
-    const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
+    const [assets, setAssets] = useState<Asset[]>([]);
+    const [expenses, setExpenses] = useState<Expense[]>([]);
     const [cashBalances, setCashBalances] = useState({ cash: 0, bank: 0, mobile: 0 });
 
     const recalculateBalances = useCallback(() => {
@@ -433,16 +351,18 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
     
     const repayOwnerLoan = (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => {
+        // Record a drawing for the repayment amount
         const newDrawing: CapitalContribution = {
-            id: `draw-${Date.now()}`,
+            id: `draw-repay-${Date.now()}`,
             date: new Date(),
-            description: `Loan Repayment: ${notes}`,
+            description: `Owner Loan Repayment: ${notes}`,
             type: 'Drawing',
             amount: amount,
             source: paymentMethod
         };
         setCapitalContributions(prev => [...prev, newDrawing]);
 
+        // Update the repaid amount on the loan
         setOwnerLoans(prev => prev.map(loan => 
             loan.id === loanId ? { ...loan, repaid: loan.repaid + amount } : loan
         ));
