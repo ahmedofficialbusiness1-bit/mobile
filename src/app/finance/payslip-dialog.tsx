@@ -70,7 +70,7 @@ export function PayslipDialog({ isOpen, onClose, payrollData }: PayslipDialogPro
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-md">
         <div ref={payslipContentRef}>
             <DialogHeader>
             <DialogTitle className="text-center text-2xl font-bold">PAYSLIP</DialogTitle>
@@ -79,7 +79,7 @@ export function PayslipDialog({ isOpen, onClose, payrollData }: PayslipDialogPro
             </DialogDescription>
             </DialogHeader>
             
-            <div className="p-6 space-y-6">
+            <div className="p-4 space-y-4">
                 <div className="flex justify-between items-start">
                     <div>
                         <h3 className="font-bold">DiraBiz Inc.</h3>
@@ -104,7 +104,7 @@ export function PayslipDialog({ isOpen, onClose, payrollData }: PayslipDialogPro
 
                 <Separator />
 
-                <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-4">
                     <div>
                         <h4 className="font-semibold mb-2">Earnings</h4>
                         <Table>
@@ -136,15 +136,15 @@ export function PayslipDialog({ isOpen, onClose, payrollData }: PayslipDialogPro
                 <Separator />
 
                 <div className="space-y-2">
-                    <div className="flex justify-between font-medium">
+                    <div className="flex justify-between font-medium text-sm">
                         <span>Total Earnings</span>
                         <span>TSh {payrollData.salary.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between font-medium">
+                    <div className="flex justify-between font-medium text-sm">
                         <span>Total Deductions</span>
                         <span>TSh {(payrollData.totalDeductions + payrollData.paye).toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-lg bg-muted p-2 rounded-md">
+                    <div className="flex justify-between font-bold text-base bg-muted p-2 rounded-md">
                         <span>Net Salary</span>
                         <span>TSh {payrollData.netSalary.toLocaleString()}</span>
                     </div>
