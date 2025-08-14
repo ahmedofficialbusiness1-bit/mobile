@@ -14,12 +14,15 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, CreditCard, Undo, Menu, Wallet, Users, Truck, Building, LandPlot, HandCoins, ChevronLeft } from 'lucide-react'
+import { CheckCircle, CreditCard, Undo } from 'lucide-react'
 import { useFinancials, PaymentMethod } from '@/context/financial-context'
 import { PaymentDialog } from '@/components/payment-dialog'
-import { cn } from '@/lib/utils'
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+  } from '@/components/ui/tabs'
 
 
 function PlaceholderCard({ title, description }: { title: string, description: string }) {
@@ -253,142 +256,61 @@ function AccountsView() {
     );
 }
 
-
-const financeNavItems = [
-    { id: 'accounts', label: 'Accounts', icon: Wallet },
-    { id: 'payroll', label: 'Payroll', icon: Users },
-    { id: 'expenses', label: 'Expenses', icon: Truck },
-    { id: 'capital', label: 'Capital', icon: Building },
-    { id: 'assets', label: 'Assets', icon: LandPlot },
-    { id: 'cash', label: 'Cash Management', icon: HandCoins }
-]
-
-function FinanceNav({ activeTab, setActiveTab, isSheet = false, isCollapsed }: { activeTab: string, setActiveTab: (id: string) => void, isSheet?: boolean, isCollapsed: boolean }) {
-    
-    const NavWrapper = ({ children }: { children: React.ReactNode }) => 
-        isSheet ? <>{children}</> : (
-            <nav className={cn("hidden md:flex flex-col gap-2 sticky top-24 transition-all duration-300", isCollapsed ? "w-14 items-center" : "w-52")}>
-                {children}
-            </nav>
-        );
-        
-    const navItems = financeNavItems.map(item => {
-        const button = (
-             <Button
-                key={item.id}
-                variant={activeTab === item.id ? 'default' : 'ghost'}
-                onClick={() => setActiveTab(item.id)}
-                className={cn("justify-start", isCollapsed && "w-10 h-10 p-0 justify-center")}
-            >
-                <item.icon className={cn("h-5 w-5", !isCollapsed && "mr-3")}/>
-                {!isCollapsed && <span>{item.label}</span>}
-            </Button>
-        );
-
-        if (isSheet) {
-            return <SheetClose asChild key={item.id}>{button}</SheetClose>;
-        }
-
-        if (isCollapsed) {
-            return (
-                <TooltipProvider key={item.id} delayDuration={0}>
-                    <Tooltip>
-                        <TooltipTrigger asChild>{button}</TooltipTrigger>
-                        <TooltipContent side="right">
-                           {item.label}
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            );
-        }
-
-        return button;
-    });
-
-    return <NavWrapper>{navItems}</NavWrapper>;
-}
-
 export default function FinancePage() {
-    const [activeTab, setActiveTab] = React.useState('accounts');
-    const [isCollapsed, setIsCollapsed] = React.useState(false);
-
     return (
         <div className="flex flex-col gap-8">
-            <div className="text-left flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold font-headline">
-                        Finance Management
-                    </h1>
-                    <p className="text-muted-foreground mt-2 max-w-2xl">
-                        Track and manage your company's financial health, from debts to customer deposits.
-                    </p>
-                </div>
-                <div className="md:hidden">
-                    <Sheet>
-                        <SheetTrigger asChild>
-                            <Button variant="outline">
-                                <Menu className="mr-2 h-4 w-4"/>
-                                Open Menu
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="left">
-                            <h2 className="text-lg font-semibold p-4">Finance Menu</h2>
-                            <div className="flex flex-col gap-2 p-4">
-                               <FinanceNav activeTab={activeTab} setActiveTab={setActiveTab} isSheet={true} isCollapsed={false}/>
-                            </div>
-                        </SheetContent>
-                    </Sheet>
-                </div>
+            <div className="text-left">
+                <h1 className="text-3xl font-bold font-headline">
+                    Finance Management
+                </h1>
+                <p className="text-muted-foreground mt-2 max-w-2xl">
+                    Track and manage your company's financial health, from debts to customer deposits.
+                </p>
             </div>
 
-            <div className="flex gap-8 items-start relative">
-                <div className="hidden md:block sticky top-16 h-full">
-                     <Button 
-                        variant="outline" 
-                        size="icon" 
-                        className="absolute -right-4 top-0 z-10 bg-background h-8 w-8"
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                    >
-                        <ChevronLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")}/>
-                    </Button>
-                    <FinanceNav activeTab={activeTab} setActiveTab={setActiveTab} isCollapsed={isCollapsed} />
-                </div>
-                
-
-                <div className="flex-1 min-w-0">
-                    {activeTab === 'accounts' && <AccountsView />}
-                    {activeTab === 'payroll' && (
-                        <PlaceholderCard 
-                            title="Payroll Management"
-                            description="Manage employee salaries, deductions, and payroll taxes."
-                        />
-                    )}
-                    {activeTab === 'expenses' && (
-                        <PlaceholderCard 
-                            title="Daily Expenses"
-                            description="Track and categorize all business operational expenses."
-                        />
-                    )}
-                    {activeTab === 'capital' && (
-                        <PlaceholderCard 
-                            title="Capital Management"
-                            description="Monitor owner's equity, investments, and drawings."
-                        />
-                    )}
-                    {activeTab === 'assets' && (
-                        <PlaceholderCard 
-                            title="Asset Management"
-                            description="Track fixed assets, depreciation, and value over time."
-                        />
-                    )}
-                    {activeTab === 'cash' && (
-                        <PlaceholderCard 
-                            title="Cash Management"
-                            description="Analyze cash flow from operating, investing, and financing activities."
-                        />
-                    )}
-                </div>
-            </div>
+            <Tabs defaultValue="accounts" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto">
+                    <TabsTrigger value="accounts">Accounts</TabsTrigger>
+                    <TabsTrigger value="payroll">Payroll</TabsTrigger>
+                    <TabsTrigger value="expenses">Expenses</TabsTrigger>
+                    <TabsTrigger value="capital">Capital</TabsTrigger>
+                    <TabsTrigger value="assets">Assets</TabsTrigger>
+                    <TabsTrigger value="cash">Cash Management</TabsTrigger>
+                </TabsList>
+                <TabsContent value="accounts">
+                    <AccountsView />
+                </TabsContent>
+                <TabsContent value="payroll">
+                     <PlaceholderCard 
+                        title="Payroll Management"
+                        description="Manage employee salaries, deductions, and payroll taxes."
+                    />
+                </TabsContent>
+                <TabsContent value="expenses">
+                     <PlaceholderCard 
+                        title="Daily Expenses"
+                        description="Track and categorize all business operational expenses."
+                    />
+                </TabsContent>
+                <TabsContent value="capital">
+                    <PlaceholderCard 
+                        title="Capital Management"
+                        description="Monitor owner's equity, investments, and drawings."
+                    />
+                </TabsContent>
+                <TabsContent value="assets">
+                    <PlaceholderCard 
+                        title="Asset Management"
+                        description="Track fixed assets, depreciation, and value over time."
+                    />
+                </TabsContent>
+                <TabsContent value="cash">
+                    <PlaceholderCard 
+                        title="Cash Management"
+                        description="Analyze cash flow from operating, investing, and financing activities."
+                    />
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
