@@ -143,19 +143,14 @@ export default function DashboardPage() {
         
         const dateRange = { start: fromDate, end: toDate };
 
-        // All transactions within the selected period
         const filteredTransactions = allTransactions.filter(t => isWithinInterval(t.date, dateRange));
         
-        // Total Revenue: All 'Paid' transactions in the period (includes new sales and debt repayments)
         const totalRevenue = filteredTransactions
             .filter(t => t.status === 'Paid')
             .reduce((acc, t) => acc + t.amount, 0);
 
-        // Sales & New Customers: Based on original transactions (Credit or Paid), excluding debt repayments
         const originalSalesInPeriod = allTransactions.filter(t => 
-          isWithinInterval(t.date, dateRange) && 
-          t.notes !== 'Debt Repayment' &&
-          (t.status === 'Paid' || (t.status === 'Credit'))
+            isWithinInterval(t.date, dateRange) && (t.status === 'Paid' || t.status === 'Credit') && t.notes !== 'Debt Repayment'
         );
         
         const sales = originalSalesInPeriod.length;
@@ -165,42 +160,37 @@ export default function DashboardPage() {
         const pastCustomerPhones = new Set(pastTransactions.map(t => t.phone));
         const newCustomers = Array.from(customerPhonesInPeriod).filter(phone => !pastCustomerPhones.has(phone)).length;
 
-        // Payment Breakdown: Based on all 'Paid' transactions in the period
         const paymentBreakdown = filteredTransactions
             .filter(t => t.status === 'Paid')
             .reduce((acc, t) => {
                 if (t.paymentMethod === 'Cash') acc.cash += t.amount;
                 if (t.paymentMethod === 'Mobile') acc.mobile += t.amount;
                 if (t.paymentMethod === 'Bank') acc.bank += t.amount;
-                if (t.paymentMethod === 'Prepaid') acc.cash += t.amount; // Prepaid is like cash for cashflow purposes
-            return acc;
-        }, { cash: 0, mobile: 0, bank: 0, credit: 0 });
+                if (t.paymentMethod === 'Prepaid') acc.cash += t.amount;
+                return acc;
+            }, { cash: 0, mobile: 0, bank: 0, credit: 0 });
         
-        // Total credit is the sum of all currently outstanding 'Credit' transactions, regardless of period
         const creditTotal = allTransactions
-          .filter(t => t.status === 'Credit')
-          .reduce((sum, t) => sum + t.amount, 0);
-
+            .filter(t => t.status === 'Credit')
+            .reduce((sum, t) => sum + t.amount, 0);
         paymentBreakdown.credit = creditTotal;
 
-        // Sales Chart: Based on all paid transactions in the period
         const monthlySales = filteredTransactions
-          .filter(t => t.status === 'Paid')
-          .reduce((acc, t) => {
-            const monthKey = format(t.date, 'MMM yy');
-            if (!acc[monthKey]) {
-              acc[monthKey] = { month: monthKey, sales: 0 };
-            }
-            acc[monthKey].sales += t.amount;
-            return acc;
-          }, {} as Record<string, ChartData>);
+            .filter(t => t.status === 'Paid')
+            .reduce((acc, t) => {
+                const monthKey = format(t.date, 'MMM yy');
+                if (!acc[monthKey]) {
+                    acc[monthKey] = { month: monthKey, sales: 0 };
+                }
+                acc[monthKey].sales += t.amount;
+                return acc;
+            }, {} as Record<string, ChartData>);
         
-        const chartData = Object.values(monthlySales).sort((a,b) => {
+        const chartData = Object.values(monthlySales).sort((a, b) => {
             const dateA = new Date(a.month.split(" ")[1], ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(a.month.split(" ")[0]));
             const dateB = new Date(b.month.split(" ")[1], ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(b.month.split(" ")[0]));
             return dateA.getTime() - dateB.getTime();
         });
-
 
         const threeMonthsAgo = subMonths(new Date(), 3);
         const slowMovingProducts = allProducts
@@ -213,7 +203,6 @@ export default function DashboardPage() {
             .filter(p => p.soldPercentage < 50)
             .sort((a, b) => a.soldPercentage - b.soldPercentage);
 
-        // Product Sales Chart: Based on original sales in the period
         const productSalesSummary = originalSalesInPeriod
             .reduce((acc, current) => {
                 const existingProduct = acc.find(p => p.name === current.product);
@@ -452,6 +441,7 @@ export default function DashboardPage() {
                     <TableRow>
                       <TableHead>Customer</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>Date</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -478,13 +468,16 @@ export default function DashboardPage() {
                             {transaction.status}
                           </Badge>
                         </TableCell>
+                         <TableCell className="whitespace-nowrap">
+                            {format(transaction.date, 'dd MMM, yyyy')}
+                        </TableCell>
                         <TableCell className="text-right">
                           +TSh {transaction.amount.toLocaleString()}
                         </TableCell>
                       </TableRow>
                     )) : (
                       <TableRow>
-                        <TableCell colSpan={3} className="text-center">
+                        <TableCell colSpan={4} className="text-center">
                             No transactions for this period.
                         </TableCell>
                       </TableRow>
@@ -760,3 +753,7 @@ export default function DashboardPage() {
         </div>
       )
 }
+
+    
+
+    
