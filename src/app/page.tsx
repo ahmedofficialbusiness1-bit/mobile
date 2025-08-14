@@ -1,8 +1,9 @@
+
 "use client"
 
 import * as React from 'react'
-import { addDays, format } from "date-fns"
-import { DateRange } from "react-day-picker"
+import { addDays, format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from "date-fns"
+import type { DateRange } from "react-day-picker"
 import {
   DollarSign,
   Users,
@@ -51,54 +52,124 @@ import {
 } from "@/components/ui/select"
 import { cn } from '@/lib/utils'
 
-const chartData = [
-  { month: 'Jan', sales: 186 },
-  { month: 'Feb', sales: 305 },
-  { month: 'Mar', sales: 237 },
-  { month: 'Apr', sales: 73 },
-  { month: 'May', sales: 209 },
-  { month: 'Jun', sales: 214 },
-]
+// Expanded dummy data with dates
+const allTransactions = [
+  { name: 'Liam Johnson', email: 'liam@example.com', amount: 250000, status: 'Paid', date: new Date('2024-05-20') },
+  { name: 'Olivia Smith', email: 'olivia@example.com', amount: 150000, status: 'Paid', date: new Date('2024-05-18') },
+  { name: 'Noah Williams', email: 'noah@example.com', amount: 350000, status: 'Pending', date: new Date('2024-05-15') },
+  { name: 'Emma Brown', email: 'emma@example.com', amount: 450000, status: 'Paid', date: new Date('2024-05-12') },
+  { name: 'James Jones', email: 'james@example.com', amount: 550000, status: 'Paid', date: new Date('2024-05-10') },
+  { name: 'Ava Garcia', email: 'ava@example.com', amount: 200000, status: 'Paid', date: new Date('2024-04-25') },
+  { name: 'Isabella Miller', email: 'isabella@example.com', amount: 175000, status: 'Paid', date: new Date('2024-04-22') },
+  { name: 'Sophia Davis', email: 'sophia@example.com', amount: 320000, status: 'Pending', date: new Date('2024-04-18') },
+  { name: 'Mia Rodriguez', email: 'mia@example.com', amount: 500000, status: 'Paid', date: new Date('2024-04-11') },
+  { name: 'Lucas Wilson', email: 'lucas@example.com', amount: 600000, status: 'Paid', date: new Date('2024-03-30') },
+  { name: 'Henry Moore', email: 'henry@example.com', amount: 75000, status: 'Paid', date: new Date('2023-12-15') },
+  { name: 'Grace Taylor', email: 'grace@example.com', amount: 95000, status: 'Paid', date: new Date('2023-11-05') },
+];
 
-const transactions = [
-  {
-    name: 'Liam Johnson',
-    email: 'liam@example.com',
-    amount: '+TSh 250,000.00',
-    status: 'Paid',
-  },
-  {
-    name: 'Olivia Smith',
-    email: 'olivia@example.com',
-    amount: '+TSh 150,000.00',
-    status: 'Paid',
-  },
-  {
-    name: 'Noah Williams',
-    email: 'noah@example.com',
-    amount: '+TSh 350,000.00',
-    status: 'Pending',
-  },
-  {
-    name: 'Emma Brown',
-    email: 'emma@example.com',
-    amount: '+TSh 450,000.00',
-    status: 'Paid',
-  },
-  {
-    name: 'James Jones',
-    email: 'james@example.com',
-    amount: '+TSh 550,000.00',
-    status: 'Paid',
-  },
-]
+const allChartData = [
+  { month: 'Jan', sales: 1860000 },
+  { month: 'Feb', sales: 3050000 },
+  { month: 'Mar', sales: 2370000 },
+  { month: 'Apr', sales: 730000 },
+  { month: 'May', sales: 2090000 },
+  { month: 'Jun', sales: 2140000 },
+  { month: 'Jul', sales: 2860000 },
+  { month: 'Aug', sales: 3250000 },
+  { month: 'Sep', sales: 2570000 },
+  { month: 'Oct', sales: 1730000 },
+  { month: 'Nov', sales: 2990000 },
+  { month: 'Dec', sales: 2540000 },
+];
 
+interface DashboardData {
+  totalRevenue: number;
+  newCustomers: number;
+  sales: number;
+  inventoryValue: number;
+  recentTransactions: typeof allTransactions;
+  chartData: typeof allChartData;
+}
 
 export default function DashboardPage() {
     const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(2024, 0, 20),
-    to: addDays(new Date(2024, 0, 20), 20),
-  })
+      from: startOfMonth(new Date()),
+      to: endOfMonth(new Date()),
+    })
+    const [selectedPreset, setSelectedPreset] = React.useState<string>("month");
+    const [dashboardData, setDashboardData] = React.useState<DashboardData>({
+      totalRevenue: 0,
+      newCustomers: 0,
+      sales: 0,
+      inventoryValue: 120483200, // Assuming this is constant for now
+      recentTransactions: [],
+      chartData: []
+    });
+
+    React.useEffect(() => {
+        if (!date || !date.from) return;
+
+        const fromDate = date.from;
+        const toDate = date.to || date.from;
+
+        // Filter transactions
+        const filteredTransactions = allTransactions.filter(t => t.date >= fromDate && t.date <= toDate);
+        
+        // Calculate metrics
+        const totalRevenue = filteredTransactions.reduce((acc, t) => acc + (t.status === 'Paid' ? t.amount : 0), 0);
+        const sales = filteredTransactions.length;
+        const newCustomers = new Set(filteredTransactions.map(t => t.email)).size;
+
+        // Filter chart data
+        const fromMonth = fromDate.getMonth();
+        const toMonth = toDate.getMonth();
+        const fromYear = fromDate.getFullYear();
+        const toYear = toDate.getFullYear();
+        
+        const filteredChartData = allChartData.filter((d, index) => {
+            const monthDate = new Date(`${fromYear}-${index + 1}-01`); // Use fromYear for simplicity in this example
+            return monthDate >= fromDate && monthDate <= toDate;
+        });
+
+
+        setDashboardData({
+            totalRevenue,
+            newCustomers,
+            sales,
+            inventoryValue: 120483200, // static for now
+            recentTransactions: filteredTransactions.slice(0, 5),
+            chartData: filteredChartData.length > 0 ? filteredChartData : allChartData.slice(fromMonth, toMonth + 1)
+        });
+
+    }, [date]);
+
+    const handlePresetChange = (value: string) => {
+        setSelectedPreset(value);
+        const now = new Date();
+        switch (value) {
+            case 'today':
+                setDate({ from: now, to: now });
+                break;
+            case 'last7':
+                setDate({ from: addDays(now, -6), to: now });
+                break;
+            case 'month':
+                setDate({ from: startOfMonth(now), to: endOfMonth(now) });
+                break;
+            case 'lastMonth':
+                const lastMonth = subMonths(now, 1);
+                setDate({ from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) });
+                break;
+            case 'year':
+                setDate({ from: startOfYear(now), to: endOfYear(now) });
+                break;
+            case 'all':
+                setDate({ from: new Date('2023-01-01'), to: endOfYear(now) });
+                break;
+        }
+    }
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -139,7 +210,7 @@ export default function DashboardPage() {
             />
           </PopoverContent>
         </Popover>
-         <Select>
+         <Select value={selectedPreset} onValueChange={handlePresetChange}>
             <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Select a preset" />
             </SelectTrigger>
@@ -147,6 +218,7 @@ export default function DashboardPage() {
                 <SelectItem value="today">Today</SelectItem>
                 <SelectItem value="last7">Last 7 Days</SelectItem>
                 <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="lastMonth">Last Month</SelectItem>
                 <SelectItem value="year">This Year</SelectItem>
                 <SelectItem value="all">All Time</SelectItem>
             </SelectContent>
@@ -159,9 +231,9 @@ export default function DashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">TSh 45,231,890</div>
+            <div className="text-2xl font-bold">TSh {dashboardData.totalRevenue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              +20.1% from last month
+              for the selected period
             </p>
           </CardContent>
         </Card>
@@ -171,9 +243,9 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+235</div>
+            <div className="text-2xl font-bold">+{dashboardData.newCustomers}</div>
             <p className="text-xs text-muted-foreground">
-              +180.1% from last month
+              in the selected period
             </p>
           </CardContent>
         </Card>
@@ -183,9 +255,9 @@ export default function DashboardPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+12,234</div>
+            <div className="text-2xl font-bold">+{dashboardData.sales}</div>
             <p className="text-xs text-muted-foreground">
-              +19% from last month
+              transactions in the period
             </p>
           </CardContent>
         </Card>
@@ -197,9 +269,9 @@ export default function DashboardPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">TSh 120,483,200</div>
+            <div className="text-2xl font-bold">TSh {dashboardData.inventoryValue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              -2% since last week
+              current value
             </p>
           </CardContent>
         </Card>
@@ -209,7 +281,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Recent Transactions</CardTitle>
             <CardDescription>
-              You made 265 sales this month.
+              Showing transactions for the selected period.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -222,7 +294,7 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map((transaction, index) => (
+                {dashboardData.recentTransactions.length > 0 ? dashboardData.recentTransactions.map((transaction, index) => (
                   <TableRow key={index}>
                     <TableCell>
                       <div className="font-medium">{transaction.name}</div>
@@ -245,10 +317,16 @@ export default function DashboardPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      {transaction.amount}
+                      +TSh {transaction.amount.toLocaleString()}
                     </TableCell>
                   </TableRow>
-                ))}
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center">
+                        No transactions for this period.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -266,7 +344,7 @@ export default function DashboardPage() {
                 },
               }}>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData}>
+                <BarChart data={dashboardData.chartData}>
                   <XAxis
                     dataKey="month"
                     stroke="#888888"
@@ -279,10 +357,10 @@ export default function DashboardPage() {
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(value) => `TSh ${value}`}
+                    tickFormatter={(value) => `TSh ${Math.floor(value / 1000000)}M`}
                   />
                   <Tooltip
-                    content={<ChartTooltipContent />}
+                    content={<ChartTooltipContent formatter={(value, name) => [`TSh ${Number(value).toLocaleString()}`, "Sales"]}/>}
                     cursor={{ fill: 'hsl(var(--muted))' }}
                   />
                   <Bar
