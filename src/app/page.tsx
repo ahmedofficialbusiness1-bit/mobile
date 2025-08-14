@@ -18,6 +18,7 @@ import {
   TrendingDown,
   TrendingUp,
   WalletCards,
+  Search,
 } from 'lucide-react'
 import {
   Card,
@@ -60,6 +61,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { Progress } from '@/components/ui/progress'
 import { useFinancials, Transaction, Payable, CustomerPrepayment, Product, PaymentMethod } from '@/context/financial-context'
@@ -115,6 +117,7 @@ export default function DashboardPage() {
       to: endOfMonth(new Date()),
     })
     const [selectedPreset, setSelectedPreset] = React.useState<string>("month");
+    const [transactionSearchTerm, setTransactionSearchTerm] = React.useState("");
     const [dashboardData, setDashboardData] = React.useState<DashboardData>({
       totalRevenue: 0,
       newCustomers: 0,
@@ -272,6 +275,10 @@ export default function DashboardPage() {
                 break;
         }
     }
+    
+    const visibleTransactions = dashboardData.transactions.filter(transaction => 
+        transaction.name.toLowerCase().includes(transactionSearchTerm.toLowerCase())
+    );
 
 
     return (
@@ -429,11 +436,22 @@ export default function DashboardPage() {
     
           <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
             <Card>
-              <CardHeader>
-                <CardTitle>Transactions</CardTitle>
-                <CardDescription>
-                  Showing all transactions for the selected period.
-                </CardDescription>
+              <CardHeader className="flex flex-row justify-between items-center">
+                <div>
+                  <CardTitle>Transactions</CardTitle>
+                  <CardDescription>
+                    Showing all transactions for the selected period.
+                  </CardDescription>
+                </div>
+                <div className="relative w-full max-w-sm">
+                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                   <Input 
+                      placeholder="Search by customer name..." 
+                      className="pl-8"
+                      value={transactionSearchTerm}
+                      onChange={e => setTransactionSearchTerm(e.target.value)}
+                    />
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -446,7 +464,7 @@ export default function DashboardPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dashboardData.transactions.length > 0 ? dashboardData.transactions.map((transaction) => (
+                    {visibleTransactions.length > 0 ? visibleTransactions.map((transaction) => (
                       <TableRow key={transaction.id}>
                         <TableCell>
                           <div className="font-medium">{transaction.name}</div>
@@ -477,8 +495,8 @@ export default function DashboardPage() {
                       </TableRow>
                     )) : (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center">
-                            No transactions for this period.
+                        <TableCell colSpan={4} className="text-center h-24">
+                            No transactions found for the current filter.
                         </TableCell>
                       </TableRow>
                     )}
