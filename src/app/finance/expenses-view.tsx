@@ -22,10 +22,10 @@ import { PaymentDialog } from '@/components/payment-dialog';
 import { useFinancials, type PaymentMethod, type Expense, type AddExpenseData } from '@/context/financial-context';
 
 export default function ExpensesView() {
-  const { expenses, addExpense, approveExpense } = useFinancials();
+  const { expenses, addExpense, approveExpense, cashBalances } = useFinancials();
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
-  const [selectedExpenseId, setSelectedExpenseId] = React.useState<string | null>(null);
+  const [selectedExpense, setSelectedExpense] = React.useState<Expense | null>(null);
   const [searchTerm, setSearchTerm] = React.useState('');
   const { toast } = useToast();
 
@@ -38,22 +38,32 @@ export default function ExpensesView() {
     setIsFormOpen(false);
   };
 
-  const openApprovalDialog = (id: string) => {
-    setSelectedExpenseId(id);
+  const openApprovalDialog = (expense: Expense) => {
+    setSelectedExpense(expense);
     setIsPaymentDialogOpen(true);
   }
 
   const handleApproveExpense = (paymentMethod: PaymentMethod) => {
-    if (!selectedExpenseId) return;
+    if (!selectedExpense) return;
 
-    approveExpense(selectedExpenseId, paymentMethod);
+    const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
+    if (selectedExpense.amount > balance) {
+        toast({
+            variant: "destructive",
+            title: "Insufficient Funds",
+            description: `You do not have enough money in your ${paymentMethod} account to approve this expense.`,
+        });
+        return;
+    }
+
+    approveExpense(selectedExpense.id, paymentMethod);
     toast({
       title: "Tarakilishi Limethibitishwa",
       description: `Tarakilishi limelipwa kwa ${paymentMethod} na litahesabiwa kwenye vitabu vya fedha.`,
       variant: 'default',
     });
     setIsPaymentDialogOpen(false);
-    setSelectedExpenseId(null);
+    setSelectedExpense(null);
   };
   
   const filteredExpenses = expenses.filter(expense => 
@@ -131,7 +141,7 @@ export default function ExpensesView() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openApprovalDialog(expense.id)}
+                            onClick={() => openApprovalDialog(expense)}
                           >
                             <CheckCircle2 className="mr-2 h-4 w-4" />
                             Thibitisha

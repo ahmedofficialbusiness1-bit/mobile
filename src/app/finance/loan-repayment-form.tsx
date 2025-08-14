@@ -17,13 +17,22 @@ interface LoanRepaymentFormProps {
   onClose: () => void;
   onSave: (amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => void;
   maxAmount: number;
+  maxBalances: { cash: number; bank: number; mobile: number };
 }
 
-export function LoanRepaymentForm({ isOpen, onClose, onSave, maxAmount }: LoanRepaymentFormProps) {
+export function LoanRepaymentForm({ isOpen, onClose, onSave, maxAmount, maxBalances }: LoanRepaymentFormProps) {
   const formSchema = z.object({
     amount: z.coerce.number().min(1, "Amount must be greater than zero.").max(maxAmount, `Amount cannot exceed the outstanding balance of ${maxAmount.toLocaleString()} TSh.`),
     paymentMethod: z.enum(['Cash', 'Bank', 'Mobile']),
     notes: z.string().optional(),
+  }).refine(data => {
+    if (data.paymentMethod === 'Cash') return data.amount <= maxBalances.cash;
+    if (data.paymentMethod === 'Bank') return data.amount <= maxBalances.bank;
+    if (data.paymentMethod === 'Mobile') return data.amount <= maxBalances.mobile;
+    return false;
+  }, {
+    message: "Repayment amount exceeds the selected source's balance.",
+    path: ['amount'],
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -78,9 +87,9 @@ export function LoanRepaymentForm({ isOpen, onClose, onSave, maxAmount }: LoanRe
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            <SelectItem value="Cash">Cash on Hand</SelectItem>
-                            <SelectItem value="Bank">Bank Account</SelectItem>
-                            <SelectItem value="Mobile">Mobile Money</SelectItem>
+                            <SelectItem value="Cash">Cash on Hand (TSh {maxBalances.cash.toLocaleString()})</SelectItem>
+                            <SelectItem value="Bank">Bank Account (TSh {maxBalances.bank.toLocaleString()})</SelectItem>
+                            <SelectItem value="Mobile">Mobile Money (TSh {maxBalances.mobile.toLocaleString()})</SelectItem>
                         </SelectContent>
                     </Select>
                   <FormMessage />

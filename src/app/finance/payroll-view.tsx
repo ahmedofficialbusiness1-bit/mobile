@@ -40,7 +40,7 @@ const calculatePAYE = (taxableIncome: number) => {
 
 
 export default function PayrollView() {
-  const { employees, addEmployee, updateEmployee, deleteEmployee, processPayroll, payrollHistory } = useFinancials();
+  const { employees, addEmployee, updateEmployee, deleteEmployee, processPayroll, payrollHistory, cashBalances } = useFinancials();
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [selectedEmployee, setSelectedEmployee] = React.useState<Employee | null>(null);
   const [payslipEmployee, setPayslipEmployee] = React.useState<PayrollData | null>(null);
@@ -73,8 +73,43 @@ export default function PayrollView() {
     });
   }
   
+    const payrollData = employees.map(emp => {
+      const nssf = calculateNSSF(emp.salary);
+      const otherDeductions = 0; // Placeholder for other deductions like loans
+      const totalDeductions = nssf + otherDeductions;
+      const taxableIncome = emp.salary - nssf; // NSSF is deducted before tax
+      const paye = calculatePAYE(taxableIncome);
+      const netSalary = emp.salary - totalDeductions - paye;
+      return {
+          ...emp,
+          nssf,
+          paye,
+          totalDeductions,
+          taxableIncome,
+          netSalary,
+      }
+    })
+
+    const totals = {
+      gross: payrollData.reduce((acc, emp) => acc + emp.salary, 0),
+      deductions: payrollData.reduce((acc, emp) => acc + emp.totalDeductions, 0),
+      paye: payrollData.reduce((acc, emp) => acc + emp.paye, 0),
+      net: payrollData.reduce((acc, emp) => acc + emp.netSalary, 0),
+    }
+
   const handlePayAll = (paymentMethod: PaymentMethod) => {
     const totalNet = totals.net;
+    const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
+
+    if (totalNet > balance) {
+        toast({
+            variant: "destructive",
+            title: "Insufficient Funds",
+            description: `You need TSh ${totalNet.toLocaleString()} but only have TSh ${balance.toLocaleString()} in your ${paymentMethod} account.`,
+        });
+        return;
+    }
+
     processPayroll(paymentMethod, totals.gross, totalNet);
     toast({
         title: "Payroll Processed Successfully",
@@ -101,30 +136,6 @@ export default function PayrollView() {
     setIsFormOpen(false);
     setSelectedEmployee(null);
   };
-
-  const payrollData = employees.map(emp => {
-      const nssf = calculateNSSF(emp.salary);
-      const otherDeductions = 0; // Placeholder for other deductions like loans
-      const totalDeductions = nssf + otherDeductions;
-      const taxableIncome = emp.salary - nssf; // NSSF is deducted before tax
-      const paye = calculatePAYE(taxableIncome);
-      const netSalary = emp.salary - totalDeductions - paye;
-      return {
-          ...emp,
-          nssf,
-          paye,
-          totalDeductions,
-          taxableIncome,
-          netSalary,
-      }
-  })
-
-  const totals = {
-    gross: payrollData.reduce((acc, emp) => acc + emp.salary, 0),
-    deductions: payrollData.reduce((acc, emp) => acc + emp.totalDeductions, 0),
-    paye: payrollData.reduce((acc, emp) => acc + emp.paye, 0),
-    net: payrollData.reduce((acc, emp) => acc + emp.netSalary, 0),
-  }
 
   return (
     <>

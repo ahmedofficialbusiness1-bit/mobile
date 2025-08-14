@@ -145,6 +145,7 @@ export default function CashManagementView() {
                 onClose={() => setIsRepayOpen(false)}
                 onSave={handleRepayment}
                 maxAmount={totalLoan}
+                maxBalances={cashBalances}
             />
 
             <DrawingForm
