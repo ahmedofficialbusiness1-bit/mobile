@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from 'react'
-import { addDays, format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, getMonth, getYear } from "date-fns"
+import { addDays, format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, getMonth, getYear, isWithinInterval } from "date-fns"
 import type { DateRange } from "react-day-picker"
 import {
   DollarSign,
@@ -73,46 +73,36 @@ interface Transaction {
 
 // Expanded dummy data with dates and payment methods
 const allTransactions: Transaction[] = [
+  // 2024 May
   { name: 'Liam Johnson', email: 'liam@example.com', amount: 250000, status: 'Paid', date: new Date('2024-05-20'), paymentMethod: 'Mobile' },
   { name: 'Olivia Smith', email: 'olivia@example.com', amount: 150000, status: 'Paid', date: new Date('2024-05-18'), paymentMethod: 'Cash' },
   { name: 'Noah Williams', email: 'noah@example.com', amount: 350000, status: 'Credit', date: new Date('2024-05-15'), paymentMethod: 'Credit' },
   { name: 'Emma Brown', email: 'emma@example.com', amount: 450000, status: 'Paid', date: new Date('2024-05-12'), paymentMethod: 'Bank' },
   { name: 'James Jones', email: 'james@example.com', amount: 550000, status: 'Paid', date: new Date('2024-05-10'), paymentMethod: 'Mobile' },
+  
+  // 2024 April
   { name: 'Ava Garcia', email: 'ava@example.com', amount: 200000, status: 'Paid', date: new Date('2024-04-25'), paymentMethod: 'Cash' },
   { name: 'Isabella Miller', email: 'isabella@example.com', amount: 175000, status: 'Paid', date: new Date('2024-04-22'), paymentMethod: 'Bank' },
   { name: 'Sophia Davis', email: 'sophia@example.com', amount: 320000, status: 'Credit', date: new Date('2024-04-18'), paymentMethod: 'Credit' },
   { name: 'Mia Rodriguez', email: 'mia@example.com', amount: 500000, status: 'Paid', date: new Date('2024-04-11'), paymentMethod: 'Mobile' },
+  
+  // 2024 March
   { name: 'Lucas Wilson', email: 'lucas@example.com', amount: 600000, status: 'Paid', date: new Date('2024-03-30'), paymentMethod: 'Bank' },
+
+  // 2024 February
+  { name: 'Amelia Harris', email: 'amelia@example.com', amount: 480000, status: 'Paid', date: new Date('2024-02-15'), paymentMethod: 'Mobile'},
+  
+  // 2024 January
+  { name: 'Elijah Clark', email: 'elijah@example.com', amount: 720000, status: 'Paid', date: new Date('2024-01-20'), paymentMethod: 'Bank'},
+
+  // 2023 Data
   { name: 'Henry Moore', email: 'henry@example.com', amount: 75000, status: 'Paid', date: new Date('2023-12-15'), paymentMethod: 'Cash' },
   { name: 'Grace Taylor', email: 'grace@example.com', amount: 95000, status: 'Paid', date: new Date('2023-11-05'), paymentMethod: 'Mobile' },
+  { name: 'Benjamin Anderson', email: 'benjamin@example.com', amount: 120000, status: 'Paid', date: new Date('2023-10-10'), paymentMethod: 'Bank'},
+  { name: 'Charlotte Thomas', email: 'charlotte@example.com', amount: 210000, status: 'Paid', date: new Date('2023-09-22'), paymentMethod: 'Cash'},
+  { name: 'Daniel White', email: 'daniel@example.com', amount: 130000, status: 'Paid', date: new Date('2023-08-01'), paymentMethod: 'Mobile'},
 ];
 
-const allChartData = [
-  { date: new Date("2023-01-01"), sales: 1860000 },
-  { date: new Date("2023-02-01"), sales: 3050000 },
-  { date: new Date("2023-03-01"), sales: 2370000 },
-  { date: new Date("2023-04-01"), sales: 730000 },
-  { date: new Date("2023-05-01"), sales: 2090000 },
-  { date: new Date("2023-06-01"), sales: 2140000 },
-  { date: new Date("2023-07-01"), sales: 2860000 },
-  { date: new Date("2023-08-01"), sales: 3250000 },
-  { date: new Date("2023-09-01"), sales: 2570000 },
-  { date: new Date("2023-10-01"), sales: 1730000 },
-  { date: new Date("2023-11-01"), sales: 2990000 },
-  { date: new Date("2023-12-01"), sales: 2540000 },
-  { date: new Date("2024-01-01"), sales: 1860000 },
-  { date: new Date("2024-02-01"), sales: 3050000 },
-  { date: new Date("2024-03-01"), sales: 2370000 },
-  { date: new Date("2024-04-01"), sales: 730000 },
-  { date: new Date("2024-05-01"), sales: 2090000 },
-  { date: new Date("2024-06-01"), sales: 2140000 },
-  { date: new Date("2024-07-01"), sales: 2860000 },
-  { date: new Date("2024-08-01"), sales: 3250000 },
-  { date: new Date("2024-09-01"), sales: 2570000 },
-  { date: new Date("2024-10-01"), sales: 1730000 },
-  { date: new Date("2024-11-01"), sales: 2990000 },
-  { date: new Date("2024-12-01"), sales: 2540000 },
-];
 
 const allProducts = [
     { id: 'PROD-001', name: 'Mchele (Super)', initialStock: 100, currentStock: 80, entryDate: new Date('2024-04-01') },
@@ -192,29 +182,47 @@ export default function DashboardPage() {
     });
 
     React.useEffect(() => {
-        const fromDate = date?.from || startOfMonth(new Date());
-        const toDate = date?.to || endOfMonth(new Date());
+        const fromDate = date?.from;
+        const toDate = date?.to;
 
-        const filteredTransactions = allTransactions.filter(t => t.date >= fromDate && t.date <= toDate);
+        if (!fromDate || !toDate) {
+            return;
+        }
+
+        const filteredTransactions = allTransactions.filter(t => isWithinInterval(t.date, { start: fromDate, end: toDate }));
         
         const totalRevenue = filteredTransactions.reduce((acc, t) => acc + (t.status === 'Paid' ? t.amount : 0), 0);
         const sales = filteredTransactions.length;
         const newCustomers = new Set(filteredTransactions.map(t => t.email)).size;
 
         const paymentBreakdown = filteredTransactions.reduce((acc, t) => {
-            if (t.paymentMethod === 'Cash') acc.cash += t.amount;
-            if (t.paymentMethod === 'Mobile') acc.mobile += t.amount;
-            if (t.paymentMethod === 'Bank') acc.bank += t.amount;
-            if (t.paymentMethod === 'Credit') acc.credit += t.amount;
+            if (t.status === 'Paid') {
+                if (t.paymentMethod === 'Cash') acc.cash += t.amount;
+                if (t.paymentMethod === 'Mobile') acc.mobile += t.amount;
+                if (t.paymentMethod === 'Bank') acc.bank += t.amount;
+            } else if (t.status === 'Credit') {
+                acc.credit += t.amount;
+            }
             return acc;
         }, { cash: 0, mobile: 0, bank: 0, credit: 0 });
 
-        const filteredChartData = allChartData
-          .filter(d => d.date >= fromDate && d.date <= toDate)
-          .map(d => ({
-              month: format(d.date, 'MMM yy'),
-              sales: d.sales
-          }));
+        const monthlySales = filteredTransactions
+          .filter(t => t.status === 'Paid')
+          .reduce((acc, t) => {
+            const monthKey = format(t.date, 'MMM yy');
+            if (!acc[monthKey]) {
+              acc[monthKey] = { month: monthKey, sales: 0 };
+            }
+            acc[monthKey].sales += t.amount;
+            return acc;
+          }, {} as Record<string, ChartData>);
+        
+        const chartData = Object.values(monthlySales).sort((a,b) => {
+            const dateA = new Date(a.month.split(" ")[1], ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(a.month.split(" ")[0]));
+            const dateB = new Date(b.month.split(" ")[1], ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(b.month.split(" ")[0]));
+            return dateA.getTime() - dateB.getTime();
+        });
+
 
         const threeMonthsAgo = subMonths(new Date(), 3);
         const slowMovingProducts = allProducts
@@ -227,7 +235,7 @@ export default function DashboardPage() {
             .filter(p => p.soldPercentage < 50)
             .sort((a, b) => a.soldPercentage - b.soldPercentage);
 
-        const filteredProductSales = allProductSalesData.filter(p => p.date >= fromDate && p.date <= toDate);
+        const filteredProductSales = allProductSalesData.filter(p => isWithinInterval(p.date, { start: fromDate, end: toDate }));
         const productSalesSummary = filteredProductSales.reduce((acc, current) => {
             const existingProduct = acc.find(p => p.name === current.name);
             if (existingProduct) {
@@ -245,7 +253,7 @@ export default function DashboardPage() {
             sales,
             inventoryValue: 120483200,
             recentTransactions: filteredTransactions.slice(0, 5),
-            chartData: filteredChartData,
+            chartData,
             slowMovingProducts: slowMovingProducts,
             paymentBreakdown,
             productSales: productSalesSummary
@@ -490,7 +498,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Sales Overview</CardTitle>
-            <CardDescription>An overview of your monthly sales.</CardDescription>
+            <CardDescription>An overview of your monthly sales for the selected period.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
              <ChartContainer config={{
@@ -516,7 +524,7 @@ export default function DashboardPage() {
                     tickFormatter={(value) => `TSh ${Math.floor(value / 1000000)}M`}
                   />
                   <Tooltip
-                    content={<ChartTooltipContent formatter={(value, name) => [`TSh ${Number(value).toLocaleString()}`, "Sales"]}/>}
+                    content={<ChartTooltipContent formatter={(value) => `TSh ${Number(value).toLocaleString()}`}/>}
                     cursor={{ fill: 'hsl(var(--muted))' }}
                   />
                   <Bar
@@ -615,5 +623,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-    
