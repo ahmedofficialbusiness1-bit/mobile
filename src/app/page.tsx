@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from 'react'
-import { addDays, format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from "date-fns"
+import { addDays, format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, getMonth, getYear } from "date-fns"
 import type { DateRange } from "react-day-picker"
 import {
   DollarSign,
@@ -88,18 +88,30 @@ const allTransactions: Transaction[] = [
 ];
 
 const allChartData = [
-  { month: 'Jan', sales: 1860000 },
-  { month: 'Feb', sales: 3050000 },
-  { month: 'Mar', sales: 2370000 },
-  { month: 'Apr', sales: 730000 },
-  { month: 'May', sales: 2090000 },
-  { month: 'Jun', sales: 2140000 },
-  { month: 'Jul', sales: 2860000 },
-  { month: 'Aug', sales: 3250000 },
-  { month: 'Sep', sales: 2570000 },
-  { month: 'Oct', sales: 1730000 },
-  { month: 'Nov', sales: 2990000 },
-  { month: 'Dec', sales: 2540000 },
+  { date: new Date("2023-01-01"), sales: 1860000 },
+  { date: new Date("2023-02-01"), sales: 3050000 },
+  { date: new Date("2023-03-01"), sales: 2370000 },
+  { date: new Date("2023-04-01"), sales: 730000 },
+  { date: new Date("2023-05-01"), sales: 2090000 },
+  { date: new Date("2023-06-01"), sales: 2140000 },
+  { date: new Date("2023-07-01"), sales: 2860000 },
+  { date: new Date("2023-08-01"), sales: 3250000 },
+  { date: new Date("2023-09-01"), sales: 2570000 },
+  { date: new Date("2023-10-01"), sales: 1730000 },
+  { date: new Date("2023-11-01"), sales: 2990000 },
+  { date: new Date("2023-12-01"), sales: 2540000 },
+  { date: new Date("2024-01-01"), sales: 1860000 },
+  { date: new Date("2024-02-01"), sales: 3050000 },
+  { date: new Date("2024-03-01"), sales: 2370000 },
+  { date: new Date("2024-04-01"), sales: 730000 },
+  { date: new Date("2024-05-01"), sales: 2090000 },
+  { date: new Date("2024-06-01"), sales: 2140000 },
+  { date: new Date("2024-07-01"), sales: 2860000 },
+  { date: new Date("2024-08-01"), sales: 3250000 },
+  { date: new Date("2024-09-01"), sales: 2570000 },
+  { date: new Date("2024-10-01"), sales: 1730000 },
+  { date: new Date("2024-11-01"), sales: 2990000 },
+  { date: new Date("2024-12-01"), sales: 2540000 },
 ];
 
 const allProducts = [
@@ -144,13 +156,18 @@ interface ProductSales {
     sales: number;
 }
 
+interface ChartData {
+    month: string;
+    sales: number;
+}
+
 interface DashboardData {
   totalRevenue: number;
   newCustomers: number;
   sales: number;
   inventoryValue: number;
   recentTransactions: Transaction[];
-  chartData: typeof allChartData;
+  chartData: ChartData[];
   slowMovingProducts: SlowMovingProduct[];
   paymentBreakdown: PaymentBreakdown;
   productSales: ProductSales[];
@@ -192,14 +209,12 @@ export default function DashboardPage() {
             return acc;
         }, { cash: 0, mobile: 0, bank: 0, credit: 0 });
 
-        const fromMonth = fromDate.getMonth();
-        const toMonth = toDate.getMonth();
-        const fromYear = fromDate.getFullYear();
-        
-        const filteredChartData = allChartData.filter((d, index) => {
-            const monthDate = new Date(`${fromYear}-${index + 1}-01`);
-            return monthDate >= startOfMonth(fromDate) && monthDate <= endOfMonth(toDate);
-        });
+        const filteredChartData = allChartData
+          .filter(d => d.date >= fromDate && d.date <= toDate)
+          .map(d => ({
+              month: format(d.date, 'MMM yy'),
+              sales: d.sales
+          }));
 
         const threeMonthsAgo = subMonths(new Date(), 3);
         const slowMovingProducts = allProducts
@@ -230,7 +245,7 @@ export default function DashboardPage() {
             sales,
             inventoryValue: 120483200,
             recentTransactions: filteredTransactions.slice(0, 5),
-            chartData: filteredChartData.length > 0 ? filteredChartData : allChartData.slice(fromMonth, toMonth + 1),
+            chartData: filteredChartData,
             slowMovingProducts: slowMovingProducts,
             paymentBreakdown,
             productSales: productSalesSummary
@@ -585,7 +600,7 @@ export default function DashboardPage() {
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={dashboardData.productSales} layout="vertical">
                             <XAxis type="number" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `TSh ${Number(value)/1000}k`}/>
-                            <YAxis type="category" dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                            <YAxis type="category" dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} width={80} />
                             <Tooltip
                                 content={<ChartTooltipContent formatter={(value, name) => [`TSh ${Number(value).toLocaleString()}`, "Sales"]}/>}
                                 cursor={{ fill: 'hsl(var(--muted))' }}
