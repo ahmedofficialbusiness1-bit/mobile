@@ -1,11 +1,11 @@
 "use client"
 
+import { useState } from 'react'
 import {
-  ArrowUpRight,
   DollarSign,
   Users,
   CreditCard,
-  Activity,
+  Package,
 } from 'lucide-react'
 import {
   Card,
@@ -23,6 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Bar,
   BarChart,
@@ -75,9 +76,30 @@ const transactions = [
   },
 ]
 
+type Period = 'today' | 'week' | 'year'
+
 export default function DashboardPage() {
+  const [activePeriod, setActivePeriod] = useState<Period>('today')
+
   return (
     <div className="flex flex-col gap-8">
+       <div className="flex justify-start gap-2">
+        <Button 
+          variant={activePeriod === 'today' ? 'default' : 'outline'}
+          onClick={() => setActivePeriod('today')}>
+          Today
+        </Button>
+        <Button 
+          variant={activePeriod === 'week' ? 'default' : 'outline'}
+          onClick={() => setActivePeriod('week')}>
+          This Week
+        </Button>
+        <Button 
+          variant={activePeriod === 'year' ? 'default' : 'outline'}
+          onClick={() => setActivePeriod('year')}>
+          This Year
+        </Button>
+      </div>
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -118,14 +140,14 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Active Branches
+              Total Inventory Value
             </CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+5</div>
+            <div className="text-2xl font-bold">TSh 120,483,200</div>
             <p className="text-xs text-muted-foreground">
-              +2 since last quarter
+              -2% since last week
             </p>
           </CardContent>
         </Card>
@@ -185,7 +207,12 @@ export default function DashboardPage() {
             <CardDescription>An overview of your monthly sales.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <ChartContainer config={{}} className="min-h-[200px] w-full">
+             <ChartContainer config={{
+                sales: {
+                  label: "Sales",
+                  color: "hsl(var(--primary))",
+                },
+              }}>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData}>
                   <XAxis
