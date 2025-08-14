@@ -206,5 +206,5 @@ export default function FinancePage() {
           </Card>
       </div>
     </div>
-  )
+  );
 }
