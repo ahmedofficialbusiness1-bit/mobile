@@ -17,11 +17,11 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle, CreditCard, Undo } from 'lucide-react'
 import { useFinancials, PaymentMethod } from '@/context/financial-context'
 import { PaymentDialog } from '@/components/payment-dialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 
 function PlaceholderCard({ title, description }: { title: string, description: string }) {
     return (
-        <Card className="mt-6">
+        <Card>
             <CardHeader>
                 <CardTitle>{title}</CardTitle>
                 <CardDescription>{description}</CardDescription>
@@ -76,7 +76,7 @@ function AccountsView() {
     
     return (
     <>
-        <div className="space-y-8 mt-6">
+        <div className="space-y-8">
             <Card>
                 <CardHeader>
                   <CardTitle>Accounts Receivable</CardTitle>
@@ -250,61 +250,78 @@ function AccountsView() {
     );
 }
 
-export default function FinancePage() {
-  return (
-    <div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
-      <div className="text-left">
-        <h1 className="text-3xl font-bold font-headline">
-          Finance Management
-        </h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl">
-          Track and manage your company's financial health, from debts to customer deposits.
-        </p>
-      </div>
 
-      <Tabs defaultValue="accounts" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto">
-          <TabsTrigger value="accounts">Accounts</TabsTrigger>
-          <TabsTrigger value="payroll">Payroll</TabsTrigger>
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          <TabsTrigger value="capital">Capital</TabsTrigger>
-          <TabsTrigger value="assets">Assets</TabsTrigger>
-          <TabsTrigger value="cash">Cash Flow</TabsTrigger>
-        </TabsList>
-        <TabsContent value="accounts">
-          <AccountsView />
-        </TabsContent>
-        <TabsContent value="payroll">
-          <PlaceholderCard 
-            title="Payroll Management"
-            description="Manage employee salaries, deductions, and payroll taxes."
-          />
-        </TabsContent>
-        <TabsContent value="expenses">
-           <PlaceholderCard 
-            title="Daily Expenses"
-            description="Track and categorize all business operational expenses."
-          />
-        </TabsContent>
-        <TabsContent value="capital">
-           <PlaceholderCard 
-            title="Capital Management"
-            description="Monitor owner's equity, investments, and drawings."
-          />
-        </TabsContent>
-        <TabsContent value="assets">
-           <PlaceholderCard 
-            title="Asset Management"
-            description="Track fixed assets, depreciation, and value over time."
-          />
-        </TabsContent>
-        <TabsContent value="cash">
-           <PlaceholderCard 
-            title="Cash Management"
-            description="Analyze cash flow from operating, investing, and financing activities."
-          />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+const financeNavItems = [
+    { id: 'accounts', label: 'Accounts' },
+    { id: 'payroll', label: 'Payroll' },
+    { id: 'expenses', label: 'Expenses' },
+    { id: 'capital', label: 'Capital' },
+    { id: 'assets', label: 'Assets' },
+    { id: 'cash', label: 'Cash Flow' }
+]
+
+export default function FinancePage() {
+    const [activeTab, setActiveTab] = React.useState('accounts');
+
+    return (
+        <div className="flex flex-col gap-8">
+            <div className="text-left">
+                <h1 className="text-3xl font-bold font-headline">
+                    Finance Management
+                </h1>
+                <p className="text-muted-foreground mt-2 max-w-2xl">
+                    Track and manage your company's financial health, from debts to customer deposits.
+                </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-8 items-start">
+                <nav className="flex flex-col gap-2 sticky top-20">
+                    {financeNavItems.map(item => (
+                        <Button
+                            key={item.id}
+                            variant={activeTab === item.id ? 'default' : 'ghost'}
+                            onClick={() => setActiveTab(item.id)}
+                            className="justify-start"
+                        >
+                            {item.label}
+                        </Button>
+                    ))}
+                </nav>
+
+                <div className="min-w-0">
+                    {activeTab === 'accounts' && <AccountsView />}
+                    {activeTab === 'payroll' && (
+                        <PlaceholderCard 
+                            title="Payroll Management"
+                            description="Manage employee salaries, deductions, and payroll taxes."
+                        />
+                    )}
+                    {activeTab === 'expenses' && (
+                        <PlaceholderCard 
+                            title="Daily Expenses"
+                            description="Track and categorize all business operational expenses."
+                        />
+                    )}
+                    {activeTab === 'capital' && (
+                        <PlaceholderCard 
+                            title="Capital Management"
+                            description="Monitor owner's equity, investments, and drawings."
+                        />
+                    )}
+                    {activeTab === 'assets' && (
+                        <PlaceholderCard 
+                            title="Asset Management"
+                            description="Track fixed assets, depreciation, and value over time."
+                        />
+                    )}
+                    {activeTab === 'cash' && (
+                        <PlaceholderCard 
+                            title="Cash Management"
+                            description="Analyze cash flow from operating, investing, and financing activities."
+                        />
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 }
