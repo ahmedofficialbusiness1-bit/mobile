@@ -11,6 +11,9 @@ import {
   Package,
   Calendar as CalendarIcon,
   Archive,
+  Landmark,
+  Smartphone,
+  Wallet,
 } from 'lucide-react'
 import {
   Card,
@@ -55,20 +58,32 @@ import { cn } from '@/lib/utils'
 import { Progress } from '@/components/ui/progress'
 
 
-// Expanded dummy data with dates
-const allTransactions = [
-  { name: 'Liam Johnson', email: 'liam@example.com', amount: 250000, status: 'Paid', date: new Date('2024-05-20') },
-  { name: 'Olivia Smith', email: 'olivia@example.com', amount: 150000, status: 'Paid', date: new Date('2024-05-18') },
-  { name: 'Noah Williams', email: 'noah@example.com', amount: 350000, status: 'Pending', date: new Date('2024-05-15') },
-  { name: 'Emma Brown', email: 'emma@example.com', amount: 450000, status: 'Paid', date: new Date('2024-05-12') },
-  { name: 'James Jones', email: 'james@example.com', amount: 550000, status: 'Paid', date: new Date('2024-05-10') },
-  { name: 'Ava Garcia', email: 'ava@example.com', amount: 200000, status: 'Paid', date: new Date('2024-04-25') },
-  { name: 'Isabella Miller', email: 'isabella@example.com', amount: 175000, status: 'Paid', date: new Date('2024-04-22') },
-  { name: 'Sophia Davis', email: 'sophia@example.com', amount: 320000, status: 'Pending', date: new Date('2024-04-18') },
-  { name: 'Mia Rodriguez', email: 'mia@example.com', amount: 500000, status: 'Paid', date: new Date('2024-04-11') },
-  { name: 'Lucas Wilson', email: 'lucas@example.com', amount: 600000, status: 'Paid', date: new Date('2024-03-30') },
-  { name: 'Henry Moore', email: 'henry@example.com', amount: 75000, status: 'Paid', date: new Date('2023-12-15') },
-  { name: 'Grace Taylor', email: 'grace@example.com', amount: 95000, status: 'Paid', date: new Date('2023-11-05') },
+type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit";
+
+interface Transaction {
+    name: string;
+    email: string;
+    amount: number;
+    status: 'Paid' | 'Pending' | 'Credit';
+    date: Date;
+    paymentMethod: PaymentMethod;
+}
+
+
+// Expanded dummy data with dates and payment methods
+const allTransactions: Transaction[] = [
+  { name: 'Liam Johnson', email: 'liam@example.com', amount: 250000, status: 'Paid', date: new Date('2024-05-20'), paymentMethod: 'Mobile' },
+  { name: 'Olivia Smith', email: 'olivia@example.com', amount: 150000, status: 'Paid', date: new Date('2024-05-18'), paymentMethod: 'Cash' },
+  { name: 'Noah Williams', email: 'noah@example.com', amount: 350000, status: 'Credit', date: new Date('2024-05-15'), paymentMethod: 'Credit' },
+  { name: 'Emma Brown', email: 'emma@example.com', amount: 450000, status: 'Paid', date: new Date('2024-05-12'), paymentMethod: 'Bank' },
+  { name: 'James Jones', email: 'james@example.com', amount: 550000, status: 'Paid', date: new Date('2024-05-10'), paymentMethod: 'Mobile' },
+  { name: 'Ava Garcia', email: 'ava@example.com', amount: 200000, status: 'Paid', date: new Date('2024-04-25'), paymentMethod: 'Cash' },
+  { name: 'Isabella Miller', email: 'isabella@example.com', amount: 175000, status: 'Paid', date: new Date('2024-04-22'), paymentMethod: 'Bank' },
+  { name: 'Sophia Davis', email: 'sophia@example.com', amount: 320000, status: 'Credit', date: new Date('2024-04-18'), paymentMethod: 'Credit' },
+  { name: 'Mia Rodriguez', email: 'mia@example.com', amount: 500000, status: 'Paid', date: new Date('2024-04-11'), paymentMethod: 'Mobile' },
+  { name: 'Lucas Wilson', email: 'lucas@example.com', amount: 600000, status: 'Paid', date: new Date('2024-03-30'), paymentMethod: 'Bank' },
+  { name: 'Henry Moore', email: 'henry@example.com', amount: 75000, status: 'Paid', date: new Date('2023-12-15'), paymentMethod: 'Cash' },
+  { name: 'Grace Taylor', email: 'grace@example.com', amount: 95000, status: 'Paid', date: new Date('2023-11-05'), paymentMethod: 'Mobile' },
 ];
 
 const allChartData = [
@@ -89,12 +104,9 @@ const allChartData = [
 const allProducts = [
     { id: 'PROD-001', name: 'Mchele (Super)', initialStock: 100, currentStock: 80, entryDate: new Date('2024-04-01') },
     { id: 'PROD-002', name: 'Unga wa Ngano (Azam)', initialStock: 200, currentStock: 150, entryDate: new Date('2024-03-15') },
-    // This product is slow-moving
     { id: 'PROD-003', name: 'Mafuta ya Alizeti (Korie)', initialStock: 50, currentStock: 45, entryDate: new Date('2024-01-10') },
-    // This product is also slow-moving
     { id: 'PROD-004', name: 'Sabuni ya Maji (Klin)', initialStock: 120, currentStock: 70, entryDate: new Date('2024-02-05') },
     { id: 'PROD-005', name: 'Sukari (Kilombero)', initialStock: 300, currentStock: 100, entryDate: new Date('2024-05-01') },
-     // This product is very slow-moving
     { id: 'PROD-006', name: 'Nido Milk Powder', initialStock: 80, currentStock: 75, entryDate: new Date('2023-11-20') },
 ];
 
@@ -105,14 +117,22 @@ interface SlowMovingProduct {
     soldPercentage: number;
 }
 
+interface PaymentBreakdown {
+    cash: number;
+    mobile: number;
+    bank: number;
+    credit: number;
+}
+
 interface DashboardData {
   totalRevenue: number;
   newCustomers: number;
   sales: number;
   inventoryValue: number;
-  recentTransactions: typeof allTransactions;
+  recentTransactions: Transaction[];
   chartData: typeof allChartData;
   slowMovingProducts: SlowMovingProduct[];
+  paymentBreakdown: PaymentBreakdown;
 }
 
 export default function DashboardPage() {
@@ -125,36 +145,40 @@ export default function DashboardPage() {
       totalRevenue: 0,
       newCustomers: 0,
       sales: 0,
-      inventoryValue: 120483200, // Assuming this is constant for now
+      inventoryValue: 120483200,
       recentTransactions: [],
       chartData: [],
-      slowMovingProducts: []
+      slowMovingProducts: [],
+      paymentBreakdown: { cash: 0, mobile: 0, bank: 0, credit: 0 }
     });
 
     React.useEffect(() => {
         const fromDate = date?.from || startOfMonth(new Date());
         const toDate = date?.to || endOfMonth(new Date());
 
-        // Filter transactions
         const filteredTransactions = allTransactions.filter(t => t.date >= fromDate && t.date <= toDate);
         
-        // Calculate metrics
         const totalRevenue = filteredTransactions.reduce((acc, t) => acc + (t.status === 'Paid' ? t.amount : 0), 0);
         const sales = filteredTransactions.length;
         const newCustomers = new Set(filteredTransactions.map(t => t.email)).size;
 
-        // Filter chart data
+        const paymentBreakdown = filteredTransactions.reduce((acc, t) => {
+            if (t.paymentMethod === 'Cash') acc.cash += t.amount;
+            if (t.paymentMethod === 'Mobile') acc.mobile += t.amount;
+            if (t.paymentMethod === 'Bank') acc.bank += t.amount;
+            if (t.paymentMethod === 'Credit') acc.credit += t.amount;
+            return acc;
+        }, { cash: 0, mobile: 0, bank: 0, credit: 0 });
+
         const fromMonth = fromDate.getMonth();
         const toMonth = toDate.getMonth();
         const fromYear = fromDate.getFullYear();
         
         const filteredChartData = allChartData.filter((d, index) => {
-            // This logic assumes chart data is for a single year. More complex logic needed for multi-year charts.
             const monthDate = new Date(`${fromYear}-${index + 1}-01`);
             return monthDate >= startOfMonth(fromDate) && monthDate <= endOfMonth(toDate);
         });
 
-        // Calculate slow-moving products
         const threeMonthsAgo = subMonths(new Date(), 3);
         const slowMovingProducts = allProducts
             .filter(p => p.entryDate < threeMonthsAgo)
@@ -171,10 +195,11 @@ export default function DashboardPage() {
             totalRevenue,
             newCustomers,
             sales,
-            inventoryValue: 120483200, // static for now
+            inventoryValue: 120483200,
             recentTransactions: filteredTransactions.slice(0, 5),
             chartData: filteredChartData.length > 0 ? filteredChartData : allChartData.slice(fromMonth, toMonth + 1),
             slowMovingProducts: slowMovingProducts,
+            paymentBreakdown,
         });
 
     }, [date]);
@@ -311,6 +336,54 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+       <Card>
+          <CardHeader>
+            <CardTitle>Sales Breakdown</CardTitle>
+            <CardDescription>
+              Breakdown of sales by payment method for the selected period.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="p-4 bg-muted/50 rounded-lg flex items-start gap-4">
+                <div className="p-2 bg-background rounded-md">
+                    <Wallet className="h-6 w-6 text-green-600"/>
+                </div>
+                <div>
+                    <p className="text-sm text-muted-foreground">Cash</p>
+                    <p className="text-xl font-bold">TSh {dashboardData.paymentBreakdown.cash.toLocaleString()}</p>
+                </div>
+            </div>
+             <div className="p-4 bg-muted/50 rounded-lg flex items-start gap-4">
+                <div className="p-2 bg-background rounded-md">
+                    <Smartphone className="h-6 w-6 text-blue-600"/>
+                </div>
+                <div>
+                    <p className="text-sm text-muted-foreground">Mobile Money</p>
+                    <p className="text-xl font-bold">TSh {dashboardData.paymentBreakdown.mobile.toLocaleString()}</p>
+                </div>
+            </div>
+             <div className="p-4 bg-muted/50 rounded-lg flex items-start gap-4">
+                <div className="p-2 bg-background rounded-md">
+                    <Landmark className="h-6 w-6 text-purple-600"/>
+                </div>
+                <div>
+                    <p className="text-sm text-muted-foreground">Bank</p>
+                    <p className="text-xl font-bold">TSh {dashboardData.paymentBreakdown.bank.toLocaleString()}</p>
+                </div>
+            </div>
+             <div className="p-4 bg-muted/50 rounded-lg flex items-start gap-4">
+                <div className="p-2 bg-background rounded-md">
+                    <CreditCard className="h-6 w-6 text-orange-600"/>
+                </div>
+                <div>
+                    <p className="text-sm text-muted-foreground">Credits</p>
+                    <p className="text-xl font-bold">TSh {dashboardData.paymentBreakdown.credit.toLocaleString()}</p>
+                </div>
+            </div>
+          </CardContent>
+        </Card>
+
       <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
@@ -340,13 +413,12 @@ export default function DashboardPage() {
                     <TableCell>
                       <Badge
                         variant={
-                          transaction.status === 'Paid' ? 'default' : 'secondary'
+                           transaction.status === 'Paid' ? 'default' : 'secondary'
                         }
-                        className={
-                          transaction.status === 'Paid'
-                            ? 'bg-green-500/20 text-green-700 hover:bg-green-500/30'
-                            : 'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30'
-                        }
+                        className={cn(
+                           transaction.status === 'Paid' && 'bg-green-500/20 text-green-700 hover:bg-green-500/30',
+                           transaction.status === 'Credit' && 'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30',
+                        )}
                       >
                         {transaction.status}
                       </Badge>
@@ -461,3 +533,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
