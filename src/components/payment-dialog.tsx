@@ -32,22 +32,25 @@ export function PaymentDialog({
   isOpen, 
   onClose, 
   onSubmit, 
-  title = "Mark as Paid", 
-  description = "Select the payment method used to settle this transaction." 
+  title,
+  description 
 }: PaymentDialogProps) {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Bank');
 
   const handleSubmit = () => {
     onSubmit(paymentMethod);
   };
 
+  const defaultTitle = "Mark as Paid";
+  const defaultDescription = "Select the payment method used to settle this transaction.";
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle>{title || defaultTitle}</DialogTitle>
           <DialogDescription>
-            {description}
+            {description || defaultDescription}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -58,13 +61,13 @@ export function PaymentDialog({
             <SelectContent>
               <SelectItem value="Cash">Cash</SelectItem>
               <SelectItem value="Mobile">Mobile Money</SelectItem>
-              <SelectItem value="Bank">Bank</SelectItem>
+              <SelectItem value="Bank">Bank Transfer</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit}>Confirm Payment</Button>
+          <Button onClick={handleSubmit}>Confirm</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

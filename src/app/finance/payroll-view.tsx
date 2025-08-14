@@ -17,18 +17,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { PayslipDialog, type PayrollData } from './payslip-dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { PaymentDialog } from '@/components/payment-dialog';
 import { useToast } from '@/hooks/use-toast';
+import type { PaymentMethod } from '@/context/financial-context';
 
 
 interface Employee {
@@ -67,6 +58,7 @@ export default function PayrollView() {
   const [selectedEmployee, setSelectedEmployee] = React.useState<Employee | null>(null);
   const [payslipEmployee, setPayslipEmployee] = React.useState<PayrollData | null>(null);
   const [isPayrollRun, setIsPayrollRun] = React.useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const { toast } = useToast();
 
   const currentMonth = format(new Date(), 'MMMM yyyy');
@@ -89,13 +81,14 @@ export default function PayrollView() {
     setEmployees(employees.filter(emp => emp.id !== id));
   }
   
-  const handlePayAll = () => {
+  const handlePayAll = (paymentMethod: PaymentMethod) => {
     setIsPayrollRun(true);
     toast({
-        title: "Payroll Processed",
-        description: `Successfully processed payroll for ${employees.length} employees for ${currentMonth}.`,
+        title: "Payroll Processed Successfully",
+        description: `Paid TSh ${totals.net.toLocaleString()} to ${employees.length} employees for ${currentMonth} via ${paymentMethod}.`,
         variant: "default",
     })
+    setIsPaymentDialogOpen(false);
   }
 
   const handleSaveEmployee = (employeeData: Omit<Employee, 'id'>) => {
@@ -155,26 +148,10 @@ export default function PayrollView() {
                         Payroll Run for {currentMonth}
                     </Button>
                 ) : (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                     <Button variant="default">
+                    <Button variant="default" onClick={() => setIsPaymentDialogOpen(true)}>
                         <Wallet className="mr-2 h-4 w-4" />
                         Pay All Employees
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Confirm Payroll Run</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        You are about to process payroll for {employees.length} employees for the month of {currentMonth}, totaling a net pay of TSh {totals.net.toLocaleString()}. This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handlePayAll}>Confirm & Pay</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
                 )}
             </div>
         </CardHeader>
@@ -248,7 +225,7 @@ export default function PayrollView() {
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">
-                    <TableCell>Total</TableCell>
+                    <TableCell>Total Company Expense</TableCell>
                     <TableCell className="text-right">{totals.gross.toLocaleString()}</TableCell>
                     <TableCell className="text-right">{totals.deductions.toLocaleString()}</TableCell>
                     <TableCell className="text-right">-</TableCell>
@@ -271,6 +248,13 @@ export default function PayrollView() {
         isOpen={!!payslipEmployee}
         onClose={() => setPayslipEmployee(null)}
         payrollData={payslipEmployee}
+      />
+      <PaymentDialog
+        isOpen={isPaymentDialogOpen}
+        onClose={() => setIsPaymentDialogOpen(false)}
+        onSubmit={handlePayAll}
+        title={`Confirm Payroll for ${currentMonth}`}
+        description={`You are about to pay a total of TSh ${totals.net.toLocaleString()} to ${employees.length} employees. Please select the payment method.`}
       />
     </>
   );
