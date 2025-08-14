@@ -258,7 +258,7 @@ const financeNavItems = [
     { id: 'expenses', label: 'Expenses' },
     { id: 'capital', label: 'Capital' },
     { id: 'assets', label: 'Assets' },
-    { id: 'cash', label: 'Cash Flow' }
+    { id: 'cash', label: 'Cash Management' }
 ]
 
 function FinanceNav({ activeTab, setActiveTab, isSheet = false }: { activeTab: string, setActiveTab: (id: string) => void, isSheet?: boolean }) {
@@ -318,7 +318,7 @@ export default function FinancePage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-8 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-8 items-start">
                 <FinanceNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
                 <div className="min-w-0">
