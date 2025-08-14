@@ -49,15 +49,15 @@ interface Prepayment {
 }
 
 const initialReceivables: Receivable[] = [
-  { id: 'rec-001', name: 'Noah Williams', phone: '+255688990011', amount: 60000, product: 'Sukari', date: new Date('2024-05-18') },
-  { id: 'rec-002', name: 'Sophia Davis', phone: '+255677889900', amount: 75000, product: 'Nido', date: new Date('2024-04-18') },
-  { id: 'rec-003', name: 'Charlotte Thomas', phone: '+255787456123', amount: 21000, product: 'Mafuta', date: new Date('2023-09-22')},
+  { id: 'rec-001', name: 'Noah Williams', phone: '+255688990011', amount: 60000, product: 'Sukari', date: new Date(2024, 4, 18) },
+  { id: 'rec-002', name: 'Sophia Davis', phone: '+255677889900', amount: 75000, product: 'Nido', date: new Date(2024, 3, 18) },
+  { id: 'rec-003', name: 'Charlotte Thomas', phone: '+255787456123', amount: 21000, product: 'Mafuta', date: new Date(2023, 8, 22)},
 ];
 
 const initialPayables: Payable[] = [
-    { id: 'pay-001', supplierName: "Azam Mills", product: "Unga wa Ngano (50kg)", amount: 2500000, date: new Date("2024-05-10")},
-    { id: 'pay-002', supplierName: "Kilombero Sugar", product: "Sukari (20 bags)", amount: 1800000, date: new Date("2024-05-02")},
-    { id: 'pay-003', supplierName: "Korie Oils", product: "Mafuta ya Alizeti (100L)", amount: 3200000, date: new Date("2024-04-28")},
+    { id: 'pay-001', supplierName: "Azam Mills", product: "Unga wa Ngano (50kg)", amount: 2500000, date: new Date(2024, 4, 10)},
+    { id: 'pay-002', supplierName: "Kilombero Sugar", product: "Sukari (20 bags)", amount: 1800000, date: new Date(2024, 4, 2)},
+    { id: 'pay-003', supplierName: "Korie Oils", product: "Mafuta ya Alizeti (100L)", amount: 3200000, date: new Date(2024, 3, 28)},
 ];
 
 const initialPrepayments: Prepayment[] = [
