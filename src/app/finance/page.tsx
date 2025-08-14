@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import PayrollView from './payroll-view'
+import ExpensesView from './expenses-view'
 
 
 function PlaceholderCard({ title, description }: { title: string, description: string }) {
@@ -276,10 +277,7 @@ export default function FinancePage() {
             case 'payroll':
                 return <PayrollView />;
             case 'expenses':
-                return <PlaceholderCard 
-                            title="Daily Expenses"
-                            description="Track and categorize all business operational expenses."
-                        />;
+                return <ExpensesView />;
             case 'capital':
                 return <PlaceholderCard 
                             title="Capital Management"
