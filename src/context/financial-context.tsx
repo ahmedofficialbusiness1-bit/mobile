@@ -60,6 +60,22 @@ export interface Asset {
 
 export type AddAssetData = Omit<Asset, 'id' | 'status' | 'accumulatedDepreciation' | 'netBookValue' | 'source'>;
 
+export interface CapitalContribution {
+  id: string;
+  date: Date;
+  description: string;
+  type: 'Cash' | 'Bank' | 'Asset' | 'Liability';
+  amount: number;
+}
+
+export interface OwnerLoan {
+    id: string; // Will be the same as the capital contribution id
+    date: Date;
+    description: string;
+    amount: number;
+    repaid: number;
+}
+
 
 // --- Initial Mock Data ---
 const initialTransactions: Transaction[] = [
@@ -104,9 +120,26 @@ const initialProducts: Product[] = [
     { id: 'PROD-006', name: 'Nido', initialStock: 80, currentStock: 75, entryDate: new Date(2023, 10, 20) },
 ];
 
-const initialAssets: Asset[] = [
-    { id: 'cap-002', name: 'Toyota Hilux van for delivery', cost: 15000000, acquisitionDate: new Date(2023, 5, 10), depreciationRate: 25, status: 'Active', accumulatedDepreciation: 0, netBookValue: 0, source: 'Capital' },
+const initialCapital: CapitalContribution[] = [
+  { id: 'cap-001', date: new Date(2023, 0, 15), description: 'Initial Capital Injection', type: 'Cash', amount: 25000000 },
+  { id: 'cap-002', date: new Date(2023, 5, 10), description: 'Toyota Hilux van for delivery', type: 'Asset', amount: 15000000 },
+  { id: 'cap-003', date: new Date(2024, 2, 1), description: 'Owner loan to business', type: 'Liability', amount: 5000000 },
 ];
+
+const initialAssets: Asset[] = initialCapital
+    .filter(c => c.type === 'Asset')
+    .map(c => ({
+        id: c.id,
+        name: c.description,
+        cost: c.amount,
+        acquisitionDate: c.date,
+        depreciationRate: 25, // Default rate
+        status: 'Active',
+        accumulatedDepreciation: 0,
+        netBookValue: c.amount,
+        source: 'Capital'
+    }));
+
 
 // --- Context Definition ---
 interface FinancialContextType {
@@ -115,6 +148,9 @@ interface FinancialContextType {
     prepayments: CustomerPrepayment[];
     products: Product[];
     assets: Asset[];
+    capitalContributions: CapitalContribution[];
+    ownerLoans: OwnerLoan[];
+    cashBalances: { cash: number; bank: number; mobile: number };
     markReceivableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
     markPayableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
     markPrepaymentAsUsed: (id: string) => void;
@@ -122,6 +158,8 @@ interface FinancialContextType {
     addAsset: (assetData: AddAssetData) => void;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => void;
     writeOffAsset: (id: string) => void;
+    addCapitalContribution: (data: Omit<CapitalContribution, 'id'>) => void;
+    repayOwnerLoan: (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => void;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -151,12 +189,50 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [payables, setPayables] = useState<Payable[]>(initialPayables);
     const [prepayments, setPrepayments] = useState<CustomerPrepayment[]>(initialPrepayments);
     const [products, setProducts] = useState<Product[]>(initialProducts);
+    const [capitalContributions, setCapitalContributions] = useState<CapitalContribution[]>(initialCapital);
+    const [ownerLoans, setOwnerLoans] = useState<OwnerLoan[]>([]);
+    const [cashBalances, setCashBalances] = useState({ cash: 0, bank: 0, mobile: 0 });
+    
     const [assets, setAssets] = useState<Asset[]>(() => {
          return initialAssets.map(asset => {
             const { accumulatedDepreciation, netBookValue } = calculateDepreciation(asset);
             return { ...asset, accumulatedDepreciation, netBookValue };
         });
     });
+
+    useEffect(() => {
+        // Recalculate cash balances whenever capital or transactions change
+        let cash = 0;
+        let bank = 0;
+        let mobile = 0;
+
+        capitalContributions.forEach(c => {
+            if (c.type === 'Cash') cash += c.amount;
+            if (c.type === 'Bank') bank += c.amount;
+        });
+        
+        ownerLoans.forEach(loan => {
+             const capitalEntry = capitalContributions.find(c => c.id === loan.id);
+             if(capitalEntry?.type === 'Cash') cash += loan.amount - loan.repaid;
+             if(capitalEntry?.type === 'Bank') bank += loan.amount - loan.repaid;
+        });
+
+
+        setCashBalances({ cash: 1250000, bank: 5800000, mobile: 780000 }); // Using mock data for now
+
+        // Initialize owner loans from capital contributions
+        const loansFromCapital = capitalContributions
+            .filter(c => c.type === 'Liability')
+            .map(c => ({
+                id: c.id,
+                date: c.date,
+                description: c.description,
+                amount: c.amount,
+                repaid: 0,
+            }));
+        setOwnerLoans(loansFromCapital);
+    }, [capitalContributions]);
+
 
     const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
         setTransactions(prevTransactions =>
@@ -235,19 +311,59 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         setAssets(prev => prev.map(a => a.id === id ? { ...a, status: 'Written Off', netBookValue: 0 } : a));
     };
 
+    const addCapitalContribution = (data: Omit<CapitalContribution, 'id'>) => {
+        const newContribution: CapitalContribution = {
+            id: `cap-${Date.now()}`,
+            ...data,
+        };
+        setCapitalContributions(prev => [newContribution, ...prev]);
+
+        if (data.type === 'Liability') {
+            const newLoan: OwnerLoan = {
+                id: newContribution.id,
+                date: data.date,
+                description: data.description,
+                amount: data.amount,
+                repaid: 0,
+            };
+            setOwnerLoans(prev => [newLoan, ...prev]);
+        }
+    };
+
+    const repayOwnerLoan = (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => {
+        setOwnerLoans(prev => prev.map(loan => 
+            loan.id === loanId ? { ...loan, repaid: loan.repaid + amount } : loan
+        ));
+
+        setCashBalances(prev => {
+            const newBalances = { ...prev };
+            if (paymentMethod === 'Cash') newBalances.cash -= amount;
+            if (paymentMethod === 'Bank') newBalances.bank -= amount;
+            if (paymentMethod === 'Mobile') newBalances.mobile -= amount;
+            return newBalances;
+        });
+        
+        // Optionally, create a transaction record for this repayment for audit trail
+    };
+
     const value = {
         transactions,
         payables,
         prepayments,
         products,
         assets,
+        capitalContributions,
+        ownerLoans,
+        cashBalances,
         markReceivableAsPaid,
         markPayableAsPaid,
         markPrepaymentAsUsed,
         markPrepaymentAsRefunded,
         addAsset,
         sellAsset,
-        writeOffAsset
+        writeOffAsset,
+        addCapitalContribution,
+        repayOwnerLoan,
     };
 
     return <FinancialContext.Provider value={value}>{children}</FinancialContext.Provider>;
