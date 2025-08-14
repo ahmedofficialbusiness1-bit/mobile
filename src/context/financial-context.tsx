@@ -2,7 +2,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { differenceInYears } from 'date-fns';
+import { differenceInYears, format } from 'date-fns';
 
 // --- Type Definitions ---
 export type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit" | "Prepaid";
@@ -83,10 +83,27 @@ export interface DrawingData {
   description: string;
 }
 
+export interface Employee {
+  id: string;
+  name: string;
+  position: string;
+  salary: number; // Gross Salary
+  avatar: string;
+}
+
+export interface PayrollRun {
+    month: string; // e.g., "May 2024"
+    date: Date;
+    totalGross: number;
+    totalNet: number;
+    paymentMethod: PaymentMethod;
+}
+
+
 export interface Expense {
   id: string;
   description: string;
-  category: 'Umeme' | 'Maji' | 'Usafiri' | 'Mawasiliano' | 'Kodi' | 'Manunuzi Ofisi' | 'Matangazo' | 'Mengineyo';
+  category: 'Umeme' | 'Maji' | 'Usafiri' | 'Mawasiliano' | 'Kodi' | 'Manunuzi Ofisi' | 'Matangazo' | 'Mishahara' | 'Mengineyo';
   amount: number;
   date: Date;
   status: 'Pending' | 'Approved';
@@ -138,6 +155,12 @@ const initialProducts: Product[] = [
     { id: 'PROD-006', name: 'Nido', initialStock: 80, currentStock: 75, entryDate: new Date(2023, 10, 20) },
 ];
 
+const initialEmployees: Employee[] = [
+  { id: 'emp-001', name: 'Asha Juma', position: 'Sales Manager', salary: 1200000, avatar: 'https://placehold.co/40x40.png' },
+  { id: 'emp-002', name: 'David Chen', position: 'Accountant', salary: 950000, avatar: 'https://placehold.co/40x40.png' },
+  { id: 'emp-003', name: 'Fatuma Said', position: 'Marketing Officer', salary: 750000, avatar: 'https://placehold.co/40x40.png' },
+];
+
 const initialCapital: CapitalContribution[] = [
   { id: 'cap-001', date: new Date(2023, 0, 15), description: 'Initial Capital Injection', type: 'Cash', amount: 25000000 },
   { id: 'cap-002', date: new Date(2023, 5, 10), description: 'Toyota Hilux van for delivery', type: 'Asset', amount: 15000000 },
@@ -176,6 +199,8 @@ interface FinancialContextType {
     capitalContributions: CapitalContribution[];
     ownerLoans: OwnerLoan[];
     expenses: Expense[];
+    employees: Employee[];
+    payrollHistory: PayrollRun[];
     cashBalances: { cash: number; bank: number; mobile: number };
     markReceivableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
     markPayableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
@@ -189,6 +214,10 @@ interface FinancialContextType {
     addDrawing: (data: DrawingData) => void;
     addExpense: (data: AddExpenseData) => void;
     approveExpense: (id: string, paymentMethod: PaymentMethod) => void;
+    addEmployee: (employeeData: Omit<Employee, 'id'>) => void;
+    updateEmployee: (id: string, employeeData: Omit<Employee, 'id'>) => void;
+    deleteEmployee: (id: string) => void;
+    processPayroll: (paymentMethod: PaymentMethod, totalGross: number, totalNet: number) => void;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -218,6 +247,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [payables, setPayables] = useState<Payable[]>(initialPayables);
     const [prepayments, setPrepayments] = useState<CustomerPrepayment[]>(initialPrepayments);
     const [products, setProducts] = useState<Product[]>(initialProducts);
+    const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+    const [payrollHistory, setPayrollHistory] = useState<PayrollRun[]>([]);
     const [capitalContributions, setCapitalContributions] = useState<CapitalContribution[]>(initialCapital);
     const [ownerLoans, setOwnerLoans] = useState<OwnerLoan[]>([]);
     const [assets, setAssets] = useState<Asset[]>(() => {
@@ -286,10 +317,17 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 if (t.paymentMethod === 'Bank') bank += t.amount;
                 if (t.paymentMethod === 'Mobile') mobile += t.amount;
             });
+        
+        // Payroll Payments
+        payrollHistory.forEach(run => {
+            if (run.paymentMethod === 'Cash') cash -= run.totalNet;
+            if (run.paymentMethod === 'Bank') bank -= run.totalNet;
+            if (run.paymentMethod === 'Mobile') mobile -= run.totalNet;
+        });
 
         setCashBalances({ cash, bank, mobile });
 
-    }, [transactions, capitalContributions, expenses, payables]);
+    }, [transactions, capitalContributions, expenses, payables, payrollHistory]);
 
     useEffect(() => {
         const loans = capitalContributions
@@ -303,7 +341,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }));
         setOwnerLoans(loans);
         recalculateBalances();
-    }, [capitalContributions, transactions, expenses, payables, recalculateBalances]);
+    }, [capitalContributions, transactions, expenses, payables, payrollHistory, recalculateBalances]);
 
 
     const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
@@ -395,8 +433,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
     
     const repayOwnerLoan = (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => {
-        // This function needs to reduce cash and also reduce the liability on the capital side.
-        // For simplicity, let's just record a "negative" capital contribution (a drawing for loan repayment)
         const newDrawing: CapitalContribution = {
             id: `draw-${Date.now()}`,
             date: new Date(),
@@ -407,7 +443,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         };
         setCapitalContributions(prev => [...prev, newDrawing]);
 
-        // And update the repaid amount on the loan
         setOwnerLoans(prev => prev.map(loan => 
             loan.id === loanId ? { ...loan, repaid: loan.repaid + amount } : loan
         ));
@@ -442,6 +477,46 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         );
     };
 
+    const addEmployee = (employeeData: Omit<Employee, 'id'>) => {
+        const newEmployee: Employee = {
+            id: `emp-${Date.now()}`,
+            ...employeeData
+        };
+        setEmployees(prev => [...prev, newEmployee]);
+    };
+
+    const updateEmployee = (id: string, employeeData: Omit<Employee, 'id'>) => {
+        setEmployees(prev => prev.map(emp => emp.id === id ? { ...emp, ...employeeData } : emp));
+    };
+
+    const deleteEmployee = (id: string) => {
+        setEmployees(prev => prev.filter(emp => emp.id !== id));
+    };
+    
+    const processPayroll = (paymentMethod: PaymentMethod, totalGross: number, totalNet: number) => {
+        const currentMonth = format(new Date(), 'MMMM yyyy');
+        
+        const newPayrollRun: PayrollRun = {
+            month: currentMonth,
+            date: new Date(),
+            totalGross,
+            totalNet,
+            paymentMethod
+        };
+        setPayrollHistory(prev => [...prev, newPayrollRun]);
+
+        const newExpense: Expense = {
+            id: `exp-payroll-${Date.now()}`,
+            description: `Payroll for ${currentMonth}`,
+            category: 'Mishahara',
+            amount: totalGross,
+            date: new Date(),
+            status: 'Approved',
+            paymentMethod: paymentMethod
+        };
+        setExpenses(prev => [...prev, newExpense]);
+    };
+
 
     const contextValue: FinancialContextType = {
         transactions,
@@ -452,6 +527,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         capitalContributions,
         ownerLoans,
         expenses,
+        employees,
+        payrollHistory,
         cashBalances,
         markReceivableAsPaid,
         markPayableAsPaid,
@@ -464,7 +541,11 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         repayOwnerLoan,
         addDrawing,
         addExpense,
-        approveExpense
+        approveExpense,
+        addEmployee,
+        updateEmployee,
+        deleteEmployee,
+        processPayroll
     };
 
     return (

@@ -24,14 +24,14 @@ interface ExpenseFormProps {
 
 const formSchema = z.object({
   description: z.string().min(3, { message: "Description must be at least 3 characters." }),
-  category: z.enum(['Umeme', 'Maji', 'Usafiri', 'Mawasiliano', 'Kodi', 'Manunuzi Ofisi', 'Matangazo', 'Mengineyo']),
+  category: z.enum(['Umeme', 'Maji', 'Usafiri', 'Mawasiliano', 'Kodi', 'Manunuzi Ofisi', 'Matangazo', 'Mishahara', 'Mengineyo']),
   amount: z.coerce.number().min(1, { message: "Amount must be greater than zero." }),
   date: z.date({
     required_error: "A date is required.",
   }),
 });
 
-export const expenseCategories = ['Umeme', 'Maji', 'Usafiri', 'Mawasiliano', 'Kodi', 'Manunuzi Ofisi', 'Matangazo', 'Mengineyo'] as const;
+export const expenseCategories = ['Umeme', 'Maji', 'Usafiri', 'Mawasiliano', 'Kodi', 'Manunuzi Ofisi', 'Matangazo', 'Mishahara', 'Mengineyo'] as const;
 
 export function ExpenseForm({ isOpen, onClose, onSave }: ExpenseFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({

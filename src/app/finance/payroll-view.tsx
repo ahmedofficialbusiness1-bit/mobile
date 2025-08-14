@@ -19,22 +19,9 @@ import {
 import { PayslipDialog, type PayrollData } from './payslip-dialog';
 import { PaymentDialog } from '@/components/payment-dialog';
 import { useToast } from '@/hooks/use-toast';
-import type { PaymentMethod } from '@/context/financial-context';
+import type { PaymentMethod, Employee } from '@/context/financial-context';
+import { useFinancials } from '@/context/financial-context';
 
-
-interface Employee {
-  id: string;
-  name: string;
-  position: string;
-  salary: number; // Gross Salary
-  avatar: string;
-}
-
-const initialEmployees: Employee[] = [
-  { id: 'emp-001', name: 'Asha Juma', position: 'Sales Manager', salary: 1200000, avatar: 'https://placehold.co/40x40.png' },
-  { id: 'emp-002', name: 'David Chen', position: 'Accountant', salary: 950000, avatar: 'https://placehold.co/40x40.png' },
-  { id: 'emp-003', name: 'Fatuma Said', position: 'Marketing Officer', salary: 750000, avatar: 'https://placehold.co/40x40.png' },
-];
 
 // Simplified calculation functions for Tanzanian context (for demonstration)
 const calculateNSSF = (gross: number) => {
@@ -53,15 +40,15 @@ const calculatePAYE = (taxableIncome: number) => {
 
 
 export default function PayrollView() {
-  const [employees, setEmployees] = React.useState<Employee[]>(initialEmployees);
+  const { employees, addEmployee, updateEmployee, deleteEmployee, processPayroll, payrollHistory } = useFinancials();
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [selectedEmployee, setSelectedEmployee] = React.useState<Employee | null>(null);
   const [payslipEmployee, setPayslipEmployee] = React.useState<PayrollData | null>(null);
-  const [isPayrollRun, setIsPayrollRun] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const { toast } = useToast();
 
   const currentMonth = format(new Date(), 'MMMM yyyy');
+  const isPayrollRun = payrollHistory.some(run => run.month === currentMonth);
 
   const handleAddEmployee = () => {
     setSelectedEmployee(null);
@@ -78,14 +65,20 @@ export default function PayrollView() {
   }
 
   const handleDeleteEmployee = (id: string) => {
-    setEmployees(employees.filter(emp => emp.id !== id));
+    deleteEmployee(id);
+    toast({
+        title: "Employee Deleted",
+        description: "The employee has been removed from the payroll.",
+        variant: "destructive"
+    });
   }
   
   const handlePayAll = (paymentMethod: PaymentMethod) => {
-    setIsPayrollRun(true);
+    const totalNet = totals.net;
+    processPayroll(paymentMethod, totals.gross, totalNet);
     toast({
         title: "Payroll Processed Successfully",
-        description: `Paid TSh ${totals.net.toLocaleString()} to ${employees.length} employees for ${currentMonth} via ${paymentMethod}.`,
+        description: `Paid TSh ${totalNet.toLocaleString()} to ${employees.length} employees for ${currentMonth} via ${paymentMethod}.`,
         variant: "default",
     })
     setIsPaymentDialogOpen(false);
@@ -93,13 +86,17 @@ export default function PayrollView() {
 
   const handleSaveEmployee = (employeeData: Omit<Employee, 'id'>) => {
     if (selectedEmployee) {
-      setEmployees(employees.map(emp => emp.id === selectedEmployee.id ? { ...selectedEmployee, ...employeeData } : emp));
+      updateEmployee(selectedEmployee.id, employeeData);
+       toast({
+            title: "Employee Updated",
+            description: `${employeeData.name}'s details have been updated.`
+        });
     } else {
-      const newEmployee: Employee = {
-        id: `emp-${Date.now()}`,
-        ...employeeData
-      };
-      setEmployees([...employees, newEmployee]);
+      addEmployee(employeeData);
+      toast({
+            title: "Employee Registered",
+            description: `${employeeData.name} has been added to the payroll.`
+        });
     }
     setIsFormOpen(false);
     setSelectedEmployee(null);
@@ -148,7 +145,7 @@ export default function PayrollView() {
                         Payroll Run for {currentMonth}
                     </Button>
                 ) : (
-                    <Button variant="default" onClick={() => setIsPaymentDialogOpen(true)}>
+                    <Button variant="default" onClick={() => setIsPaymentDialogOpen(true)} disabled={employees.length === 0}>
                         <Wallet className="mr-2 h-4 w-4" />
                         Pay All Employees
                     </Button>
