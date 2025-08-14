@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, CreditCard, Undo, Menu } from 'lucide-react'
+import { CheckCircle, CreditCard, Undo, Menu, Briefcase, FileText, Banknote, Landmark, Users, PiggyBank } from 'lucide-react'
 import { useFinancials, PaymentMethod } from '@/context/financial-context'
 import { PaymentDialog } from '@/components/payment-dialog'
 import {
@@ -23,6 +23,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
+import PayrollView from './payroll-view'
 
 
 function PlaceholderCard({ title, description }: { title: string, description: string }) {
@@ -257,12 +258,12 @@ function AccountsView() {
 }
 
 const financeNavItems = [
-    { id: 'accounts', label: 'Accounts' },
-    { id: 'payroll', label: 'Payroll' },
-    { id: 'expenses', label: 'Expenses' },
-    { id: 'capital', label: 'Capital' },
-    { id: 'assets', label: 'Assets' },
-    { id: 'cash', label: 'Cash Management' },
+    { id: 'accounts', label: 'Accounts', icon: Briefcase },
+    { id: 'payroll', label: 'Payroll', icon: Users },
+    { id: 'expenses', label: 'Expenses', icon: FileText },
+    { id: 'capital', label: 'Capital', icon: Landmark },
+    { id: 'assets', label: 'Assets', icon: Banknote },
+    { id: 'cash', label: 'Cash Management', icon: PiggyBank },
 ]
 
 export default function FinancePage() {
@@ -273,10 +274,7 @@ export default function FinancePage() {
             case 'accounts':
                 return <AccountsView />;
             case 'payroll':
-                return <PlaceholderCard 
-                            title="Payroll Management"
-                            description="Manage employee salaries, deductions, and payroll taxes."
-                        />;
+                return <PayrollView />;
             case 'expenses':
                 return <PlaceholderCard 
                             title="Daily Expenses"
@@ -311,6 +309,7 @@ export default function FinancePage() {
                     onClick={() => setActiveView(item.id)}
                     className="justify-start"
                 >
+                    <item.icon className="mr-2 h-4 w-4" />
                     {item.label}
                 </Button>
             ))}
@@ -335,7 +334,7 @@ export default function FinancePage() {
                                 <Menu className="h-4 w-4" />
                             </Button>
                         </SheetTrigger>
-                        <SheetContent side="left">
+                        <SheetContent side="left" className="w-[240px]">
                            <NavMenu isSheet={true} />
                         </SheetContent>
                     </Sheet>
@@ -353,4 +352,3 @@ export default function FinancePage() {
         </div>
     );
 }
-
