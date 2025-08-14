@@ -14,18 +14,8 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, Trash2, Banknote, Smartphone, Landmark } from 'lucide-react'
-import { useFinancials, PaymentMethod } from '@/context/financial-context'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose
-} from "@/components/ui/dialog"
+import { CheckCircle, Trash2 } from 'lucide-react'
+import { useFinancials } from '@/context/financial-context'
 
 export default function FinancePage() {
     const { 
@@ -36,28 +26,12 @@ export default function FinancePage() {
         markPayableAsPaid, 
         usePrepayment 
     } = useFinancials();
-    
-    const [selectedReceivable, setSelectedReceivable] = React.useState<{id: string, name: string} | null>(null);
-    const [dialogOpen, setDialogOpen] = React.useState(false);
 
     const receivables = transactions.filter(t => t.status === 'Credit');
     
     const totalReceivable = receivables.reduce((sum, item) => sum + item.amount, 0);
     const totalPayable = payables.reduce((sum, item) => sum + item.amount, 0);
     const totalPrepayment = prepayments.reduce((sum, item) => sum + item.prepaidAmount, 0);
-
-    const handlePayment = (paymentMethod: PaymentMethod) => {
-      if (selectedReceivable) {
-        markReceivableAsPaid(selectedReceivable.id, paymentMethod);
-        setSelectedReceivable(null);
-        setDialogOpen(false);
-      }
-    }
-
-    const handleOpenDialog = (receivable: {id: string, name: string}) => {
-        setSelectedReceivable(receivable);
-        setDialogOpen(true);
-    }
 
   return (
     <div className="w-full max-w-lg mx-auto flex flex-col gap-8">
@@ -102,7 +76,7 @@ export default function FinancePage() {
                                       <TableCell className="whitespace-nowrap">{format(item.date, 'dd/MM/yyyy')}</TableCell>
                                       <TableCell className="text-right whitespace-nowrap">TSh {item.amount.toLocaleString()}</TableCell>
                                       <TableCell className="text-right">
-                                          <Button variant="outline" size="sm" onClick={() => handleOpenDialog({id: item.id, name: item.name})} className="whitespace-nowrap">
+                                          <Button variant="outline" size="sm" onClick={() => markReceivableAsPaid(item.id, 'Cash')} className="whitespace-nowrap">
                                               <CheckCircle className="mr-2 h-4 w-4"/>
                                               Mark as Paid
                                           </Button>
@@ -231,24 +205,6 @@ export default function FinancePage() {
               </CardContent>
           </Card>
       </div>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Select Payment Method</DialogTitle>
-              <DialogDescription>
-                How did {selectedReceivable?.name} pay their outstanding balance?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <Button onClick={() => handlePayment('Cash')} variant="outline"><Banknote className="mr-2"/>Cash</Button>
-              <Button onClick={() => handlePayment('Mobile')} variant="outline"><Smartphone className="mr-2"/>Mobile Money</Button>
-              <Button onClick={() => handlePayment('Bank')} variant="outline"><Landmark className="mr-2"/>Bank Transfer</Button>
-            </DialogFooter>
-          </DialogContent>
-      </Dialog>
     </div>
   )
 }
-
-    
