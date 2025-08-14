@@ -27,6 +27,41 @@ interface PayslipDialogProps {
 }
 
 export function PayslipDialog({ isOpen, onClose, payrollData }: PayslipDialogProps) {
+  const payslipContentRef = React.useRef<HTMLDivElement>(null);
+
+  const handlePrint = () => {
+    const content = payslipContentRef.current;
+    if (content) {
+      const printWindow = window.open('', '_blank', 'height=800,width=800');
+      if (printWindow) {
+        printWindow.document.write('<html><head><title>Payslip</title>');
+        
+        // This is a bit of a hack to get the styles, but necessary for external window printing
+        const styles = Array.from(document.styleSheets)
+            .map(styleSheet => {
+                try {
+                    return Array.from(styleSheet.cssRules).map(rule => rule.cssText).join('');
+                } catch (e) {
+                    console.warn('Could not read stylesheet rules', e);
+                    return '';
+                }
+            }).join('');
+
+        printWindow.document.write(`<style>${styles}</style></head><body>`);
+        printWindow.document.write(content.innerHTML);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        
+        // Use timeout to ensure content is loaded before printing
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 250);
+      }
+    }
+  };
+
+
   if (!payrollData) {
     return null;
   }
@@ -36,81 +71,83 @@ export function PayslipDialog({ isOpen, onClose, payrollData }: PayslipDialogPro
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-center text-2xl font-bold">PAYSLIP</DialogTitle>
-          <DialogDescription className="text-center">
-             {payPeriod}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="p-6 space-y-6">
-            <div className="flex justify-between items-start">
-                <div>
-                    <h3 className="font-bold">DiraBiz Inc.</h3>
-                    <p className="text-sm text-muted-foreground">123 Business Rd, Dar es Salaam</p>
-                </div>
-                <Logo />
-            </div>
-
-            <Separator />
+        <div ref={payslipContentRef}>
+            <DialogHeader>
+            <DialogTitle className="text-center text-2xl font-bold">PAYSLIP</DialogTitle>
+            <DialogDescription className="text-center">
+                {payPeriod}
+            </DialogDescription>
+            </DialogHeader>
             
-            <div>
-                <h4 className="font-semibold mb-2">Employee Details</h4>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                    <p className="text-muted-foreground">Employee Name:</p>
-                    <p className="font-medium">{payrollData.name}</p>
-                    <p className="text-muted-foreground">Position:</p>
-                    <p className="font-medium">{payrollData.position}</p>
-                    <p className="text-muted-foreground">Employee ID:</p>
-                    <p className="font-medium">{payrollData.id}</p>
+            <div className="p-6 space-y-6">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h3 className="font-bold">DiraBiz Inc.</h3>
+                        <p className="text-sm text-muted-foreground">123 Business Rd, Dar es Salaam</p>
+                    </div>
+                    <Logo />
                 </div>
-            </div>
 
-            <Separator />
-
-            <div className="grid grid-cols-2 gap-8">
+                <Separator />
+                
                 <div>
-                    <h4 className="font-semibold mb-2">Earnings</h4>
-                    <Table>
-                        <TableBody>
-                            <TableRow>
-                                <TableCell>Gross Salary</TableCell>
-                                <TableCell className="text-right">{payrollData.salary.toLocaleString()}</TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
+                    <h4 className="font-semibold mb-2">Employee Details</h4>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                        <p className="text-muted-foreground">Employee Name:</p>
+                        <p className="font-medium">{payrollData.name}</p>
+                        <p className="text-muted-foreground">Position:</p>
+                        <p className="font-medium">{payrollData.position}</p>
+                        <p className="text-muted-foreground">Employee ID:</p>
+                        <p className="font-medium">{payrollData.id}</p>
+                    </div>
                 </div>
-                <div>
-                    <h4 className="font-semibold mb-2">Deductions</h4>
-                    <Table>
-                        <TableBody>
-                            <TableRow>
-                                <TableCell>NSSF (10%)</TableCell>
-                                <TableCell className="text-right">{payrollData.nssf.toLocaleString()}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                                <TableCell>PAYE</TableCell>
-                                <TableCell className="text-right">{payrollData.paye.toLocaleString()}</TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
-                </div>
-            </div>
 
-            <Separator />
+                <Separator />
 
-            <div className="space-y-2">
-                 <div className="flex justify-between font-medium">
-                    <span>Total Earnings</span>
-                    <span>TSh {payrollData.salary.toLocaleString()}</span>
+                <div className="grid grid-cols-2 gap-8">
+                    <div>
+                        <h4 className="font-semibold mb-2">Earnings</h4>
+                        <Table>
+                            <TableBody>
+                                <TableRow>
+                                    <TableCell>Gross Salary</TableCell>
+                                    <TableCell className="text-right">{payrollData.salary.toLocaleString()}</TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold mb-2">Deductions</h4>
+                        <Table>
+                            <TableBody>
+                                <TableRow>
+                                    <TableCell>NSSF (10%)</TableCell>
+                                    <TableCell className="text-right">{payrollData.nssf.toLocaleString()}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                    <TableCell>PAYE</TableCell>
+                                    <TableCell className="text-right">{payrollData.paye.toLocaleString()}</TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
                 </div>
-                <div className="flex justify-between font-medium">
-                    <span>Total Deductions</span>
-                    <span>TSh {(payrollData.totalDeductions + payrollData.paye).toLocaleString()}</span>
-                </div>
-                 <div className="flex justify-between font-bold text-lg bg-muted p-2 rounded-md">
-                    <span>Net Salary</span>
-                    <span>TSh {payrollData.netSalary.toLocaleString()}</span>
+
+                <Separator />
+
+                <div className="space-y-2">
+                    <div className="flex justify-between font-medium">
+                        <span>Total Earnings</span>
+                        <span>TSh {payrollData.salary.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between font-medium">
+                        <span>Total Deductions</span>
+                        <span>TSh {(payrollData.totalDeductions + payrollData.paye).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-lg bg-muted p-2 rounded-md">
+                        <span>Net Salary</span>
+                        <span>TSh {payrollData.netSalary.toLocaleString()}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -119,7 +156,7 @@ export function PayslipDialog({ isOpen, onClose, payrollData }: PayslipDialogPro
             <Button type="button" variant="outline" onClick={onClose}>
                 Close
             </Button>
-            <Button type="button">
+            <Button type="button" onClick={handlePrint}>
                 Print / Download
             </Button>
         </DialogFooter>
@@ -127,4 +164,3 @@ export function PayslipDialog({ isOpen, onClose, payrollData }: PayslipDialogPro
     </Dialog>
   );
 }
-
