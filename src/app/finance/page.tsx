@@ -15,75 +15,24 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Trash2 } from 'lucide-react'
+import { useFinancials } from '@/context/financial-context'
 
-// --- Mock Data ---
-
-interface Receivable {
-    id: string;
-    name: string;
-    phone: string;
-    amount: number;
-    product: string;
-    date: Date;
-}
-
-interface Payable {
-    id: string;
-    supplierName: string;
-    product: string;
-    amount: number;
-    date: Date;
-}
-
-interface Prepayment {
-    id: string;
-    customerName: string;
-    phone: string;
-    prepaidAmount: number;
-    date: Date;
-}
-
-const initialReceivables: Receivable[] = [
-  { id: 'rec-001', name: 'Noah Williams', phone: '+255688990011', amount: 60000, product: 'Sukari', date: new Date(2024, 4, 18) },
-  { id: 'rec-002', name: 'Sophia Davis', phone: '+255677889900', amount: 75000, product: 'Nido', date: new Date(2024, 3, 18) },
-  { id: 'rec-003', name: 'Charlotte Thomas', phone: '+255787456123', amount: 21000, product: 'Mafuta', date: new Date(2023, 8, 22)},
-];
-
-const initialPayables: Payable[] = [
-    { id: 'pay-001', supplierName: "Azam Mills", product: "Unga wa Ngano (50kg)", amount: 2500000, date: new Date(2024, 4, 10)},
-    { id: 'pay-002', supplierName: "Kilombero Sugar", product: "Sukari (20 bags)", amount: 1800000, date: new Date(2024, 4, 2)},
-    { id: 'pay-003', supplierName: "Korie Oils", product: "Mafuta ya Alizeti (100L)", amount: 3200000, date: new Date(2024, 3, 28)},
-];
-
-const initialPrepayments: Prepayment[] = [
-    { id: 'pre-001', customerName: "Asha Bakari", phone: "+255712112233", prepaidAmount: 15000, date: new Date(2024, 4, 20) },
-    { id: 'pre-002', customerName: "John Okello", phone: "+255756445566", prepaidAmount: 50000, date: new Date(2024, 4, 15) },
-    { id: 'pre-003', customerName: "Fatuma Said", phone: "+255688776655", prepaidAmount: 22500, date: new Date(2024, 4, 1) },
-];
 
 export default function FinancePage() {
-    const [receivables, setReceivables] = React.useState(initialReceivables)
-    const [payables, setPayables] = React.useState(initialPayables)
-    const [prepayments, setPrepayments] = React.useState(initialPrepayments)
+    const { 
+        transactions, 
+        payables, 
+        prepayments, 
+        markReceivableAsPaid, 
+        markPayableAsPaid, 
+        usePrepayment 
+    } = useFinancials();
 
+    const receivables = transactions.filter(t => t.status === 'Credit');
+    
     const totalReceivable = receivables.reduce((sum, item) => sum + item.amount, 0);
     const totalPayable = payables.reduce((sum, item) => sum + item.amount, 0);
     const totalPrepayment = prepayments.reduce((sum, item) => sum + item.prepaidAmount, 0);
-
-    const handleMarkAsPaid = (id: string, type: 'receivable' | 'payable') => {
-        if (type === 'receivable') {
-            setReceivables(receivables.filter(item => item.id !== id))
-        } else {
-            setPayables(payables.filter(item => item.id !== id))
-        }
-        // In a real app, you'd show a success toast here.
-    }
-    
-    const handleUsePrepayment = (id: string) => {
-        setPrepayments(prepayments.filter(item => item.id !== id))
-        // In a real app, you'd show a success toast here.
-    }
-
 
   return (
     <div className="w-full max-w-lg mx-auto flex flex-col gap-8">
@@ -128,7 +77,7 @@ export default function FinancePage() {
                                     <TableCell className="whitespace-nowrap">{format(item.date, 'dd/MM/yyyy')}</TableCell>
                                     <TableCell className="text-right whitespace-nowrap">TSh {item.amount.toLocaleString()}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="outline" size="sm" onClick={() => handleMarkAsPaid(item.id, 'receivable')} className="whitespace-nowrap">
+                                        <Button variant="outline" size="sm" onClick={() => markReceivableAsPaid(item.id)} className="whitespace-nowrap">
                                             <CheckCircle className="mr-2 h-4 w-4"/>
                                             Mark as Paid
                                         </Button>
@@ -180,7 +129,7 @@ export default function FinancePage() {
                                         <TableCell className="whitespace-nowrap">{format(item.date, 'dd/MM/yyyy')}</TableCell>
                                         <TableCell className="text-right whitespace-nowrap">TSh {item.amount.toLocaleString()}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" onClick={() => handleMarkAsPaid(item.id, 'payable')} className="whitespace-nowrap">
+                                            <Button variant="outline" size="sm" onClick={() => markPayableAsPaid(item.id)} className="whitespace-nowrap">
                                                 <CheckCircle className="mr-2 h-4 w-4"/>
                                                 Mark as Paid
                                             </Button>
@@ -233,7 +182,7 @@ export default function FinancePage() {
                                         <TableCell className="whitespace-nowrap">{format(item.date, 'dd/MM/yyyy')}</TableCell>
                                         <TableCell className="text-right whitespace-nowrap">TSh {item.prepaidAmount.toLocaleString()}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" onClick={() => handleUsePrepayment(item.id)} className="whitespace-nowrap">
+                                            <Button variant="outline" size="sm" onClick={() => usePrepayment(item.id)} className="whitespace-nowrap">
                                                 <Trash2 className="mr-2 h-4 w-4"/>
                                                 Mark as Used/Refunded
                                             </Button>

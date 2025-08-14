@@ -62,89 +62,8 @@ import {
 } from "@/components/ui/select"
 import { cn } from '@/lib/utils'
 import { Progress } from '@/components/ui/progress'
+import { useFinancials, Transaction, Payable, CustomerPrepayment } from '@/context/financial-context'
 
-
-type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit";
-
-interface Transaction {
-    name: string;
-    phone: string;
-    amount: number;
-    status: 'Paid' | 'Credit';
-    date: Date;
-    paymentMethod: PaymentMethod;
-    product: 'Mchele' | 'Unga' | 'Sukari' | 'Mafuta' | 'Sabuni' | 'Nido';
-}
-
-interface Payable {
-    supplierName: string;
-    product: string;
-    amount: number;
-    date: Date;
-}
-
-interface CustomerPrepayment {
-    customerName: string;
-    phone: string;
-    prepaidAmount: number;
-}
-
-
-// Unified dummy data with dates, payment methods and products
-const allTransactions: Transaction[] = [
-  // 2024 May
-  { name: 'Liam Johnson', phone: '+255712345678', amount: 45000, status: 'Paid', date: new Date('2024-05-20'), paymentMethod: 'Mobile', product: 'Mchele' },
-  { name: 'Olivia Smith', phone: '+255755123456', amount: 30000, status: 'Paid', date: new Date('2024-05-20'), paymentMethod: 'Cash', product: 'Unga' },
-  { name: 'Noah Williams', phone: '+255688990011', amount: 60000, status: 'Credit', date: new Date('2024-05-18'), paymentMethod: 'Credit', product: 'Sukari' },
-  { name: 'Emma Brown', phone: '+255788112233', amount: 85000, status: 'Paid', date: new Date('2024-05-15'), paymentMethod: 'Bank', product: 'Mafuta' },
-  { name: 'James Jones', phone: '+255655443322', amount: 20000, status: 'Paid', date: new Date('2024-05-12'), paymentMethod: 'Mobile', product: 'Sabuni' },
-  
-  // 2024 April
-  { name: 'Ava Garcia', phone: '+255714556677', amount: 50000, status: 'Paid', date: new Date('2024-04-25'), paymentMethod: 'Cash', product: 'Mchele' },
-  { name: 'Isabella Miller', phone: '+255766778899', amount: 35000, status: 'Paid', date: new Date('2024-04-22'), paymentMethod: 'Bank', product: 'Unga' },
-  { name: 'Sophia Davis', phone: '+255677889900', amount: 75000, status: 'Credit', date: new Date('2024-04-18'), paymentMethod: 'Credit', product: 'Nido' },
-  { name: 'Mia Rodriguez', phone: '+255718990011', amount: 55000, status: 'Paid', date: new Date('2024-04-11'), paymentMethod: 'Mobile', product: 'Sukari' },
-  
-  // 2024 March
-  { name: 'Lucas Wilson', phone: '+255622334455', amount: 90000, status: 'Paid', date: new Date('2024-03-30'), paymentMethod: 'Bank', product: 'Mchele' },
-  { name: 'Zoe Martinez', phone: '+255713445566', amount: 40000, status: 'Paid', date: new Date('2024-03-15'), paymentMethod: 'Cash', product: 'Unga' },
-
-
-  // 2024 February
-  { name: 'Amelia Harris', phone: '+255758990011', amount: 48000, status: 'Paid', date: new Date('2024-02-15'), paymentMethod: 'Mobile', product: 'Sabuni'},
-  
-  // 2024 January
-  { name: 'Elijah Clark', phone: '+255689001122', amount: 72000, status: 'Paid', date: new Date('2024-01-20'), paymentMethod: 'Bank', product: 'Nido'},
-
-  // 2023 Data
-  { name: 'Henry Moore', phone: '+255717654321', amount: 7500, status: 'Paid', date: new Date('2023-12-15'), paymentMethod: 'Cash', product: 'Sukari' },
-  { name: 'Grace Taylor', phone: '+255754987654', amount: 9500, status: 'Paid', date: new Date('2023-11-05'), paymentMethod: 'Mobile', product: 'Mchele' },
-  { name: 'Benjamin Anderson', phone: '+255688123789', amount: 12000, status: 'Paid', date: new Date('2023-10-10'), paymentMethod: 'Bank', product: 'Unga'},
-  { name: 'Charlotte Thomas', phone: '+255787456123', amount: 21000, status: 'Credit', date: new Date('2023-09-22'), paymentMethod: 'Credit', product: 'Mafuta'},
-  { name: 'Daniel White', phone: '+255655789456', amount: 13000, status: 'Paid', date: new Date('2023-08-01'), paymentMethod: 'Mobile', product: 'Sabuni'},
-];
-
-const allPayables: Payable[] = [
-    { supplierName: "Azam Mills", product: "Unga wa Ngano (50kg)", amount: 2500000, date: new Date("2024-05-10")},
-    { supplierName: "Kilombero Sugar", product: "Sukari (20 bags)", amount: 1800000, date: new Date("2024-05-02")},
-    { supplierName: "Korie Oills", product: "Mafuta ya Alizeti (100L)", amount: 3200000, date: new Date("2024-04-28")},
-];
-
-const allPrepayments: CustomerPrepayment[] = [
-    { customerName: "Asha Bakari", phone: "+255712112233", prepaidAmount: 15000 },
-    { customerName: "John Okello", phone: "+255756445566", prepaidAmount: 50000 },
-    { customerName: "Fatuma Said", phone: "+255688776655", prepaidAmount: 22500 },
-];
-
-
-const allProducts = [
-    { id: 'PROD-001', name: 'Mchele', initialStock: 100, currentStock: 80, entryDate: new Date('2024-04-01') },
-    { id: 'PROD-002', name: 'Unga', initialStock: 200, currentStock: 150, entryDate: new Date('2024-03-15') },
-    { id: 'PROD-003', name: 'Mafuta', initialStock: 50, currentStock: 45, entryDate: new Date('2024-01-10') },
-    { id: 'PROD-004', name: 'Sabuni', initialStock: 120, currentStock: 70, entryDate: new Date('2024-02-05') },
-    { id: 'PROD-005', name: 'Sukari', initialStock: 300, currentStock: 100, entryDate: new Date('2024-05-01') },
-    { id: 'PROD-006', name: 'Nido', initialStock: 80, currentStock: 75, entryDate: new Date('2023-11-20') },
-];
 
 interface SlowMovingProduct {
     id: string;
@@ -189,6 +108,8 @@ interface DashboardData {
 }
 
 export default function DashboardPage() {
+    const { transactions: allTransactions, payables: allPayables, prepayments: allPrepayments, products: allProducts } = useFinancials();
+
     const [date, setDate] = React.useState<DateRange | undefined>({
       from: startOfMonth(new Date()),
       to: endOfMonth(new Date()),
@@ -310,7 +231,7 @@ export default function DashboardPage() {
             totalPrepayments,
         });
 
-    }, [date]);
+    }, [date, allTransactions, allPayables, allPrepayments, allProducts]);
 
     const handlePresetChange = (value: string) => {
         setSelectedPreset(value);

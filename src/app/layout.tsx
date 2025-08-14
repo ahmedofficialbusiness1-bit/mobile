@@ -4,6 +4,7 @@ import { SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/sidebar'
 import { AppHeader } from '@/components/layout/header'
 import { Toaster } from '@/components/ui/toaster'
+import { FinancialProvider } from '@/context/financial-context'
 
 export const metadata: Metadata = {
   title: 'DiraBiz',
@@ -30,13 +31,15 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <SidebarProvider>
-          <AppSidebar />
-          <div className="flex-1">
-            <AppHeader />
-            <main className="p-4 sm:p-6 lg:p-8">{children}</main>
-          </div>
-        </SidebarProvider>
+        <FinancialProvider>
+          <SidebarProvider>
+            <AppSidebar />
+            <div className="flex-1">
+              <AppHeader />
+              <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+            </div>
+          </SidebarProvider>
+        </FinancialProvider>
         <Toaster />
       </body>
     </html>
