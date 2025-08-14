@@ -1,7 +1,8 @@
 
 'use client'
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { differenceInYears } from 'date-fns';
 
 // --- Type Definitions ---
 export type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit" | "Prepaid";
@@ -14,7 +15,7 @@ export interface Transaction {
     status: 'Paid' | 'Credit';
     date: Date;
     paymentMethod: PaymentMethod;
-    product: 'Mchele' | 'Unga' | 'Sukari' | 'Mafuta' | 'Sabuni' | 'Nido' | 'Prepayment Used';
+    product: string;
     notes?: string;
 }
 
@@ -44,6 +45,21 @@ export interface Product {
     currentStock: number;
     entryDate: Date;
 }
+
+export interface Asset {
+    id: string;
+    name: string;
+    cost: number;
+    acquisitionDate: Date;
+    depreciationRate: number; // Annual percentage
+    status: 'Active' | 'Sold' | 'Written Off';
+    accumulatedDepreciation: number;
+    netBookValue: number;
+    source: 'Capital' | 'Purchase';
+}
+
+export type AddAssetData = Omit<Asset, 'id' | 'status' | 'accumulatedDepreciation' | 'netBookValue' | 'source'>;
+
 
 // --- Initial Mock Data ---
 const initialTransactions: Transaction[] = [
@@ -88,19 +104,46 @@ const initialProducts: Product[] = [
     { id: 'PROD-006', name: 'Nido', initialStock: 80, currentStock: 75, entryDate: new Date(2023, 10, 20) },
 ];
 
+const initialAssets: Asset[] = [
+    { id: 'cap-002', name: 'Toyota Hilux van for delivery', cost: 15000000, acquisitionDate: new Date(2023, 5, 10), depreciationRate: 25, status: 'Active', accumulatedDepreciation: 0, netBookValue: 0, source: 'Capital' },
+];
+
 // --- Context Definition ---
 interface FinancialContextType {
     transactions: Transaction[];
     payables: Payable[];
     prepayments: CustomerPrepayment[];
     products: Product[];
+    assets: Asset[];
     markReceivableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
     markPayableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
     markPrepaymentAsUsed: (id: string) => void;
     markPrepaymentAsRefunded: (id: string) => void;
+    addAsset: (assetData: AddAssetData) => void;
+    sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => void;
+    writeOffAsset: (id: string) => void;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
+
+// --- Helper Functions ---
+const calculateDepreciation = (asset: Asset): { accumulatedDepreciation: number; netBookValue: number } => {
+    const years = differenceInYears(new Date(), asset.acquisitionDate);
+    if (years < 1) {
+        return { accumulatedDepreciation: 0, netBookValue: asset.cost };
+    }
+    
+    let netBookValue = asset.cost;
+    let accumulatedDepreciation = 0;
+
+    for (let i = 0; i < years; i++) {
+        const depreciationForYear = netBookValue * (asset.depreciationRate / 100);
+        netBookValue -= depreciationForYear;
+        accumulatedDepreciation += depreciationForYear;
+    }
+    
+    return { accumulatedDepreciation, netBookValue };
+};
 
 // --- Context Provider ---
 export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -108,6 +151,12 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [payables, setPayables] = useState<Payable[]>(initialPayables);
     const [prepayments, setPrepayments] = useState<CustomerPrepayment[]>(initialPrepayments);
     const [products, setProducts] = useState<Product[]>(initialProducts);
+    const [assets, setAssets] = useState<Asset[]>(() => {
+         return initialAssets.map(asset => {
+            const { accumulatedDepreciation, netBookValue } = calculateDepreciation(asset);
+            return { ...asset, accumulatedDepreciation, netBookValue };
+        });
+    });
 
     const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
         setTransactions(prevTransactions =>
@@ -129,10 +178,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const prepayment = prepayments.find(p => p.id === id);
         if (!prepayment) return;
 
-        // Mark the prepayment as used
         setPrepayments(prev => prev.map(p => p.id === id ? { ...p, status: 'Used' } : p));
         
-        // Create a new transaction to recognize the revenue
         const newTransaction: Transaction = {
             id: `txn-prepaid-${id}`,
             name: prepayment.customerName,
@@ -150,16 +197,57 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         setPrepayments(prev => prev.map(p => p.id === id ? { ...p, status: 'Refunded' } : p));
     };
 
+    const addAsset = (assetData: AddAssetData) => {
+        const newAsset: Asset = {
+            id: `asset-${Date.now()}`,
+            ...assetData,
+            status: 'Active',
+            source: 'Purchase',
+            accumulatedDepreciation: 0,
+            netBookValue: assetData.cost,
+        };
+        const { accumulatedDepreciation, netBookValue } = calculateDepreciation(newAsset);
+        newAsset.accumulatedDepreciation = accumulatedDepreciation;
+        newAsset.netBookValue = netBookValue;
+        setAssets(prev => [newAsset, ...prev]);
+    };
+
+    const sellAsset = (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => {
+        const asset = assets.find(a => a.id === id);
+        if (!asset) return;
+
+        setAssets(prev => prev.map(a => a.id === id ? { ...a, status: 'Sold', netBookValue: 0 } : a));
+
+        const newTransaction: Transaction = {
+            id: `txn-asset-sale-${id}`,
+            name: 'Asset Sale',
+            phone: 'N/A',
+            amount: sellPrice,
+            status: paymentMethod === 'Credit' ? 'Credit' : 'Paid',
+            date: new Date(),
+            paymentMethod: paymentMethod,
+            product: `Sale of ${asset.name}`,
+        };
+        setTransactions(prev => [...prev, newTransaction]);
+    };
+
+    const writeOffAsset = (id: string) => {
+        setAssets(prev => prev.map(a => a.id === id ? { ...a, status: 'Written Off', netBookValue: 0 } : a));
+    };
 
     const value = {
         transactions,
         payables,
         prepayments,
         products,
+        assets,
         markReceivableAsPaid,
         markPayableAsPaid,
         markPrepaymentAsUsed,
-        markPrepaymentAsRefunded
+        markPrepaymentAsRefunded,
+        addAsset,
+        sellAsset,
+        writeOffAsset
     };
 
     return <FinancialContext.Provider value={value}>{children}</FinancialContext.Provider>;

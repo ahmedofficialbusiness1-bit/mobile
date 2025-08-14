@@ -14,6 +14,7 @@ import AccountsView from './accounts-view'
 import PayrollView from './payroll-view'
 import ExpensesView from './expenses-view'
 import CapitalView from './capital-view'
+import AssetsView from './assets-view'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 
 
@@ -56,10 +57,7 @@ export default function FinancePage() {
             case 'capital':
                 return <CapitalView />;
             case 'assets':
-                return <PlaceholderCard 
-                            title="Asset Management"
-                            description="Track fixed assets, depreciation, and value over time."
-                        />;
+                return <AssetsView />;
             case 'cash':
                 return <PlaceholderCard 
                             title="Cash Management"
