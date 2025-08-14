@@ -15,7 +15,6 @@ export interface Transaction {
     date: Date;
     paymentMethod: PaymentMethod;
     product: 'Mchele' | 'Unga' | 'Sukari' | 'Mafuta' | 'Sabuni' | 'Nido';
-    notes?: string;
 }
 
 export interface Payable {
@@ -106,23 +105,11 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [products, setProducts] = useState<Product[]>(initialProducts);
 
     const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
-        const receivable = transactions.find(t => t.id === id);
-        if (!receivable) return;
-
-        // Remove the original credit transaction
-        const otherTransactions = transactions.filter(t => t.id !== id);
-
-        // Create a new 'Paid' transaction for the repayment
-        const repaymentTransaction: Transaction = {
-            ...receivable,
-            id: `txn-${Date.now()}`, // new unique id
-            status: 'Paid',
-            paymentMethod: paymentMethod,
-            date: new Date(),
-            notes: `Debt Repayment for INV-${receivable.id}`
-        };
-        
-        setTransactions([...otherTransactions, repaymentTransaction]);
+        setTransactions(prevTransactions =>
+            prevTransactions.map(t =>
+                t.id === id ? { ...t, status: 'Paid', paymentMethod: paymentMethod, date: new Date() } : t
+            )
+        );
     };
 
     const markPayableAsPaid = (id: string) => {
