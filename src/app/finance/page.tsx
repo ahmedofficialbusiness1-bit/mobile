@@ -14,15 +14,15 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, CreditCard, Undo } from 'lucide-react'
+import { CheckCircle, CreditCard, Undo, Menu } from 'lucide-react'
 import { useFinancials, PaymentMethod } from '@/context/financial-context'
 import { PaymentDialog } from '@/components/payment-dialog'
 import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-  } from '@/components/ui/tabs'
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from '@/components/ui/sheet'
+import { cn } from '@/lib/utils'
 
 
 function PlaceholderCard({ title, description }: { title: string, description: string }) {
@@ -256,61 +256,101 @@ function AccountsView() {
     );
 }
 
+const financeNavItems = [
+    { id: 'accounts', label: 'Accounts' },
+    { id: 'payroll', label: 'Payroll' },
+    { id: 'expenses', label: 'Expenses' },
+    { id: 'capital', label: 'Capital' },
+    { id: 'assets', label: 'Assets' },
+    { id: 'cash', label: 'Cash Management' },
+]
+
 export default function FinancePage() {
+    const [activeView, setActiveView] = React.useState('accounts');
+
+    const renderContent = () => {
+        switch (activeView) {
+            case 'accounts':
+                return <AccountsView />;
+            case 'payroll':
+                return <PlaceholderCard 
+                            title="Payroll Management"
+                            description="Manage employee salaries, deductions, and payroll taxes."
+                        />;
+            case 'expenses':
+                return <PlaceholderCard 
+                            title="Daily Expenses"
+                            description="Track and categorize all business operational expenses."
+                        />;
+            case 'capital':
+                return <PlaceholderCard 
+                            title="Capital Management"
+                            description="Monitor owner's equity, investments, and drawings."
+                        />;
+            case 'assets':
+                return <PlaceholderCard 
+                            title="Asset Management"
+                            description="Track fixed assets, depreciation, and value over time."
+                        />;
+            case 'cash':
+                return <PlaceholderCard 
+                            title="Cash Management"
+                            description="Analyze cash flow from operating, investing, and financing activities."
+                        />;
+            default:
+                return <AccountsView />;
+        }
+    }
+    
+    const NavMenu = ({isSheet = false}: {isSheet?: boolean}) => (
+         <nav className={cn("flex flex-col gap-2", isSheet ? "p-4" : "")}>
+            {financeNavItems.map(item => (
+                <Button
+                    key={item.id}
+                    variant={activeView === item.id ? 'default' : 'ghost'}
+                    onClick={() => setActiveView(item.id)}
+                    className="justify-start"
+                >
+                    {item.label}
+                </Button>
+            ))}
+        </nav>
+    )
+
     return (
         <div className="flex flex-col gap-8">
-            <div className="text-left">
-                <h1 className="text-3xl font-bold font-headline">
-                    Finance Management
-                </h1>
-                <p className="text-muted-foreground mt-2 max-w-2xl">
-                    Track and manage your company's financial health, from debts to customer deposits.
-                </p>
+            <div className="flex items-center justify-between">
+                <div className="text-left">
+                    <h1 className="text-3xl font-bold font-headline">
+                        Finance Management
+                    </h1>
+                    <p className="text-muted-foreground mt-2 max-w-2xl">
+                        Track and manage your company's financial health, from debts to customer deposits.
+                    </p>
+                </div>
+                <div className="md:hidden">
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button variant="outline" size="icon">
+                                <Menu className="h-4 w-4" />
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left">
+                           <NavMenu isSheet={true} />
+                        </SheetContent>
+                    </Sheet>
+                </div>
             </div>
 
-            <Tabs defaultValue="accounts" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto">
-                    <TabsTrigger value="accounts">Accounts</TabsTrigger>
-                    <TabsTrigger value="payroll">Payroll</TabsTrigger>
-                    <TabsTrigger value="expenses">Expenses</TabsTrigger>
-                    <TabsTrigger value="capital">Capital</TabsTrigger>
-                    <TabsTrigger value="assets">Assets</TabsTrigger>
-                    <TabsTrigger value="cash">Cash Management</TabsTrigger>
-                </TabsList>
-                <TabsContent value="accounts">
-                    <AccountsView />
-                </TabsContent>
-                <TabsContent value="payroll">
-                     <PlaceholderCard 
-                        title="Payroll Management"
-                        description="Manage employee salaries, deductions, and payroll taxes."
-                    />
-                </TabsContent>
-                <TabsContent value="expenses">
-                     <PlaceholderCard 
-                        title="Daily Expenses"
-                        description="Track and categorize all business operational expenses."
-                    />
-                </TabsContent>
-                <TabsContent value="capital">
-                    <PlaceholderCard 
-                        title="Capital Management"
-                        description="Monitor owner's equity, investments, and drawings."
-                    />
-                </TabsContent>
-                <TabsContent value="assets">
-                    <PlaceholderCard 
-                        title="Asset Management"
-                        description="Track fixed assets, depreciation, and value over time."
-                    />
-                </TabsContent>
-                <TabsContent value="cash">
-                    <PlaceholderCard 
-                        title="Cash Management"
-                        description="Analyze cash flow from operating, investing, and financing activities."
-                    />
-                </TabsContent>
-            </Tabs>
+            <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-8">
+                <aside className="hidden md:block">
+                   <NavMenu />
+                </aside>
+                <main>
+                    {renderContent()}
+                </main>
+            </div>
         </div>
     );
 }
+
