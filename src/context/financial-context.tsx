@@ -64,7 +64,7 @@ export interface CapitalContribution {
   id: string;
   date: Date;
   description: string;
-  type: 'Cash' | 'Bank' | 'Asset' | 'Liability';
+  type: 'Cash' | 'Bank' | 'Asset' | 'Liability' | 'Drawing';
   amount: number;
 }
 
@@ -74,6 +74,12 @@ export interface OwnerLoan {
     description: string;
     amount: number;
     repaid: number;
+}
+
+export interface DrawingData {
+  amount: number;
+  source: 'Cash' | 'Bank' | 'Mobile';
+  description: string;
 }
 
 
@@ -160,6 +166,7 @@ interface FinancialContextType {
     writeOffAsset: (id: string) => void;
     addCapitalContribution: (data: Omit<CapitalContribution, 'id'>) => void;
     repayOwnerLoan: (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => void;
+    addDrawing: (data: DrawingData) => void;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -209,16 +216,30 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         capitalContributions.forEach(c => {
             if (c.type === 'Cash') cash += c.amount;
             if (c.type === 'Bank') bank += c.amount;
+            // Drawings reduce the balance
+            if (c.type === 'Drawing') {
+                const drawing = c as CapitalContribution & { source?: 'Cash' | 'Bank' | 'Mobile' };
+                if (drawing.source === 'Cash') cash -= drawing.amount;
+                if (drawing.source === 'Bank') bank -= drawing.amount;
+                if (drawing.source === 'Mobile') mobile -= drawing.amount;
+            }
         });
         
         ownerLoans.forEach(loan => {
              const capitalEntry = capitalContributions.find(c => c.id === loan.id);
-             if(capitalEntry?.type === 'Cash') cash += loan.amount - loan.repaid;
-             if(capitalEntry?.type === 'Bank') bank += loan.amount - loan.repaid;
+             if(capitalEntry?.type === 'Cash') cash += loan.amount;
+             if(capitalEntry?.type === 'Bank') bank += loan.amount;
+        });
+
+        repayments.forEach(repayment => {
+            if (repayment.paymentMethod === 'Cash') cash -= repayment.amount;
+            if (repayment.paymentMethod === 'Bank') bank -= repayment.amount;
+            if (repayment.paymentMethod === 'Mobile') mobile -= repayment.amount;
         });
 
 
-        setCashBalances({ cash: 1250000, bank: 5800000, mobile: 780000 }); // Using mock data for now
+        // This is a simplified balance calculation. A real app would track this more rigorously.
+        setCashBalances({ cash: 1250000, bank: 5800000, mobile: 780000 }); 
 
         // Initialize owner loans from capital contributions
         const loansFromCapital = capitalContributions
@@ -228,7 +249,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 date: c.date,
                 description: c.description,
                 amount: c.amount,
-                repaid: 0,
+                repaid: 0, // Initial repayment is zero
             }));
         setOwnerLoans(loansFromCapital);
     }, [capitalContributions]);
@@ -329,6 +350,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             setOwnerLoans(prev => [newLoan, ...prev]);
         }
     };
+    
+    const [repayments, setRepayments] = useState<{loanId: string, amount: number, paymentMethod: string}[]>([]);
+
 
     const repayOwnerLoan = (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => {
         setOwnerLoans(prev => prev.map(loan => 
@@ -344,6 +368,25 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
         
         // Optionally, create a transaction record for this repayment for audit trail
+    };
+
+    const addDrawing = (data: DrawingData) => {
+        const newDrawing: CapitalContribution = {
+            id: `draw-${Date.now()}`,
+            date: new Date(),
+            description: data.description,
+            type: 'Drawing',
+            amount: data.amount, // Drawings are negative contributions
+        };
+        setCapitalContributions(prev => [...prev, newDrawing]);
+
+        setCashBalances(prev => {
+            const newBalances = { ...prev };
+            if (data.source === 'Cash') newBalances.cash -= data.amount;
+            if (data.source === 'Bank') newBalances.bank -= data.amount;
+            if (data.source === 'Mobile') newBalances.mobile -= data.amount;
+            return newBalances;
+        });
     };
 
     const value = {
@@ -364,6 +407,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         writeOffAsset,
         addCapitalContribution,
         repayOwnerLoan,
+        addDrawing,
     };
 
     return <FinancialContext.Provider value={value}>{children}</FinancialContext.Provider>;

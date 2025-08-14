@@ -4,22 +4,26 @@
 import * as React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Wallet, Landmark, Smartphone, PiggyBank, ArrowDownUp, MinusCircle, PlusCircle } from 'lucide-react'
+import { Wallet, Landmark, Smartphone, PiggyBank, ArrowUpRight, ArrowDownLeft, MinusCircle, PlusCircle } from 'lucide-react'
 import { useFinancials } from '@/context/financial-context'
 import { LoanRepaymentForm } from './loan-repayment-form'
 import { useToast } from '@/hooks/use-toast'
+import { DrawingForm, type DrawingData } from './drawing-form'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function CashManagementView() {
-    const { cashBalances, ownerLoans, repayOwnerLoan } = useFinancials();
+    const { cashBalances, ownerLoans, repayOwnerLoan, addDrawing } = useFinancials();
+    const router = useRouter();
     const { toast } = useToast();
     const [isRepayOpen, setIsRepayOpen] = React.useState(false);
+    const [isDrawingOpen, setIsDrawingOpen] = React.useState(false);
     
     const totalLoan = ownerLoans.reduce((acc, loan) => acc + loan.amount - loan.repaid, 0);
 
     const handleRepayment = (amount: number, paymentMethod: "Cash" | "Bank" | "Mobile", notes: string) => {
         if (ownerLoans.length === 0) return;
         
-        // For simplicity, repaying the first loan in the list
         const loanToRepay = ownerLoans.find(l => (l.amount - l.repaid) > 0);
         if (!loanToRepay) {
             toast({ variant: 'destructive', title: 'No outstanding loan balance to repay.' });
@@ -33,6 +37,29 @@ export default function CashManagementView() {
         });
         setIsRepayOpen(false);
     };
+
+    const handleDrawing = (data: DrawingData) => {
+        addDrawing(data);
+        toast({
+            title: "Owner Drawing Recorded",
+            description: `TSh ${data.amount.toLocaleString()} withdrawn from ${data.source}.`,
+        });
+        setIsDrawingOpen(false);
+    }
+
+    const handleNavigateToExpenses = () => {
+        // This is a client component, we can't directly switch tabs on another page.
+        // A better UX is to navigate to the page. We can use a query param if we want to pre-select a tab
+        // but for now, just navigating is enough. The user can then select the expenses tab.
+        // A more complex solution would involve a global state manager for active tabs.
+         router.push('/finance');
+         // The user needs to manually click on the 'Expenses' tab.
+         toast({
+            title: 'Navigating to Finance Module',
+            description: 'Please select the "Expenses" tab to record a new payment.',
+         })
+    }
+
 
     return (
         <>
@@ -73,6 +100,16 @@ export default function CashManagementView() {
                             </CardContent>
                         </Card>
                     </CardContent>
+                    <CardFooter className="flex gap-2">
+                        <Button variant="outline" onClick={() => setIsDrawingOpen(true)}>
+                            <ArrowUpRight className="mr-2 h-4 w-4" />
+                            Record Owner Drawing
+                        </Button>
+                        <Button onClick={handleNavigateToExpenses}>
+                            <ArrowDownLeft className="mr-2 h-4 w-4" />
+                            Make a Payment
+                        </Button>
+                    </CardFooter>
                 </Card>
 
                  <Card>
@@ -108,6 +145,13 @@ export default function CashManagementView() {
                 onClose={() => setIsRepayOpen(false)}
                 onSave={handleRepayment}
                 maxAmount={totalLoan}
+            />
+
+            <DrawingForm
+                isOpen={isDrawingOpen}
+                onClose={() => setIsDrawingOpen(false)}
+                onSave={handleDrawing}
+                maxBalances={cashBalances}
             />
         </>
     )
