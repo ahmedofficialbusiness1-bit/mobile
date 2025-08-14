@@ -454,6 +454,7 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -502,6 +503,7 @@ export default function DashboardPage() {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
             <Card>
@@ -559,6 +561,7 @@ export default function DashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -595,6 +598,7 @@ export default function DashboardPage() {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
             <Card>
@@ -641,6 +645,7 @@ export default function DashboardPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
+                        <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -674,6 +679,7 @@ export default function DashboardPage() {
                                 </TableRow>
                             </TableFooter>
                         </Table>
+                        </div>
                     </CardContent>
                 </Card>
                  <Card>
@@ -687,6 +693,7 @@ export default function DashboardPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
+                         <div className="overflow-x-auto">
                          <Table>
                             <TableHeader>
                                 <TableRow>
@@ -719,6 +726,7 @@ export default function DashboardPage() {
                                 </TableRow>
                             </TableFooter>
                         </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
@@ -734,6 +742,7 @@ export default function DashboardPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
+                         <div className="overflow-x-auto">
                          <Table>
                             <TableHeader>
                                 <TableRow>
@@ -765,6 +774,7 @@ export default function DashboardPage() {
                                 </TableRow>
                             </TableFooter>
                         </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
