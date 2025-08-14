@@ -232,6 +232,7 @@ export default function DashboardPage() {
             transactions: filteredTransactions.sort((a,b) => b.date.getTime() - a.date.getTime()),
             chartData,
             slowMovingProducts: slowMovingProducts,
+            paymentBreakdown,
             productSales: productSalesSummary,
             accountsReceivable,
             accountsPayable,
@@ -660,7 +661,7 @@ export default function DashboardPage() {
                         <CardDescription>
                             List of suppliers you have purchased from on credit.
                         </CardDescription>
-                    </Header>
+                    </CardHeader>
                     <CardContent>
                          <Table>
                             <TableHeader>
@@ -707,7 +708,7 @@ export default function DashboardPage() {
                         <CardDescription>
                             List of customers with a prepaid balance.
                         </CardDescription>
-                    </Header>
+                    </CardHeader>
                     <CardContent>
                          <Table>
                             <TableHeader>
@@ -746,3 +747,5 @@ export default function DashboardPage() {
         </div>
       )
 }
+
+    
