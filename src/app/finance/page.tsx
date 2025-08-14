@@ -106,7 +106,7 @@ export default function FinancePage() {
                   <CardDescription>
                       Suppliers you have purchased from on credit. Click 'Mark as Paid' once you settle the debt.
                   </CardDescription>
-              </Header>
+              </CardHeader>
               <CardContent>
                    <div className="overflow-x-auto">
                       <Table>
