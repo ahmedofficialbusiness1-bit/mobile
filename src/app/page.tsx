@@ -17,6 +17,7 @@ import {
   BarChart2,
   TrendingDown,
   TrendingUp,
+  WalletCards,
 } from 'lucide-react'
 import {
   Card,
@@ -80,6 +81,12 @@ interface Payable {
     date: Date;
 }
 
+interface CustomerPrepayment {
+    customerName: string;
+    email: string;
+    prepaidAmount: number;
+}
+
 
 // Unified dummy data with dates, payment methods and products
 const allTransactions: Transaction[] = [
@@ -119,6 +126,12 @@ const allPayables: Payable[] = [
     { supplierName: "Azam Mills", product: "Unga wa Ngano (50kg)", amount: 2500000, date: new Date("2024-05-10")},
     { supplierName: "Kilombero Sugar", product: "Sukari (20 bags)", amount: 1800000, date: new Date("2024-05-02")},
     { supplierName: "Korie Oills", product: "Mafuta ya Alizeti (100L)", amount: 3200000, date: new Date("2024-04-28")},
+];
+
+const allPrepayments: CustomerPrepayment[] = [
+    { customerName: "Asha Bakari", email: "asha@example.com", prepaidAmount: 15000 },
+    { customerName: "John Okello", email: "john.okello@example.com", prepaidAmount: 50000 },
+    { customerName: "Fatuma Said", email: "fatuma.s@example.com", prepaidAmount: 22500 },
 ];
 
 
@@ -167,6 +180,7 @@ interface DashboardData {
   productSales: ProductSales[];
   accountsReceivable: Transaction[];
   accountsPayable: Payable[];
+  customerPrepayments: CustomerPrepayment[];
 }
 
 export default function DashboardPage() {
@@ -187,6 +201,7 @@ export default function DashboardPage() {
       productSales: [],
       accountsReceivable: [],
       accountsPayable: [],
+      customerPrepayments: [],
     });
 
     React.useEffect(() => {
@@ -260,6 +275,8 @@ export default function DashboardPage() {
             .sort((a, b) => b.date.getTime() - a.date.getTime());
             
         const accountsPayable = allPayables.sort((a, b) => b.date.getTime() - a.date.getTime());
+        
+        const customerPrepayments = allPrepayments.sort((a, b) => b.prepaidAmount - a.prepaidAmount);
 
 
         setDashboardData({
@@ -274,6 +291,7 @@ export default function DashboardPage() {
             productSales: productSalesSummary,
             accountsReceivable,
             accountsPayable,
+            customerPrepayments,
         });
 
     }, [date]);
@@ -718,6 +736,48 @@ export default function DashboardPage() {
                 </CardContent>
             </Card>
         </div>
+        <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <WalletCards className="h-5 w-5 text-blue-500" />
+                        Customer Deposits
+                    </CardTitle>
+                    <CardDescription>
+                        List of customers with a prepaid balance.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Customer</TableHead>
+                                <TableHead className="text-right">Prepaid Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {dashboardData.customerPrepayments.length > 0 ? (
+                                dashboardData.customerPrepayments.map((item, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell>
+                                            <div className="font-medium">{item.customerName}</div>
+                                             <div className="text-sm text-muted-foreground">{item.email}</div>
+                                        </TableCell>
+                                        <TableCell className="text-right">TSh {item.prepaidAmount.toLocaleString()}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={2} className="text-center">No customer deposits found.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
     </div>
   )
 }
+
+    
