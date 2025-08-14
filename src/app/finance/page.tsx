@@ -17,8 +17,25 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle, CreditCard, Undo } from 'lucide-react'
 import { useFinancials, PaymentMethod } from '@/context/financial-context'
 import { PaymentDialog } from '@/components/payment-dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-export default function FinancePage() {
+function PlaceholderCard({ title, description }: { title: string, description: string }) {
+    return (
+        <Card className="mt-6">
+            <CardHeader>
+                <CardTitle>{title}</CardTitle>
+                <CardDescription>{description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center justify-center h-48 border-2 border-dashed rounded-lg">
+                    <p className="text-muted-foreground">Coming Soon</p>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
+function AccountsView() {
     const { 
         transactions, 
         payables, 
@@ -56,20 +73,10 @@ export default function FinancePage() {
       setDialogOpen(false);
       setSelectedItem(null);
     };
-
-  return (
+    
+    return (
     <>
-      <div className="w-full max-w-lg mx-auto flex flex-col gap-8">
-        <div className="text-left">
-          <h1 className="text-3xl font-bold font-headline">
-            Finance Management
-          </h1>
-          <p className="text-muted-foreground mt-2 max-w-2xl">
-            Track and manage your company's financial health, from debts to customer deposits.
-          </p>
-        </div>
-
-        <div className="space-y-8">
+        <div className="space-y-8 mt-6">
             <Card>
                 <CardHeader>
                   <CardTitle>Accounts Receivable</CardTitle>
@@ -234,12 +241,70 @@ export default function FinancePage() {
                 </CardContent>
             </Card>
         </div>
-      </div>
       <PaymentDialog
         isOpen={dialogOpen}
         onClose={() => setDialogOpen(false)}
         onSubmit={handlePaymentSubmit}
       />
     </>
+    );
+}
+
+export default function FinancePage() {
+  return (
+    <div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
+      <div className="text-left">
+        <h1 className="text-3xl font-bold font-headline">
+          Finance Management
+        </h1>
+        <p className="text-muted-foreground mt-2 max-w-2xl">
+          Track and manage your company's financial health, from debts to customer deposits.
+        </p>
+      </div>
+
+      <Tabs defaultValue="accounts" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto">
+          <TabsTrigger value="accounts">Accounts</TabsTrigger>
+          <TabsTrigger value="payroll">Payroll</TabsTrigger>
+          <TabsTrigger value="expenses">Expenses</TabsTrigger>
+          <TabsTrigger value="capital">Capital</TabsTrigger>
+          <TabsTrigger value="assets">Assets</TabsTrigger>
+          <TabsTrigger value="cash">Cash Flow</TabsTrigger>
+        </TabsList>
+        <TabsContent value="accounts">
+          <AccountsView />
+        </TabsContent>
+        <TabsContent value="payroll">
+          <PlaceholderCard 
+            title="Payroll Management"
+            description="Manage employee salaries, deductions, and payroll taxes."
+          />
+        </TabsContent>
+        <TabsContent value="expenses">
+           <PlaceholderCard 
+            title="Daily Expenses"
+            description="Track and categorize all business operational expenses."
+          />
+        </TabsContent>
+        <TabsContent value="capital">
+           <PlaceholderCard 
+            title="Capital Management"
+            description="Monitor owner's equity, investments, and drawings."
+          />
+        </TabsContent>
+        <TabsContent value="assets">
+           <PlaceholderCard 
+            title="Asset Management"
+            description="Track fixed assets, depreciation, and value over time."
+          />
+        </TabsContent>
+        <TabsContent value="cash">
+           <PlaceholderCard 
+            title="Cash Management"
+            description="Analyze cash flow from operating, investing, and financing activities."
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
