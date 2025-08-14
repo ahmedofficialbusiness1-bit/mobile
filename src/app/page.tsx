@@ -10,6 +10,7 @@ import {
   CreditCard,
   Package,
   Calendar as CalendarIcon,
+  Archive,
 } from 'lucide-react'
 import {
   Card,
@@ -51,6 +52,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from '@/lib/utils'
+import { Progress } from '@/components/ui/progress'
+
 
 // Expanded dummy data with dates
 const allTransactions = [
@@ -83,6 +86,25 @@ const allChartData = [
   { month: 'Dec', sales: 2540000 },
 ];
 
+const allProducts = [
+    { id: 'PROD-001', name: 'Mchele (Super)', initialStock: 100, currentStock: 80, entryDate: new Date('2024-04-01') },
+    { id: 'PROD-002', name: 'Unga wa Ngano (Azam)', initialStock: 200, currentStock: 150, entryDate: new Date('2024-03-15') },
+    // This product is slow-moving
+    { id: 'PROD-003', name: 'Mafuta ya Alizeti (Korie)', initialStock: 50, currentStock: 45, entryDate: new Date('2024-01-10') },
+    // This product is also slow-moving
+    { id: 'PROD-004', name: 'Sabuni ya Maji (Klin)', initialStock: 120, currentStock: 70, entryDate: new Date('2024-02-05') },
+    { id: 'PROD-005', name: 'Sukari (Kilombero)', initialStock: 300, currentStock: 100, entryDate: new Date('2024-05-01') },
+     // This product is very slow-moving
+    { id: 'PROD-006', name: 'Nido Milk Powder', initialStock: 80, currentStock: 75, entryDate: new Date('2023-11-20') },
+];
+
+interface SlowMovingProduct {
+    id: string;
+    name: string;
+    entryDate: Date;
+    soldPercentage: number;
+}
+
 interface DashboardData {
   totalRevenue: number;
   newCustomers: number;
@@ -90,6 +112,7 @@ interface DashboardData {
   inventoryValue: number;
   recentTransactions: typeof allTransactions;
   chartData: typeof allChartData;
+  slowMovingProducts: SlowMovingProduct[];
 }
 
 export default function DashboardPage() {
@@ -104,14 +127,13 @@ export default function DashboardPage() {
       sales: 0,
       inventoryValue: 120483200, // Assuming this is constant for now
       recentTransactions: [],
-      chartData: []
+      chartData: [],
+      slowMovingProducts: []
     });
 
     React.useEffect(() => {
-        if (!date || !date.from) return;
-
-        const fromDate = date.from;
-        const toDate = date.to || date.from;
+        const fromDate = date?.from || startOfMonth(new Date());
+        const toDate = date?.to || endOfMonth(new Date());
 
         // Filter transactions
         const filteredTransactions = allTransactions.filter(t => t.date >= fromDate && t.date <= toDate);
@@ -125,12 +147,24 @@ export default function DashboardPage() {
         const fromMonth = fromDate.getMonth();
         const toMonth = toDate.getMonth();
         const fromYear = fromDate.getFullYear();
-        const toYear = toDate.getFullYear();
         
         const filteredChartData = allChartData.filter((d, index) => {
-            const monthDate = new Date(`${fromYear}-${index + 1}-01`); // Use fromYear for simplicity in this example
-            return monthDate >= fromDate && monthDate <= toDate;
+            // This logic assumes chart data is for a single year. More complex logic needed for multi-year charts.
+            const monthDate = new Date(`${fromYear}-${index + 1}-01`);
+            return monthDate >= startOfMonth(fromDate) && monthDate <= endOfMonth(toDate);
         });
+
+        // Calculate slow-moving products
+        const threeMonthsAgo = subMonths(new Date(), 3);
+        const slowMovingProducts = allProducts
+            .filter(p => p.entryDate < threeMonthsAgo)
+            .map(p => {
+                const sold = p.initialStock - p.currentStock;
+                const soldPercentage = (sold / p.initialStock) * 100;
+                return { ...p, soldPercentage };
+            })
+            .filter(p => p.soldPercentage < 50)
+            .sort((a, b) => a.soldPercentage - b.soldPercentage);
 
 
         setDashboardData({
@@ -139,7 +173,8 @@ export default function DashboardPage() {
             sales,
             inventoryValue: 120483200, // static for now
             recentTransactions: filteredTransactions.slice(0, 5),
-            chartData: filteredChartData.length > 0 ? filteredChartData : allChartData.slice(fromMonth, toMonth + 1)
+            chartData: filteredChartData.length > 0 ? filteredChartData : allChartData.slice(fromMonth, toMonth + 1),
+            slowMovingProducts: slowMovingProducts,
         });
 
     }, [date]);
@@ -374,6 +409,55 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                <Archive className="h-5 w-5 text-muted-foreground" />
+                Slow-Moving Products
+            </CardTitle>
+            <CardDescription>
+              Products in stock for over 3 months with less than 50% sold.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Stocked On</TableHead>
+                  <TableHead className="text-right w-[150px]">Sold Percentage</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dashboardData.slowMovingProducts.length > 0 ? (
+                  dashboardData.slowMovingProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <div className="font-medium">{product.name}</div>
+                        <div className="hidden text-sm text-muted-foreground md:inline">
+                          {product.id}
+                        </div>
+                      </TableCell>
+                      <TableCell>{format(product.entryDate, 'PPP')}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                            <span className="font-medium">{product.soldPercentage.toFixed(1)}%</span>
+                            <Progress value={product.soldPercentage} className="h-2 w-20" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center">
+                      No slow-moving products found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
     </div>
   )
 }
