@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, Trash2 } from 'lucide-react'
+import { CheckCircle, Trash2, CreditCard, Undo } from 'lucide-react'
 import { useFinancials } from '@/context/financial-context'
 
 export default function FinancePage() {
@@ -24,14 +24,16 @@ export default function FinancePage() {
         prepayments, 
         markReceivableAsPaid, 
         markPayableAsPaid, 
-        usePrepayment 
+        markPrepaymentAsUsed,
+        markPrepaymentAsRefunded 
     } = useFinancials();
 
     const receivables = transactions.filter(t => t.status === 'Credit');
+    const activePrepayments = prepayments.filter(p => p.status === 'Active');
     
     const totalReceivable = receivables.reduce((sum, item) => sum + item.amount, 0);
     const totalPayable = payables.reduce((sum, item) => sum + item.amount, 0);
-    const totalPrepayment = prepayments.reduce((sum, item) => sum + item.prepaidAmount, 0);
+    const totalPrepayment = activePrepayments.reduce((sum, item) => sum + item.prepaidAmount, 0);
 
   return (
     <div className="w-full max-w-lg mx-auto flex flex-col gap-8">
@@ -76,7 +78,7 @@ export default function FinancePage() {
                                       <TableCell className="whitespace-nowrap">{format(item.date, 'dd/MM/yyyy')}</TableCell>
                                       <TableCell className="text-right whitespace-nowrap">TSh {item.amount.toLocaleString()}</TableCell>
                                       <TableCell className="text-right">
-                                          <Button variant="outline" size="sm" onClick={() => markReceivableAsPaid(item.id, 'Cash')} className="whitespace-nowrap">
+                                          <Button variant="outline" size="sm" onClick={() => markReceivableAsPaid(item.id)} className="whitespace-nowrap">
                                               <CheckCircle className="mr-2 h-4 w-4"/>
                                               Mark as Paid
                                           </Button>
@@ -156,7 +158,7 @@ export default function FinancePage() {
               <CardHeader>
                   <CardTitle>Customer Deposits (Prepaid)</CardTitle>
                   <CardDescription>
-                      Customers with a prepaid balance. This balance is automatically used on their next order, or you can manually mark it as refunded.
+                      Customers with a prepaid balance. This balance can be used for a future purchase or refunded in cash.
                   </CardDescription>
               </CardHeader>
               <CardContent>
@@ -171,8 +173,8 @@ export default function FinancePage() {
                               </TableRow>
                           </TableHeader>
                           <TableBody>
-                              {prepayments.length > 0 ? (
-                                  prepayments.map((item) => (
+                              {activePrepayments.length > 0 ? (
+                                  activePrepayments.map((item) => (
                                       <TableRow key={item.id}>
                                           <TableCell>
                                               <div className="font-medium whitespace-nowrap">{item.customerName}</div>
@@ -180,17 +182,21 @@ export default function FinancePage() {
                                           </TableCell>
                                           <TableCell className="whitespace-nowrap">{format(item.date, 'dd/MM/yyyy')}</TableCell>
                                           <TableCell className="text-right whitespace-nowrap">TSh {item.prepaidAmount.toLocaleString()}</TableCell>
-                                          <TableCell className="text-right">
-                                              <Button variant="outline" size="sm" onClick={() => usePrepayment(item.id)} className="whitespace-nowrap">
-                                                  <Trash2 className="mr-2 h-4 w-4"/>
-                                                  Mark as Used/Refunded
+                                          <TableCell className="text-right space-x-2">
+                                              <Button variant="outline" size="sm" onClick={() => markPrepaymentAsUsed(item.id)} className="whitespace-nowrap">
+                                                  <CreditCard className="mr-2 h-4 w-4"/>
+                                                  Use Balance
+                                              </Button>
+                                              <Button variant="ghost" size="sm" onClick={() => markPrepaymentAsRefunded(item.id)} className="whitespace-nowrap">
+                                                  <Undo className="mr-2 h-4 w-4"/>
+                                                  Refund Cash
                                               </Button>
                                           </TableCell>
                                       </TableRow>
                                   ))
                               ) : (
                                   <TableRow>
-                                      <TableCell colSpan={4} className="text-center h-24">No customer deposits found.</TableCell>
+                                      <TableCell colSpan={4} className="text-center h-24">No active customer deposits found.</TableCell>
                                   </TableRow>
                               )}
                           </TableBody>

@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 // --- Type Definitions ---
-export type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit";
+export type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit" | "Prepaid";
 
 export interface Transaction {
     id: string;
@@ -14,7 +14,8 @@ export interface Transaction {
     status: 'Paid' | 'Credit';
     date: Date;
     paymentMethod: PaymentMethod;
-    product: 'Mchele' | 'Unga' | 'Sukari' | 'Mafuta' | 'Sabuni' | 'Nido';
+    product: 'Mchele' | 'Unga' | 'Sukari' | 'Mafuta' | 'Sabuni' | 'Nido' | 'Prepayment Used';
+    notes?: string;
 }
 
 export interface Payable {
@@ -31,6 +32,7 @@ export interface CustomerPrepayment {
     phone: string;
     prepaidAmount: number;
     date: Date;
+    status: 'Active' | 'Used' | 'Refunded';
 }
 
 export interface Product {
@@ -70,9 +72,9 @@ const initialPayables: Payable[] = [
 ];
 
 const initialPrepayments: CustomerPrepayment[] = [
-    { id: 'pre-001', customerName: "Asha Bakari", phone: "+255712112233", prepaidAmount: 15000, date: new Date(2024, 4, 20) },
-    { id: 'pre-002', customerName: "John Okello", phone: "+255756445566", prepaidAmount: 50000, date: new Date(2024, 4, 15) },
-    { id: 'pre-003', customerName: "Fatuma Said", phone: "+255688776655", prepaidAmount: 22500, date: new Date(2024, 4, 1) },
+    { id: 'pre-001', customerName: "Asha Bakari", phone: "+255712112233", prepaidAmount: 15000, date: new Date(2024, 4, 20), status: 'Active' },
+    { id: 'pre-002', customerName: "John Okello", phone: "+255756445566", prepaidAmount: 50000, date: new Date(2024, 4, 15), status: 'Active' },
+    { id: 'pre-003', customerName: "Fatuma Said", phone: "+255688776655", prepaidAmount: 22500, date: new Date(2024, 4, 1), status: 'Active' },
 ];
 
 const initialProducts: Product[] = [
@@ -90,9 +92,10 @@ interface FinancialContextType {
     payables: Payable[];
     prepayments: CustomerPrepayment[];
     products: Product[];
-    markReceivableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
+    markReceivableAsPaid: (id: string) => void;
     markPayableAsPaid: (id: string) => void;
-    usePrepayment: (id: string) => void;
+    markPrepaymentAsUsed: (id: string) => void;
+    markPrepaymentAsRefunded: (id: string) => void;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -104,10 +107,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [prepayments, setPrepayments] = useState<CustomerPrepayment[]>(initialPrepayments);
     const [products, setProducts] = useState<Product[]>(initialProducts);
 
-    const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
+    const markReceivableAsPaid = (id: string) => {
         setTransactions(prevTransactions =>
             prevTransactions.map(t =>
-                t.id === id ? { ...t, status: 'Paid', paymentMethod: paymentMethod, date: new Date() } : t
+                t.id === id ? { ...t, status: 'Paid', paymentMethod: 'Cash', date: new Date(), notes: 'Debt Repayment' } : t
             )
         );
     };
@@ -116,9 +119,31 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         setPayables(prevPayables => prevPayables.filter(p => p.id !== id));
     };
 
-    const usePrepayment = (id: string) => {
-        setPrepayments(prevPrepayments => prevPrepayments.filter(p => p.id !== id));
+    const markPrepaymentAsUsed = (id: string) => {
+        const prepayment = prepayments.find(p => p.id === id);
+        if (!prepayment) return;
+
+        // Mark the prepayment as used
+        setPrepayments(prev => prev.map(p => p.id === id ? { ...p, status: 'Used' } : p));
+        
+        // Create a new transaction to recognize the revenue
+        const newTransaction: Transaction = {
+            id: `txn-prepaid-${id}`,
+            name: prepayment.customerName,
+            phone: prepayment.phone,
+            amount: prepayment.prepaidAmount,
+            status: 'Paid',
+            date: new Date(),
+            paymentMethod: 'Prepaid',
+            product: 'Prepayment Used',
+        };
+        setTransactions(prev => [...prev, newTransaction]);
     };
+
+    const markPrepaymentAsRefunded = (id: string) => {
+        setPrepayments(prev => prev.map(p => p.id === id ? { ...p, status: 'Refunded' } : p));
+    };
+
 
     const value = {
         transactions,
@@ -127,7 +152,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         products,
         markReceivableAsPaid,
         markPayableAsPaid,
-        usePrepayment
+        markPrepaymentAsUsed,
+        markPrepaymentAsRefunded
     };
 
     return <FinancialContext.Provider value={value}>{children}</FinancialContext.Provider>;

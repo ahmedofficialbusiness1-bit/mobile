@@ -151,6 +151,7 @@ export default function DashboardPage() {
 
         const originalSalesInPeriod = allTransactions.filter(t => 
           isWithinInterval(t.date, dateRange) && 
+          t.notes !== 'Debt Repayment' &&
           (t.status === 'Paid' || (t.status === 'Credit'))
         );
         
@@ -167,6 +168,8 @@ export default function DashboardPage() {
                 if (t.paymentMethod === 'Cash') acc.cash += t.amount;
                 if (t.paymentMethod === 'Mobile') acc.mobile += t.amount;
                 if (t.paymentMethod === 'Bank') acc.bank += t.amount;
+                // 'Prepaid' is also counted in revenue but handled differently in cash flow, so we show it in revenue breakdown.
+                if (t.paymentMethod === 'Prepaid') acc.cash += t.amount;
             return acc;
         }, { cash: 0, mobile: 0, bank: 0, credit: 0 });
         
@@ -226,9 +229,9 @@ export default function DashboardPage() {
 
         const totalPayable = accountsPayable.reduce((acc, item) => acc + item.amount, 0);
         
-        const customerPrepayments = allPrepayments.sort((a, b) => b.prepaidAmount - a.prepaidAmount);
+        const activeCustomerPrepayments = allPrepayments.filter(p => p.status === 'Active').sort((a, b) => b.prepaidAmount - a.prepaidAmount);
         
-        const totalPrepayments = customerPrepayments.reduce((acc, item) => acc + item.prepaidAmount, 0);
+        const totalPrepayments = activeCustomerPrepayments.reduce((acc, item) => acc + item.prepaidAmount, 0);
 
         setDashboardData({
             totalRevenue,
@@ -242,7 +245,7 @@ export default function DashboardPage() {
             productSales: productSalesSummary,
             accountsReceivable,
             accountsPayable,
-            customerPrepayments,
+            customerPrepayments: activeCustomerPrepayments,
             totalReceivable,
             totalPayable,
             totalPrepayments,
