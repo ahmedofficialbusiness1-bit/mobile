@@ -15,7 +15,7 @@ import PayrollView from './payroll-view'
 import ExpensesView from './expenses-view'
 import CapitalView from './capital-view'
 import AssetsView from './assets-view'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import CashManagementView from './cash-management-view'
 
 
 function PlaceholderCard({ title, description }: { title: string, description: string }) {
@@ -59,10 +59,7 @@ export default function FinancePage() {
             case 'assets':
                 return <AssetsView />;
             case 'cash':
-                return <PlaceholderCard 
-                            title="Cash Management"
-                            description="Analyze cash flow from operating, investing, and financing activities."
-                        />;
+                return <CashManagementView />;
             default:
                 return <AccountsView />;
         }
