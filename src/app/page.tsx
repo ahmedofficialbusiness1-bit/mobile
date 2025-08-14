@@ -23,6 +23,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -33,6 +34,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -181,6 +183,9 @@ interface DashboardData {
   accountsReceivable: Transaction[];
   accountsPayable: Payable[];
   customerPrepayments: CustomerPrepayment[];
+  totalReceivable: number;
+  totalPayable: number;
+  totalPrepayments: number;
 }
 
 export default function DashboardPage() {
@@ -202,6 +207,9 @@ export default function DashboardPage() {
       accountsReceivable: [],
       accountsPayable: [],
       customerPrepayments: [],
+      totalReceivable: 0,
+      totalPayable: 0,
+      totalPrepayments: 0,
     });
 
     React.useEffect(() => {
@@ -273,11 +281,16 @@ export default function DashboardPage() {
         const accountsReceivable = allTransactions
             .filter(t => t.status === 'Credit')
             .sort((a, b) => b.date.getTime() - a.date.getTime());
+        
+        const totalReceivable = accountsReceivable.reduce((acc, item) => acc + item.amount, 0);
             
         const accountsPayable = allPayables.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+        const totalPayable = accountsPayable.reduce((acc, item) => acc + item.amount, 0);
         
         const customerPrepayments = allPrepayments.sort((a, b) => b.prepaidAmount - a.prepaidAmount);
-
+        
+        const totalPrepayments = customerPrepayments.reduce((acc, item) => acc + item.prepaidAmount, 0);
 
         setDashboardData({
             totalRevenue,
@@ -292,6 +305,9 @@ export default function DashboardPage() {
             accountsReceivable,
             accountsPayable,
             customerPrepayments,
+            totalReceivable,
+            totalPayable,
+            totalPrepayments,
         });
 
     }, [date]);
@@ -693,6 +709,12 @@ export default function DashboardPage() {
                                 </TableRow>
                             )}
                         </TableBody>
+                         <TableFooter>
+                            <TableRow>
+                                <TableCell colSpan={2} className="font-bold">Total</TableCell>
+                                <TableCell className="text-right font-bold">TSh {dashboardData.totalReceivable.toLocaleString()}</TableCell>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </CardContent>
             </Card>
@@ -732,6 +754,12 @@ export default function DashboardPage() {
                                 </TableRow>
                             )}
                         </TableBody>
+                         <TableFooter>
+                            <TableRow>
+                                <TableCell colSpan={2} className="font-bold">Total</TableCell>
+                                <TableCell className="text-right font-bold">TSh {dashboardData.totalPayable.toLocaleString()}</TableCell>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </CardContent>
             </Card>
@@ -772,6 +800,12 @@ export default function DashboardPage() {
                                 </TableRow>
                             )}
                         </TableBody>
+                        <TableFooter>
+                            <TableRow>
+                                <TableCell className="font-bold">Total</TableCell>
+                                <TableCell className="text-right font-bold">TSh {dashboardData.totalPrepayments.toLocaleString()}</TableCell>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </CardContent>
             </Card>
@@ -779,7 +813,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-    
-
-    
