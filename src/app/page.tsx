@@ -145,7 +145,7 @@ interface DashboardData {
   newCustomers: number;
   sales: number;
   inventoryValue: number;
-  recentTransactions: Transaction[];
+  transactions: Transaction[];
   chartData: ChartData[];
   slowMovingProducts: SlowMovingProduct[];
   paymentBreakdown: PaymentBreakdown;
@@ -163,7 +163,7 @@ export default function DashboardPage() {
       newCustomers: 0,
       sales: 0,
       inventoryValue: 120483200,
-      recentTransactions: [],
+      transactions: [],
       chartData: [],
       slowMovingProducts: [],
       paymentBreakdown: { cash: 0, mobile: 0, bank: 0, credit: 0 },
@@ -242,7 +242,7 @@ export default function DashboardPage() {
             newCustomers,
             sales,
             inventoryValue: 120483200,
-            recentTransactions: filteredTransactions.sort((a,b) => b.date.getTime() - a.date.getTime()).slice(0, 5),
+            transactions: filteredTransactions.sort((a,b) => b.date.getTime() - a.date.getTime()),
             chartData,
             slowMovingProducts: slowMovingProducts,
             paymentBreakdown,
@@ -434,9 +434,9 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
+            <CardTitle>Transactions</CardTitle>
             <CardDescription>
-              Showing transactions for the selected period.
+              Showing all transactions for the selected period.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -449,7 +449,7 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dashboardData.recentTransactions.length > 0 ? dashboardData.recentTransactions.map((transaction, index) => (
+                {dashboardData.transactions.length > 0 ? dashboardData.transactions.map((transaction, index) => (
                   <TableRow key={index}>
                     <TableCell>
                       <div className="font-medium">{transaction.name}</div>
