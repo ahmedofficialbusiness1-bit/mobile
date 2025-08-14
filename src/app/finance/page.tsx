@@ -102,7 +102,7 @@ export default function FinancePage() {
       </div>
 
       <Accordion type="single" collapsible className="w-full space-y-4" defaultValue="receivable">
-        <AccordionItem value="receivable" className="border rounded-lg">
+        <AccordionItem value="receivable" className="border-none">
            <Card>
                 <AccordionTrigger className="p-6 text-lg font-semibold hover:no-underline">
                    <div className="flex items-center gap-2">
@@ -165,7 +165,7 @@ export default function FinancePage() {
             </AccordionContent>
         </AccordionItem>
         
-        <AccordionItem value="payable" className="border rounded-lg">
+        <AccordionItem value="payable" className="border-none">
             <Card>
                  <AccordionTrigger className="p-6 text-lg font-semibold hover:no-underline">
                      <div className="flex items-center gap-2">
@@ -225,7 +225,7 @@ export default function FinancePage() {
             </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="prepaid" className="border rounded-lg">
+        <AccordionItem value="prepaid" className="border-none">
              <Card>
                 <AccordionTrigger className="p-6 text-lg font-semibold hover:no-underline">
                     <div className="flex items-center gap-2">
