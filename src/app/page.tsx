@@ -14,6 +14,7 @@ import {
   Landmark,
   Smartphone,
   Wallet,
+  BarChart2,
 } from 'lucide-react'
 import {
   Card,
@@ -110,6 +111,20 @@ const allProducts = [
     { id: 'PROD-006', name: 'Nido Milk Powder', initialStock: 80, currentStock: 75, entryDate: new Date('2023-11-20') },
 ];
 
+const allProductSalesData = [
+    { date: new Date('2024-05-20'), name: 'Mchele', sales: 45000 },
+    { date: new Date('2024-05-20'), name: 'Unga', sales: 30000 },
+    { date: new Date('2024-05-18'), name: 'Sukari', sales: 60000 },
+    { date: new Date('2024-05-15'), name: 'Mafuta', sales: 85000 },
+    { date: new Date('2024-05-12'), name: 'Sabuni', sales: 20000 },
+    { date: new Date('2024-04-25'), name: 'Mchele', sales: 50000 },
+    { date: new Date('2024-04-22'), name: 'Unga', sales: 35000 },
+    { date: new Date('2024-04-18'), name: 'Nido', sales: 75000 },
+    { date: new Date('2024-04-11'), name: 'Sukari', sales: 55000 },
+    { date: new Date('2024-03-30'), name: 'Mchele', sales: 90000 },
+    { date: new Date('2024-03-15'), name: 'Unga', sales: 40000 },
+];
+
 interface SlowMovingProduct {
     id: string;
     name: string;
@@ -124,6 +139,11 @@ interface PaymentBreakdown {
     credit: number;
 }
 
+interface ProductSales {
+    name: string;
+    sales: number;
+}
+
 interface DashboardData {
   totalRevenue: number;
   newCustomers: number;
@@ -133,6 +153,7 @@ interface DashboardData {
   chartData: typeof allChartData;
   slowMovingProducts: SlowMovingProduct[];
   paymentBreakdown: PaymentBreakdown;
+  productSales: ProductSales[];
 }
 
 export default function DashboardPage() {
@@ -149,7 +170,8 @@ export default function DashboardPage() {
       recentTransactions: [],
       chartData: [],
       slowMovingProducts: [],
-      paymentBreakdown: { cash: 0, mobile: 0, bank: 0, credit: 0 }
+      paymentBreakdown: { cash: 0, mobile: 0, bank: 0, credit: 0 },
+      productSales: []
     });
 
     React.useEffect(() => {
@@ -190,6 +212,17 @@ export default function DashboardPage() {
             .filter(p => p.soldPercentage < 50)
             .sort((a, b) => a.soldPercentage - b.soldPercentage);
 
+        const filteredProductSales = allProductSalesData.filter(p => p.date >= fromDate && p.date <= toDate);
+        const productSalesSummary = filteredProductSales.reduce((acc, current) => {
+            const existingProduct = acc.find(p => p.name === current.name);
+            if (existingProduct) {
+                existingProduct.sales += current.sales;
+            } else {
+                acc.push({ name: current.name, sales: current.sales });
+            }
+            return acc;
+        }, [] as ProductSales[]);
+
 
         setDashboardData({
             totalRevenue,
@@ -200,6 +233,7 @@ export default function DashboardPage() {
             chartData: filteredChartData.length > 0 ? filteredChartData : allChartData.slice(fromMonth, toMonth + 1),
             slowMovingProducts: slowMovingProducts,
             paymentBreakdown,
+            productSales: productSalesSummary
         });
 
     }, [date]);
@@ -384,8 +418,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-      <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
+      <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
+        <Card>
           <CardHeader>
             <CardTitle>Recent Transactions</CardTitle>
             <CardDescription>
@@ -481,6 +515,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
       <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -530,6 +565,38 @@ export default function DashboardPage() {
             </Table>
           </CardContent>
         </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <BarChart2 className="h-5 w-5 text-muted-foreground"/>
+                    Product Sales
+                </CardTitle>
+                <CardDescription>
+                    Total sales per product for the selected period.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ChartContainer config={{
+                    sales: {
+                      label: "Sales",
+                      color: "hsl(var(--chart-2))",
+                    },
+                  }}>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={dashboardData.productSales} layout="vertical">
+                            <XAxis type="number" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `TSh ${Number(value)/1000}k`}/>
+                            <YAxis type="category" dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                            <Tooltip
+                                content={<ChartTooltipContent formatter={(value, name) => [`TSh ${Number(value).toLocaleString()}`, "Sales"]}/>}
+                                cursor={{ fill: 'hsl(var(--muted))' }}
+                            />
+                            <Bar dataKey="sales" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </ChartContainer>
+            </CardContent>
+        </Card>
+        </div>
     </div>
   )
 }
