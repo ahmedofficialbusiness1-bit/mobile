@@ -140,17 +140,23 @@ export default function DashboardPage() {
         if (!fromDate || !toDate) {
             return;
         }
+        
+        const dateRange = { start: fromDate, end: toDate };
 
-        const filteredTransactions = allTransactions.filter(t => isWithinInterval(t.date, { start: fromDate, end: toDate }));
-        const originalSalesTransactions = filteredTransactions.filter(t => t.status !== 'Credit');
+        const filteredTransactions = allTransactions.filter(t => isWithinInterval(t.date, dateRange));
         
         const totalRevenue = filteredTransactions
             .filter(t => t.status === 'Paid')
             .reduce((acc, t) => acc + t.amount, 0);
 
-        const sales = originalSalesTransactions.length;
+        const originalSalesInPeriod = allTransactions.filter(t => 
+          isWithinInterval(t.date, dateRange) && 
+          (t.status === 'Paid' || (t.status === 'Credit'))
+        );
         
-        const customerPhonesInPeriod = new Set(originalSalesTransactions.map(t => t.phone));
+        const sales = originalSalesInPeriod.length;
+
+        const customerPhonesInPeriod = new Set(originalSalesInPeriod.map(t => t.phone));
         const pastTransactions = allTransactions.filter(t => t.date < fromDate);
         const pastCustomerPhones = new Set(pastTransactions.map(t => t.phone));
         const newCustomers = Array.from(customerPhonesInPeriod).filter(phone => !pastCustomerPhones.has(phone)).length;
@@ -199,7 +205,7 @@ export default function DashboardPage() {
             .filter(p => p.soldPercentage < 50)
             .sort((a, b) => a.soldPercentage - b.soldPercentage);
 
-        const productSalesSummary = originalSalesTransactions
+        const productSalesSummary = originalSalesInPeriod
             .reduce((acc, current) => {
                 const existingProduct = acc.find(p => p.name === current.product);
                 if (existingProduct) {
@@ -241,7 +247,6 @@ export default function DashboardPage() {
             totalPayable,
             totalPrepayments,
         });
-
     }, [date, allTransactions, allPayables, allPrepayments, allProducts]);
 
     const handlePresetChange = (value: string) => {
@@ -265,7 +270,6 @@ export default function DashboardPage() {
                 setDate({ from: startOfYear(now), to: endOfYear(now) });
                 break;
             case 'all':
-                // A reasonable "all time" start date
                 setDate({ from: new Date('2023-01-01'), to: endOfYear(now) });
                 break;
         }
@@ -747,5 +751,3 @@ export default function DashboardPage() {
         </div>
       )
 }
-
-    
