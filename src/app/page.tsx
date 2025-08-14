@@ -15,6 +15,8 @@ import {
   Smartphone,
   Wallet,
   BarChart2,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react'
 import {
   Card,
@@ -71,6 +73,13 @@ interface Transaction {
     product: 'Mchele' | 'Unga' | 'Sukari' | 'Mafuta' | 'Sabuni' | 'Nido';
 }
 
+interface Payable {
+    supplierName: string;
+    product: string;
+    amount: number;
+    date: Date;
+}
+
 
 // Unified dummy data with dates, payment methods and products
 const allTransactions: Transaction[] = [
@@ -102,8 +111,14 @@ const allTransactions: Transaction[] = [
   { name: 'Henry Moore', email: 'henry@example.com', amount: 7500, status: 'Paid', date: new Date('2023-12-15'), paymentMethod: 'Cash', product: 'Sukari' },
   { name: 'Grace Taylor', email: 'grace@example.com', amount: 9500, status: 'Paid', date: new Date('2023-11-05'), paymentMethod: 'Mobile', product: 'Mchele' },
   { name: 'Benjamin Anderson', email: 'benjamin@example.com', amount: 12000, status: 'Paid', date: new Date('2023-10-10'), paymentMethod: 'Bank', product: 'Unga'},
-  { name: 'Charlotte Thomas', email: 'charlotte@example.com', amount: 21000, status: 'Paid', date: new Date('2023-09-22'), paymentMethod: 'Cash', product: 'Mafuta'},
+  { name: 'Charlotte Thomas', email: 'charlotte@example.com', amount: 21000, status: 'Credit', date: new Date('2023-09-22'), paymentMethod: 'Credit', product: 'Mafuta'},
   { name: 'Daniel White', email: 'daniel@example.com', amount: 13000, status: 'Paid', date: new Date('2023-08-01'), paymentMethod: 'Mobile', product: 'Sabuni'},
+];
+
+const allPayables: Payable[] = [
+    { supplierName: "Azam Mills", product: "Unga wa Ngano (50kg)", amount: 2500000, date: new Date("2024-05-10")},
+    { supplierName: "Kilombero Sugar", product: "Sukari (20 bags)", amount: 1800000, date: new Date("2024-05-02")},
+    { supplierName: "Korie Oills", product: "Mafuta ya Alizeti (100L)", amount: 3200000, date: new Date("2024-04-28")},
 ];
 
 
@@ -150,6 +165,8 @@ interface DashboardData {
   slowMovingProducts: SlowMovingProduct[];
   paymentBreakdown: PaymentBreakdown;
   productSales: ProductSales[];
+  accountsReceivable: Transaction[];
+  accountsPayable: Payable[];
 }
 
 export default function DashboardPage() {
@@ -167,7 +184,9 @@ export default function DashboardPage() {
       chartData: [],
       slowMovingProducts: [],
       paymentBreakdown: { cash: 0, mobile: 0, bank: 0, credit: 0 },
-      productSales: []
+      productSales: [],
+      accountsReceivable: [],
+      accountsPayable: [],
     });
 
     React.useEffect(() => {
@@ -236,6 +255,12 @@ export default function DashboardPage() {
                 return acc;
             }, [] as ProductSales[]);
 
+        const accountsReceivable = allTransactions
+            .filter(t => t.status === 'Credit')
+            .sort((a, b) => b.date.getTime() - a.date.getTime());
+            
+        const accountsPayable = allPayables.sort((a, b) => b.date.getTime() - a.date.getTime());
+
 
         setDashboardData({
             totalRevenue,
@@ -246,7 +271,9 @@ export default function DashboardPage() {
             chartData,
             slowMovingProducts: slowMovingProducts,
             paymentBreakdown,
-            productSales: productSalesSummary
+            productSales: productSalesSummary,
+            accountsReceivable,
+            accountsPayable,
         });
 
     }, [date]);
@@ -609,6 +636,87 @@ export default function DashboardPage() {
                 </ChartContainer>
             </CardContent>
         </Card>
+        </div>
+        <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-red-500" />
+                        Accounts Receivable
+                    </CardTitle>
+                    <CardDescription>
+                        List of customers who you have sold to on credit.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Customer</TableHead>
+                                <TableHead>Product</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {dashboardData.accountsReceivable.length > 0 ? (
+                                dashboardData.accountsReceivable.map((item, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell>
+                                            <div className="font-medium">{item.name}</div>
+                                            <div className="text-sm text-muted-foreground">{item.email}</div>
+                                        </TableCell>
+                                        <TableCell>{item.product}</TableCell>
+                                        <TableCell className="text-right">TSh {item.amount.toLocaleString()}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-center">No outstanding credits.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <TrendingDown className="h-5 w-5 text-green-500" />
+                        Accounts Payable
+                    </CardTitle>
+                    <CardDescription>
+                        List of suppliers you have purchased from on credit.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Supplier</TableHead>
+                                <TableHead>Product</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {dashboardData.accountsPayable.length > 0 ? (
+                                dashboardData.accountsPayable.map((item, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell>
+                                            <div className="font-medium">{item.supplierName}</div>
+                                        </TableCell>
+                                        <TableCell>{item.product}</TableCell>
+                                        <TableCell className="text-right">TSh {item.amount.toLocaleString()}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-center">No outstanding payables.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
         </div>
     </div>
   )
