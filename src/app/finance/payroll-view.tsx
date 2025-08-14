@@ -2,11 +2,12 @@
 'use client'
 
 import * as React from 'react';
+import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MoreHorizontal, UserPlus, Info } from 'lucide-react';
+import { MoreHorizontal, UserPlus, Info, Wallet, CheckCircle } from 'lucide-react';
 import { EmployeeForm } from './employee-form';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
@@ -16,6 +17,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { PayslipDialog, type PayrollData } from './payslip-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { useToast } from '@/hooks/use-toast';
 
 
 interface Employee {
@@ -53,6 +66,10 @@ export default function PayrollView() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [selectedEmployee, setSelectedEmployee] = React.useState<Employee | null>(null);
   const [payslipEmployee, setPayslipEmployee] = React.useState<PayrollData | null>(null);
+  const [isPayrollRun, setIsPayrollRun] = React.useState(false);
+  const { toast } = useToast();
+
+  const currentMonth = format(new Date(), 'MMMM yyyy');
 
   const handleAddEmployee = () => {
     setSelectedEmployee(null);
@@ -70,6 +87,15 @@ export default function PayrollView() {
 
   const handleDeleteEmployee = (id: string) => {
     setEmployees(employees.filter(emp => emp.id !== id));
+  }
+  
+  const handlePayAll = () => {
+    setIsPayrollRun(true);
+    toast({
+        title: "Payroll Processed",
+        description: `Successfully processed payroll for ${employees.length} employees for ${currentMonth}.`,
+        variant: "default",
+    })
   }
 
   const handleSaveEmployee = (employeeData: Omit<Employee, 'id'>) => {
@@ -113,15 +139,44 @@ export default function PayrollView() {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
                 <CardTitle>Payroll Management</CardTitle>
                 <CardDescription>Manage employee salaries, deductions, and payroll taxes.</CardDescription>
             </div>
-            <Button onClick={handleAddEmployee}>
-                <UserPlus className="mr-2 h-4 w-4" />
-                Register New Employee
-            </Button>
+            <div className="flex gap-2">
+                <Button onClick={handleAddEmployee}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Register Employee
+                </Button>
+                 {isPayrollRun ? (
+                    <Button disabled variant="outline">
+                        <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                        Payroll Run for {currentMonth}
+                    </Button>
+                ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                     <Button variant="default">
+                        <Wallet className="mr-2 h-4 w-4" />
+                        Pay All Employees
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirm Payroll Run</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        You are about to process payroll for {employees.length} employees for the month of {currentMonth}, totaling a net pay of TSh {totals.net.toLocaleString()}. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handlePayAll}>Confirm & Pay</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                )}
+            </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -135,7 +190,7 @@ export default function PayrollView() {
                   <TableHead className="text-right">
                     <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger className="flex items-center gap-1">
+                        <TooltipTrigger className="flex items-center gap-1 justify-end">
                           PAYE <Info className="h-3 w-3" />
                         </TooltipTrigger>
                         <TooltipContent>
