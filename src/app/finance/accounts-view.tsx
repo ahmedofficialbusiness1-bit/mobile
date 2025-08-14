@@ -88,7 +88,7 @@ export default function AccountsView() {
                                             <div className="text-sm text-muted-foreground">{item.phone}</div>
                                         </TableCell>
                                         <TableCell className="whitespace-nowrap">{item.product}</TableCell>
-                                        <TableCell className="whitespace-nowrap">{format(item.date, 'dd/MM/yyyy')}</TableCell>
+                                        <TableCell className="whitespace-nowrap">{format(new Date(item.date), 'dd/MM/yyyy')}</TableCell>
                                         <TableCell className="text-right whitespace-nowrap">TSh {item.amount.toLocaleString()}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="outline" size="sm" onClick={() => handleOpenDialog(item.id, 'receivable')} className="whitespace-nowrap">
@@ -140,7 +140,7 @@ export default function AccountsView() {
                                         <TableRow key={item.id}>
                                             <TableCell><div className="font-medium whitespace-nowrap">{item.supplierName}</div></TableCell>
                                             <TableCell className="whitespace-nowrap">{item.product}</TableCell>
-                                            <TableCell className="whitespace-nowrap">{format(item.date, 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell className="whitespace-nowrap">{format(new Date(item.date), 'dd/MM/yyyy')}</TableCell>
                                             <TableCell className="text-right whitespace-nowrap">TSh {item.amount.toLocaleString()}</TableCell>
                                             <TableCell className="text-right">
                                                 <Button variant="outline" size="sm" onClick={() => handleOpenDialog(item.id, 'payable')} className="whitespace-nowrap">
@@ -193,7 +193,7 @@ export default function AccountsView() {
                                                 <div className="font-medium whitespace-nowrap">{item.customerName}</div>
                                                 <div className="text-sm text-muted-foreground">{item.phone}</div>
                                             </TableCell>
-                                            <TableCell className="whitespace-nowrap">{format(item.date, 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell className="whitespace-nowrap">{format(new Date(item.date), 'dd/MM/yyyy')}</TableCell>
                                             <TableCell className="text-right whitespace-nowrap">TSh {item.prepaidAmount.toLocaleString()}</TableCell>
                                             <TableCell className="text-right space-x-2">
                                                 <Button variant="outline" size="sm" onClick={() => markPrepaymentAsUsed(item.id)} className="whitespace-nowrap">
