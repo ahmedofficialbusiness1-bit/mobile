@@ -2,6 +2,7 @@
 'use client'
 
 import * as React from 'react'
+import { format } from 'date-fns'
 import {
   Table,
   TableBody,
@@ -138,7 +139,7 @@ export default function FinancePage() {
                                             <div className="text-sm text-muted-foreground">{item.phone}</div>
                                         </TableCell>
                                         <TableCell>{item.product}</TableCell>
-                                        <TableCell>{item.date.toLocaleDateString()}</TableCell>
+                                        <TableCell>{format(item.date, 'dd/MM/yyyy')}</TableCell>
                                         <TableCell className="text-right">TSh {item.amount.toLocaleString()}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="outline" size="sm" onClick={() => handleMarkAsPaid(item.id, 'receivable')}>
@@ -194,7 +195,7 @@ export default function FinancePage() {
                                     <TableRow key={item.id}>
                                         <TableCell><div className="font-medium">{item.supplierName}</div></TableCell>
                                         <TableCell>{item.product}</TableCell>
-                                        <TableCell>{item.date.toLocaleDateString()}</TableCell>
+                                        <TableCell>{format(item.date, 'dd/MM/yyyy')}</TableCell>
                                         <TableCell className="text-right">TSh {item.amount.toLocaleString()}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="outline" size="sm" onClick={() => handleMarkAsPaid(item.id, 'payable')}>
