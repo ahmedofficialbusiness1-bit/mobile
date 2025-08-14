@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from 'react'
-import { addDays, format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, getMonth, getYear, isWithinInterval } from "date-fns"
+import { addDays, format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, isWithinInterval } from "date-fns"
 import type { DateRange } from "react-day-picker"
 import {
   DollarSign,
@@ -65,66 +65,55 @@ interface Transaction {
     name: string;
     email: string;
     amount: number;
-    status: 'Paid' | 'Pending' | 'Credit';
+    status: 'Paid' | 'Credit';
     date: Date;
     paymentMethod: PaymentMethod;
+    product: 'Mchele' | 'Unga' | 'Sukari' | 'Mafuta' | 'Sabuni' | 'Nido';
 }
 
 
-// Expanded dummy data with dates and payment methods
+// Unified dummy data with dates, payment methods and products
 const allTransactions: Transaction[] = [
   // 2024 May
-  { name: 'Liam Johnson', email: 'liam@example.com', amount: 250000, status: 'Paid', date: new Date('2024-05-20'), paymentMethod: 'Mobile' },
-  { name: 'Olivia Smith', email: 'olivia@example.com', amount: 150000, status: 'Paid', date: new Date('2024-05-18'), paymentMethod: 'Cash' },
-  { name: 'Noah Williams', email: 'noah@example.com', amount: 350000, status: 'Credit', date: new Date('2024-05-15'), paymentMethod: 'Credit' },
-  { name: 'Emma Brown', email: 'emma@example.com', amount: 450000, status: 'Paid', date: new Date('2024-05-12'), paymentMethod: 'Bank' },
-  { name: 'James Jones', email: 'james@example.com', amount: 550000, status: 'Paid', date: new Date('2024-05-10'), paymentMethod: 'Mobile' },
+  { name: 'Liam Johnson', email: 'liam@example.com', amount: 45000, status: 'Paid', date: new Date('2024-05-20'), paymentMethod: 'Mobile', product: 'Mchele' },
+  { name: 'Olivia Smith', email: 'olivia@example.com', amount: 30000, status: 'Paid', date: new Date('2024-05-20'), paymentMethod: 'Cash', product: 'Unga' },
+  { name: 'Noah Williams', email: 'noah@example.com', amount: 60000, status: 'Credit', date: new Date('2024-05-18'), paymentMethod: 'Credit', product: 'Sukari' },
+  { name: 'Emma Brown', email: 'emma@example.com', amount: 85000, status: 'Paid', date: new Date('2024-05-15'), paymentMethod: 'Bank', product: 'Mafuta' },
+  { name: 'James Jones', email: 'james@example.com', amount: 20000, status: 'Paid', date: new Date('2024-05-12'), paymentMethod: 'Mobile', product: 'Sabuni' },
   
   // 2024 April
-  { name: 'Ava Garcia', email: 'ava@example.com', amount: 200000, status: 'Paid', date: new Date('2024-04-25'), paymentMethod: 'Cash' },
-  { name: 'Isabella Miller', email: 'isabella@example.com', amount: 175000, status: 'Paid', date: new Date('2024-04-22'), paymentMethod: 'Bank' },
-  { name: 'Sophia Davis', email: 'sophia@example.com', amount: 320000, status: 'Credit', date: new Date('2024-04-18'), paymentMethod: 'Credit' },
-  { name: 'Mia Rodriguez', email: 'mia@example.com', amount: 500000, status: 'Paid', date: new Date('2024-04-11'), paymentMethod: 'Mobile' },
+  { name: 'Ava Garcia', email: 'ava@example.com', amount: 50000, status: 'Paid', date: new Date('2024-04-25'), paymentMethod: 'Cash', product: 'Mchele' },
+  { name: 'Isabella Miller', email: 'isabella@example.com', amount: 35000, status: 'Paid', date: new Date('2024-04-22'), paymentMethod: 'Bank', product: 'Unga' },
+  { name: 'Sophia Davis', email: 'sophia@example.com', amount: 75000, status: 'Credit', date: new Date('2024-04-18'), paymentMethod: 'Credit', product: 'Nido' },
+  { name: 'Mia Rodriguez', email: 'mia@example.com', amount: 55000, status: 'Paid', date: new Date('2024-04-11'), paymentMethod: 'Mobile', product: 'Sukari' },
   
   // 2024 March
-  { name: 'Lucas Wilson', email: 'lucas@example.com', amount: 600000, status: 'Paid', date: new Date('2024-03-30'), paymentMethod: 'Bank' },
+  { name: 'Lucas Wilson', email: 'lucas@example.com', amount: 90000, status: 'Paid', date: new Date('2024-03-30'), paymentMethod: 'Bank', product: 'Mchele' },
+  { name: 'Zoe Martinez', email: 'zoe@example.com', amount: 40000, status: 'Paid', date: new Date('2024-03-15'), paymentMethod: 'Cash', product: 'Unga' },
+
 
   // 2024 February
-  { name: 'Amelia Harris', email: 'amelia@example.com', amount: 480000, status: 'Paid', date: new Date('2024-02-15'), paymentMethod: 'Mobile'},
+  { name: 'Amelia Harris', email: 'amelia@example.com', amount: 48000, status: 'Paid', date: new Date('2024-02-15'), paymentMethod: 'Mobile', product: 'Sabuni'},
   
   // 2024 January
-  { name: 'Elijah Clark', email: 'elijah@example.com', amount: 720000, status: 'Paid', date: new Date('2024-01-20'), paymentMethod: 'Bank'},
+  { name: 'Elijah Clark', email: 'elijah@example.com', amount: 72000, status: 'Paid', date: new Date('2024-01-20'), paymentMethod: 'Bank', product: 'Nido'},
 
   // 2023 Data
-  { name: 'Henry Moore', email: 'henry@example.com', amount: 75000, status: 'Paid', date: new Date('2023-12-15'), paymentMethod: 'Cash' },
-  { name: 'Grace Taylor', email: 'grace@example.com', amount: 95000, status: 'Paid', date: new Date('2023-11-05'), paymentMethod: 'Mobile' },
-  { name: 'Benjamin Anderson', email: 'benjamin@example.com', amount: 120000, status: 'Paid', date: new Date('2023-10-10'), paymentMethod: 'Bank'},
-  { name: 'Charlotte Thomas', email: 'charlotte@example.com', amount: 210000, status: 'Paid', date: new Date('2023-09-22'), paymentMethod: 'Cash'},
-  { name: 'Daniel White', email: 'daniel@example.com', amount: 130000, status: 'Paid', date: new Date('2023-08-01'), paymentMethod: 'Mobile'},
+  { name: 'Henry Moore', email: 'henry@example.com', amount: 7500, status: 'Paid', date: new Date('2023-12-15'), paymentMethod: 'Cash', product: 'Sukari' },
+  { name: 'Grace Taylor', email: 'grace@example.com', amount: 9500, status: 'Paid', date: new Date('2023-11-05'), paymentMethod: 'Mobile', product: 'Mchele' },
+  { name: 'Benjamin Anderson', email: 'benjamin@example.com', amount: 12000, status: 'Paid', date: new Date('2023-10-10'), paymentMethod: 'Bank', product: 'Unga'},
+  { name: 'Charlotte Thomas', email: 'charlotte@example.com', amount: 21000, status: 'Paid', date: new Date('2023-09-22'), paymentMethod: 'Cash', product: 'Mafuta'},
+  { name: 'Daniel White', email: 'daniel@example.com', amount: 13000, status: 'Paid', date: new Date('2023-08-01'), paymentMethod: 'Mobile', product: 'Sabuni'},
 ];
 
 
 const allProducts = [
-    { id: 'PROD-001', name: 'Mchele (Super)', initialStock: 100, currentStock: 80, entryDate: new Date('2024-04-01') },
-    { id: 'PROD-002', name: 'Unga wa Ngano (Azam)', initialStock: 200, currentStock: 150, entryDate: new Date('2024-03-15') },
-    { id: 'PROD-003', name: 'Mafuta ya Alizeti (Korie)', initialStock: 50, currentStock: 45, entryDate: new Date('2024-01-10') },
-    { id: 'PROD-004', name: 'Sabuni ya Maji (Klin)', initialStock: 120, currentStock: 70, entryDate: new Date('2024-02-05') },
-    { id: 'PROD-005', name: 'Sukari (Kilombero)', initialStock: 300, currentStock: 100, entryDate: new Date('2024-05-01') },
-    { id: 'PROD-006', name: 'Nido Milk Powder', initialStock: 80, currentStock: 75, entryDate: new Date('2023-11-20') },
-];
-
-const allProductSalesData = [
-    { date: new Date('2024-05-20'), name: 'Mchele', sales: 45000 },
-    { date: new Date('2024-05-20'), name: 'Unga', sales: 30000 },
-    { date: new Date('2024-05-18'), name: 'Sukari', sales: 60000 },
-    { date: new Date('2024-05-15'), name: 'Mafuta', sales: 85000 },
-    { date: new Date('2024-05-12'), name: 'Sabuni', sales: 20000 },
-    { date: new Date('2024-04-25'), name: 'Mchele', sales: 50000 },
-    { date: new Date('2024-04-22'), name: 'Unga', sales: 35000 },
-    { date: new Date('2024-04-18'), name: 'Nido', sales: 75000 },
-    { date: new Date('2024-04-11'), name: 'Sukari', sales: 55000 },
-    { date: new Date('2024-03-30'), name: 'Mchele', sales: 90000 },
-    { date: new Date('2024-03-15'), name: 'Unga', sales: 40000 },
+    { id: 'PROD-001', name: 'Mchele', initialStock: 100, currentStock: 80, entryDate: new Date('2024-04-01') },
+    { id: 'PROD-002', name: 'Unga', initialStock: 200, currentStock: 150, entryDate: new Date('2024-03-15') },
+    { id: 'PROD-003', name: 'Mafuta', initialStock: 50, currentStock: 45, entryDate: new Date('2024-01-10') },
+    { id: 'PROD-004', name: 'Sabuni', initialStock: 120, currentStock: 70, entryDate: new Date('2024-02-05') },
+    { id: 'PROD-005', name: 'Sukari', initialStock: 300, currentStock: 100, entryDate: new Date('2024-05-01') },
+    { id: 'PROD-006', name: 'Nido', initialStock: 80, currentStock: 75, entryDate: new Date('2023-11-20') },
 ];
 
 interface SlowMovingProduct {
@@ -235,16 +224,17 @@ export default function DashboardPage() {
             .filter(p => p.soldPercentage < 50)
             .sort((a, b) => a.soldPercentage - b.soldPercentage);
 
-        const filteredProductSales = allProductSalesData.filter(p => isWithinInterval(p.date, { start: fromDate, end: toDate }));
-        const productSalesSummary = filteredProductSales.reduce((acc, current) => {
-            const existingProduct = acc.find(p => p.name === current.name);
-            if (existingProduct) {
-                existingProduct.sales += current.sales;
-            } else {
-                acc.push({ name: current.name, sales: current.sales });
-            }
-            return acc;
-        }, [] as ProductSales[]);
+        const productSalesSummary = filteredTransactions
+            .filter(t => t.status === 'Paid')
+            .reduce((acc, current) => {
+                const existingProduct = acc.find(p => p.name === current.product);
+                if (existingProduct) {
+                    existingProduct.sales += current.amount;
+                } else {
+                    acc.push({ name: current.product, sales: current.amount });
+                }
+                return acc;
+            }, [] as ProductSales[]);
 
 
         setDashboardData({
@@ -252,7 +242,7 @@ export default function DashboardPage() {
             newCustomers,
             sales,
             inventoryValue: 120483200,
-            recentTransactions: filteredTransactions.slice(0, 5),
+            recentTransactions: filteredTransactions.sort((a,b) => b.date.getTime() - a.date.getTime()).slice(0, 5),
             chartData,
             slowMovingProducts: slowMovingProducts,
             paymentBreakdown,
@@ -521,7 +511,7 @@ export default function DashboardPage() {
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(value) => `TSh ${Math.floor(value / 1000000)}M`}
+                    tickFormatter={(value) => `TSh ${Math.floor(Number(value) / 1000)}k`}
                   />
                   <Tooltip
                     content={<ChartTooltipContent formatter={(value) => `TSh ${Number(value).toLocaleString()}`}/>}
