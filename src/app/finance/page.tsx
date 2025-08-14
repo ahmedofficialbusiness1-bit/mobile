@@ -40,6 +40,7 @@ interface Prepayment {
     customerName: string;
     phone: string;
     prepaidAmount: number;
+    date: Date;
 }
 
 const initialReceivables: Receivable[] = [
@@ -55,9 +56,9 @@ const initialPayables: Payable[] = [
 ];
 
 const initialPrepayments: Prepayment[] = [
-    { id: 'pre-001', customerName: "Asha Bakari", phone: "+255712112233", prepaidAmount: 15000 },
-    { id: 'pre-002', customerName: "John Okello", phone: "+255756445566", prepaidAmount: 50000 },
-    { id: 'pre-003', customerName: "Fatuma Said", phone: "+255688776655", prepaidAmount: 22500 },
+    { id: 'pre-001', customerName: "Asha Bakari", phone: "+255712112233", prepaidAmount: 15000, date: new Date(2024, 4, 20) },
+    { id: 'pre-002', customerName: "John Okello", phone: "+255756445566", prepaidAmount: 50000, date: new Date(2024, 4, 15) },
+    { id: 'pre-003', customerName: "Fatuma Said", phone: "+255688776655", prepaidAmount: 22500, date: new Date(2024, 4, 1) },
 ];
 
 export default function FinancePage() {
@@ -211,6 +212,7 @@ export default function FinancePage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Customer</TableHead>
+                            <TableHead>Date</TableHead>
                             <TableHead className="text-right">Prepaid Amount</TableHead>
                             <TableHead className="text-right">Action</TableHead>
                         </TableRow>
@@ -223,6 +225,7 @@ export default function FinancePage() {
                                         <div className="font-medium">{item.customerName}</div>
                                         <div className="text-sm text-muted-foreground">{item.phone}</div>
                                     </TableCell>
+                                    <TableCell>{format(item.date, 'dd/MM/yyyy')}</TableCell>
                                     <TableCell className="text-right">TSh {item.prepaidAmount.toLocaleString()}</TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="outline" size="sm" onClick={() => handleUsePrepayment(item.id)}>
@@ -234,13 +237,13 @@ export default function FinancePage() {
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={3} className="text-center h-24">No customer deposits found.</TableCell>
+                                <TableCell colSpan={4} className="text-center h-24">No customer deposits found.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
                     <TableFooter>
                         <TableRow>
-                            <TableCell colSpan={2} className="font-bold text-lg">Total Deposits</TableCell>
+                            <TableCell colSpan={3} className="font-bold text-lg">Total Deposits</TableCell>
                             <TableCell className="text-right font-bold text-lg">TSh {totalPrepayment.toLocaleString()}</TableCell>
                         </TableRow>
                     </TableFooter>
