@@ -14,11 +14,13 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, CreditCard, Undo, Menu } from 'lucide-react'
+import { CheckCircle, CreditCard, Undo, Menu, Wallet, Users, Truck, Building, LandPlot, HandCoins, ChevronLeft } from 'lucide-react'
 import { useFinancials, PaymentMethod } from '@/context/financial-context'
 import { PaymentDialog } from '@/components/payment-dialog'
 import { cn } from '@/lib/utils'
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+
 
 function PlaceholderCard({ title, description }: { title: string, description: string }) {
     return (
@@ -253,33 +255,53 @@ function AccountsView() {
 
 
 const financeNavItems = [
-    { id: 'accounts', label: 'Accounts' },
-    { id: 'payroll', label: 'Payroll' },
-    { id: 'expenses', label: 'Expenses' },
-    { id: 'capital', label: 'Capital' },
-    { id: 'assets', label: 'Assets' },
-    { id: 'cash', label: 'Cash Management' }
+    { id: 'accounts', label: 'Accounts', icon: Wallet },
+    { id: 'payroll', label: 'Payroll', icon: Users },
+    { id: 'expenses', label: 'Expenses', icon: Truck },
+    { id: 'capital', label: 'Capital', icon: Building },
+    { id: 'assets', label: 'Assets', icon: LandPlot },
+    { id: 'cash', label: 'Cash Management', icon: HandCoins }
 ]
 
-function FinanceNav({ activeTab, setActiveTab, isSheet = false }: { activeTab: string, setActiveTab: (id: string) => void, isSheet?: boolean }) {
+function FinanceNav({ activeTab, setActiveTab, isSheet = false, isCollapsed }: { activeTab: string, setActiveTab: (id: string) => void, isSheet?: boolean, isCollapsed: boolean }) {
+    
     const NavWrapper = ({ children }: { children: React.ReactNode }) => 
-        isSheet ? <>{children}</> : <nav className="hidden md:flex flex-col gap-2 sticky top-20">{children}</nav>;
+        isSheet ? <>{children}</> : (
+            <nav className={cn("hidden md:flex flex-col gap-2 sticky top-24 transition-all duration-300", isCollapsed ? "w-14 items-center" : "w-52")}>
+                {children}
+            </nav>
+        );
         
     const navItems = financeNavItems.map(item => {
         const button = (
-            <Button
+             <Button
                 key={item.id}
                 variant={activeTab === item.id ? 'default' : 'ghost'}
                 onClick={() => setActiveTab(item.id)}
-                className="justify-start"
+                className={cn("justify-start", isCollapsed && "w-10 h-10 p-0 justify-center")}
             >
-                {item.label}
+                <item.icon className={cn("h-5 w-5", !isCollapsed && "mr-3")}/>
+                {!isCollapsed && <span>{item.label}</span>}
             </Button>
         );
 
         if (isSheet) {
             return <SheetClose asChild key={item.id}>{button}</SheetClose>;
         }
+
+        if (isCollapsed) {
+            return (
+                <TooltipProvider key={item.id} delayDuration={0}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>{button}</TooltipTrigger>
+                        <TooltipContent side="right">
+                           {item.label}
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            );
+        }
+
         return button;
     });
 
@@ -288,6 +310,7 @@ function FinanceNav({ activeTab, setActiveTab, isSheet = false }: { activeTab: s
 
 export default function FinancePage() {
     const [activeTab, setActiveTab] = React.useState('accounts');
+    const [isCollapsed, setIsCollapsed] = React.useState(false);
 
     return (
         <div className="flex flex-col gap-8">
@@ -311,17 +334,28 @@ export default function FinancePage() {
                         <SheetContent side="left">
                             <h2 className="text-lg font-semibold p-4">Finance Menu</h2>
                             <div className="flex flex-col gap-2 p-4">
-                               <FinanceNav activeTab={activeTab} setActiveTab={setActiveTab} isSheet={true} />
+                               <FinanceNav activeTab={activeTab} setActiveTab={setActiveTab} isSheet={true} isCollapsed={false}/>
                             </div>
                         </SheetContent>
                     </Sheet>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-8 items-start">
-                <FinanceNav activeTab={activeTab} setActiveTab={setActiveTab} />
+            <div className="flex gap-8 items-start relative">
+                <div className="hidden md:block sticky top-16 h-full">
+                     <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="absolute -right-4 top-0 z-10 bg-background h-8 w-8"
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                    >
+                        <ChevronLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")}/>
+                    </Button>
+                    <FinanceNav activeTab={activeTab} setActiveTab={setActiveTab} isCollapsed={isCollapsed} />
+                </div>
+                
 
-                <div className="min-w-0">
+                <div className="flex-1 min-w-0">
                     {activeTab === 'accounts' && <AccountsView />}
                     {activeTab === 'payroll' && (
                         <PlaceholderCard 
