@@ -142,21 +142,32 @@ export default function DashboardPage() {
         }
 
         const filteredTransactions = allTransactions.filter(t => isWithinInterval(t.date, { start: fromDate, end: toDate }));
-        
+        const originalSalesTransactions = filteredTransactions.filter(t => !t.notes?.includes('Debt Repayment'));
+
         const totalRevenue = filteredTransactions.reduce((acc, t) => acc + (t.status === 'Paid' ? t.amount : 0), 0);
-        const sales = filteredTransactions.length;
-        const newCustomers = new Set(filteredTransactions.map(t => t.phone)).size;
+        const sales = originalSalesTransactions.length;
+        
+        // New customers are only counted from original sales, not debt repayments
+        const customerPhonesInPeriod = new Set(originalSalesTransactions.map(t => t.phone));
+        // Get all customer phones from before the period to check if they are new
+        const pastTransactions = allTransactions.filter(t => t.date < fromDate);
+        const pastCustomerPhones = new Set(pastTransactions.map(t => t.phone));
+        const newCustomers = Array.from(customerPhonesInPeriod).filter(phone => !pastCustomerPhones.has(phone)).length;
 
         const paymentBreakdown = filteredTransactions.reduce((acc, t) => {
             if (t.status === 'Paid') {
                 if (t.paymentMethod === 'Cash') acc.cash += t.amount;
                 if (t.paymentMethod === 'Mobile') acc.mobile += t.amount;
                 if (t.paymentMethod === 'Bank') acc.bank += t.amount;
-            } else if (t.status === 'Credit') {
-                acc.credit += t.amount;
             }
             return acc;
         }, { cash: 0, mobile: 0, bank: 0, credit: 0 });
+        
+        const creditTotal = allTransactions
+          .filter(t => t.status === 'Credit')
+          .reduce((sum, t) => sum + t.amount, 0);
+
+        paymentBreakdown.credit = creditTotal;
 
         const monthlySales = filteredTransactions
           .filter(t => t.status === 'Paid')
@@ -187,8 +198,8 @@ export default function DashboardPage() {
             .filter(p => p.soldPercentage < 50)
             .sort((a, b) => a.soldPercentage - b.soldPercentage);
 
-        const productSalesSummary = filteredTransactions
-            .filter(t => t.status === 'Paid')
+        const productSalesSummary = originalSalesTransactions
+            .filter(t => t.status === 'Paid' || t.status === 'Credit')
             .reduce((acc, current) => {
                 const existingProduct = acc.find(p => p.name === current.product);
                 if (existingProduct) {
@@ -254,6 +265,7 @@ export default function DashboardPage() {
                 setDate({ from: startOfYear(now), to: endOfYear(now) });
                 break;
             case 'all':
+                // A reasonable "all time" start date
                 setDate({ from: new Date('2023-01-01'), to: endOfYear(now) });
                 break;
         }
@@ -346,7 +358,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">+{dashboardData.sales}</div>
             <p className="text-xs text-muted-foreground">
-              transactions in the period
+              new transactions in the period
             </p>
           </CardContent>
         </Card>
@@ -370,7 +382,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Sales Breakdown</CardTitle>
             <CardDescription>
-              Breakdown of sales by payment method for the selected period.
+              Breakdown of total sales by payment method. Credit is total outstanding debt.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -406,7 +418,7 @@ export default function DashboardPage() {
                     <CreditCard className="h-6 w-6 text-orange-600"/>
                 </div>
                 <div>
-                    <p className="text-sm text-muted-foreground">Credits</p>
+                    <p className="text-sm text-muted-foreground">Total Credits</p>
                     <p className="text-xl font-bold">TSh {dashboardData.paymentBreakdown.credit.toLocaleString()}</p>
                 </div>
             </div>
@@ -426,25 +438,26 @@ export default function DashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Description</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dashboardData.transactions.length > 0 ? dashboardData.transactions.map((transaction, index) => (
-                  <TableRow key={index}>
+                {dashboardData.transactions.length > 0 ? dashboardData.transactions.map((transaction) => (
+                  <TableRow key={transaction.id}>
                     <TableCell>
                       <div className="font-medium">{transaction.name}</div>
                       <div className="hidden text-sm text-muted-foreground md:inline">
                         {transaction.phone}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <Badge
+                     <TableCell>
+                        <div className="font-medium">{transaction.notes || transaction.product}</div>
+                        <Badge
                         variant={
                            transaction.status === 'Paid' ? 'default' : 'secondary'
                         }
-                        className={cn(
+                        className={cn('mt-1',
                            transaction.status === 'Paid' && 'bg-green-500/20 text-green-700 hover:bg-green-500/30',
                            transaction.status === 'Credit' && 'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30',
                         )}
@@ -470,7 +483,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Sales Overview</CardTitle>
-            <CardDescription>An overview of your monthly sales for the selected period.</CardDescription>
+            <CardDescription>An overview of your monthly revenue for the selected period.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
              <ChartContainer config={{
@@ -614,8 +627,8 @@ export default function DashboardPage() {
                         </TableHeader>
                         <TableBody>
                             {dashboardData.accountsReceivable.length > 0 ? (
-                                dashboardData.accountsReceivable.map((item, index) => (
-                                    <TableRow key={index}>
+                                dashboardData.accountsReceivable.map((item) => (
+                                    <TableRow key={item.id}>
                                         <TableCell>
                                             <div className="font-medium">{item.name}</div>
                                             <div className="text-sm text-muted-foreground">{item.phone}</div>
@@ -660,8 +673,8 @@ export default function DashboardPage() {
                         </TableHeader>
                         <TableBody>
                             {dashboardData.accountsPayable.length > 0 ? (
-                                dashboardData.accountsPayable.map((item, index) => (
-                                    <TableRow key={index}>
+                                dashboardData.accountsPayable.map((item) => (
+                                    <TableRow key={item.id}>
                                         <TableCell>
                                             <div className="font-medium">{item.supplierName}</div>
                                         </TableCell>
@@ -706,8 +719,8 @@ export default function DashboardPage() {
                         </TableHeader>
                         <TableBody>
                             {dashboardData.customerPrepayments.length > 0 ? (
-                                dashboardData.customerPrepayments.map((item, index) => (
-                                    <TableRow key={index}>
+                                dashboardData.customerPrepayments.map((item) => (
+                                    <TableRow key={item.id}>
                                         <TableCell>
                                             <div className="font-medium">{item.customerName}</div>
                                              <div className="text-sm text-muted-foreground">{item.phone}</div>
@@ -734,3 +747,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
