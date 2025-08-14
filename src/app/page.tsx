@@ -62,7 +62,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from '@/lib/utils'
 import { Progress } from '@/components/ui/progress'
-import { useFinancials, Transaction, Payable, CustomerPrepayment, Product } from '@/context/financial-context'
+import { useFinancials, Transaction, Payable, CustomerPrepayment, Product, PaymentMethod } from '@/context/financial-context'
 
 
 interface SlowMovingProduct {
@@ -143,12 +143,15 @@ export default function DashboardPage() {
         
         const dateRange = { start: fromDate, end: toDate };
 
+        // All transactions within the selected period
         const filteredTransactions = allTransactions.filter(t => isWithinInterval(t.date, dateRange));
         
+        // Total Revenue: All 'Paid' transactions in the period (includes new sales and debt repayments)
         const totalRevenue = filteredTransactions
             .filter(t => t.status === 'Paid')
             .reduce((acc, t) => acc + t.amount, 0);
 
+        // Sales & New Customers: Based on original transactions (Credit or Paid), excluding debt repayments
         const originalSalesInPeriod = allTransactions.filter(t => 
           isWithinInterval(t.date, dateRange) && 
           t.notes !== 'Debt Repayment' &&
@@ -162,23 +165,25 @@ export default function DashboardPage() {
         const pastCustomerPhones = new Set(pastTransactions.map(t => t.phone));
         const newCustomers = Array.from(customerPhonesInPeriod).filter(phone => !pastCustomerPhones.has(phone)).length;
 
+        // Payment Breakdown: Based on all 'Paid' transactions in the period
         const paymentBreakdown = filteredTransactions
             .filter(t => t.status === 'Paid')
             .reduce((acc, t) => {
                 if (t.paymentMethod === 'Cash') acc.cash += t.amount;
                 if (t.paymentMethod === 'Mobile') acc.mobile += t.amount;
                 if (t.paymentMethod === 'Bank') acc.bank += t.amount;
-                // 'Prepaid' is also counted in revenue but handled differently in cash flow, so we show it in revenue breakdown.
-                if (t.paymentMethod === 'Prepaid') acc.cash += t.amount;
+                if (t.paymentMethod === 'Prepaid') acc.cash += t.amount; // Prepaid is like cash for cashflow purposes
             return acc;
         }, { cash: 0, mobile: 0, bank: 0, credit: 0 });
         
+        // Total credit is the sum of all currently outstanding 'Credit' transactions, regardless of period
         const creditTotal = allTransactions
           .filter(t => t.status === 'Credit')
           .reduce((sum, t) => sum + t.amount, 0);
 
         paymentBreakdown.credit = creditTotal;
 
+        // Sales Chart: Based on all paid transactions in the period
         const monthlySales = filteredTransactions
           .filter(t => t.status === 'Paid')
           .reduce((acc, t) => {
@@ -208,6 +213,7 @@ export default function DashboardPage() {
             .filter(p => p.soldPercentage < 50)
             .sort((a, b) => a.soldPercentage - b.soldPercentage);
 
+        // Product Sales Chart: Based on original sales in the period
         const productSalesSummary = originalSalesInPeriod
             .reduce((acc, current) => {
                 const existingProduct = acc.find(p => p.name === current.product);
@@ -225,7 +231,7 @@ export default function DashboardPage() {
         
         const totalReceivable = accountsReceivable.reduce((acc, item) => acc + item.amount, 0);
             
-        const accountsPayable = allPayables.sort((a, b) => b.date.getTime() - a.date.getTime());
+        const accountsPayable = allPayables.filter(p => p.status === 'Unpaid').sort((a, b) => b.date.getTime() - a.date.getTime());
 
         const totalPayable = accountsPayable.reduce((acc, item) => acc + item.amount, 0);
         
@@ -389,7 +395,7 @@ export default function DashboardPage() {
               <CardHeader>
                 <CardTitle>Sales Breakdown</CardTitle>
                 <CardDescription>
-                  Breakdown of total sales by payment method. Credit is total outstanding debt.
+                  Breakdown of total cash/bank/mobile flow and total outstanding debt.
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

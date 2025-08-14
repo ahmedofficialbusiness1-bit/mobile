@@ -24,6 +24,8 @@ export interface Payable {
     product: string;
     amount: number;
     date: Date;
+    status: 'Unpaid' | 'Paid';
+    paymentMethod?: PaymentMethod;
 }
 
 export interface CustomerPrepayment {
@@ -66,9 +68,9 @@ const initialTransactions: Transaction[] = [
 ];
 
 const initialPayables: Payable[] = [
-    { id: 'pay-001', supplierName: "Azam Mills", product: "Unga wa Ngano (50kg)", amount: 2500000, date: new Date(2024, 4, 10)},
-    { id: 'pay-002', supplierName: "Kilombero Sugar", product: "Sukari (20 bags)", amount: 1800000, date: new Date(2024, 4, 2)},
-    { id: 'pay-003', supplierName: "Korie Oils", product: "Mafuta ya Alizeti (100L)", amount: 3200000, date: new Date(2024, 3, 28)},
+    { id: 'pay-001', supplierName: "Azam Mills", product: "Unga wa Ngano (50kg)", amount: 2500000, date: new Date(2024, 4, 10), status: 'Unpaid'},
+    { id: 'pay-002', supplierName: "Kilombero Sugar", product: "Sukari (20 bags)", amount: 1800000, date: new Date(2024, 4, 2), status: 'Unpaid'},
+    { id: 'pay-003', supplierName: "Korie Oils", product: "Mafuta ya Alizeti (100L)", amount: 3200000, date: new Date(2024, 3, 28), status: 'Unpaid'},
 ];
 
 const initialPrepayments: CustomerPrepayment[] = [
@@ -92,8 +94,8 @@ interface FinancialContextType {
     payables: Payable[];
     prepayments: CustomerPrepayment[];
     products: Product[];
-    markReceivableAsPaid: (id: string) => void;
-    markPayableAsPaid: (id: string) => void;
+    markReceivableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
+    markPayableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
     markPrepaymentAsUsed: (id: string) => void;
     markPrepaymentAsRefunded: (id: string) => void;
 }
@@ -107,16 +109,20 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [prepayments, setPrepayments] = useState<CustomerPrepayment[]>(initialPrepayments);
     const [products, setProducts] = useState<Product[]>(initialProducts);
 
-    const markReceivableAsPaid = (id: string) => {
+    const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
         setTransactions(prevTransactions =>
             prevTransactions.map(t =>
-                t.id === id ? { ...t, status: 'Paid', paymentMethod: 'Cash', date: new Date(), notes: 'Debt Repayment' } : t
+                t.id === id ? { ...t, status: 'Paid', paymentMethod: paymentMethod, date: new Date(), notes: 'Debt Repayment' } : t
             )
         );
     };
 
-    const markPayableAsPaid = (id: string) => {
-        setPayables(prevPayables => prevPayables.filter(p => p.id !== id));
+    const markPayableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
+        setPayables(prevPayables => 
+            prevPayables.map(p => 
+                p.id === id ? { ...p, status: 'Paid', paymentMethod: paymentMethod } : p
+            )
+        );
     };
 
     const markPrepaymentAsUsed = (id: string) => {
