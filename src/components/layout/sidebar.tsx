@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import * as React from 'react'
 import {
   Sidebar,
   SidebarHeader,
@@ -10,6 +11,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
   SidebarSeparator,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import { Logo } from '@/components/logo'
 import {
@@ -29,8 +31,12 @@ import {
   Telescope,
   GanttChartSquare,
   Network,
+  ChevronLeft,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '../ui/button'
+import { cn } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },
@@ -53,45 +59,68 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const { state, toggleSidebar } = useSidebar()
+  const isCollapsed = state === 'collapsed';
 
   return (
-    <Sidebar className="border-r" side="left">
-      <SidebarHeader>
-        <Logo />
-      </SidebarHeader>
-      <SidebarMenu className="flex-1 p-2">
-        {navItems.map((item) => (
-          <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton
-              asChild
-              isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
-              className="font-headline"
+     <Sidebar className="border-r" side="left">
+      <div className="flex h-full flex-col">
+        <SidebarHeader className="relative">
+          <Logo />
+           <Button 
+              variant="outline" 
+              size="icon" 
+              className="absolute -right-12 top-1/2 -translate-y-1/2 z-20 bg-background h-7 w-7 hidden md:flex"
+              onClick={toggleSidebar}
             >
-              <Link href={item.href}>
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        ))}
-      </SidebarMenu>
-      <SidebarSeparator />
-      <SidebarFooter>
-        <div className="flex items-center gap-3 p-2">
-          <Avatar className="h-9 w-9">
-            <AvatarImage src="https://placehold.co/40x40.png" alt="@shadcn" />
-            <AvatarFallback>JD</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-sidebar-foreground">
-              Juma Doe
-            </span>
-            <span className="text-xs text-sidebar-foreground/70">
-              muhasibu@dirabiz.co
-            </span>
+              <ChevronLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")}/>
+            </Button>
+        </SidebarHeader>
+        <SidebarMenu className="flex-1 p-2">
+         <TooltipProvider delayDuration={0}>
+          {navItems.map((item) => (
+            <SidebarMenuItem key={item.href}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                   <SidebarMenuButton
+                      asChild
+                      isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
+                      className="font-headline"
+                    >
+                    <Link href={item.href}>
+                      <item.icon className="h-4 w-4" />
+                      <span className={cn("transition-opacity duration-200", isCollapsed ? "opacity-0 w-0" : "opacity-100")}>{item.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </TooltipTrigger>
+                {isCollapsed && (
+                  <TooltipContent side="right">
+                    {item.label}
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </SidebarMenuItem>
+          ))}
+          </TooltipProvider>
+        </SidebarMenu>
+        <SidebarSeparator />
+        <SidebarFooter>
+          <div className={cn("flex items-center gap-3 p-2", isCollapsed && "justify-center")}>
+            <Avatar className="h-9 w-9">
+              <AvatarImage src="https://placehold.co/40x40.png" alt="@shadcn" data-ai-hint="avatar placeholder"/>
+              <AvatarFallback>JD</AvatarFallback>
+            </Avatar>
+            <div className={cn("flex flex-col transition-opacity duration-200", isCollapsed ? "opacity-0 w-0 h-0" : "opacity-100")}>
+              <span className="text-sm font-medium text-sidebar-foreground">
+                Juma Doe
+              </span>
+              <span className="text-xs text-sidebar-foreground/70">
+                muhasibu@dirabiz.co
+              </span>
+            </div>
           </div>
-        </div>
-      </SidebarFooter>
+        </SidebarFooter>
+      </div>
     </Sidebar>
   )
 }

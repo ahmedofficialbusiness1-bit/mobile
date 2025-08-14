@@ -33,10 +33,12 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FinancialProvider>
           <SidebarProvider>
-            <AppSidebar />
-            <div className="flex-1">
-              <AppHeader />
-              <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+            <div className="flex">
+              <AppSidebar />
+              <div className="flex-1 flex flex-col">
+                <AppHeader />
+                <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+              </div>
             </div>
           </SidebarProvider>
         </FinancialProvider>

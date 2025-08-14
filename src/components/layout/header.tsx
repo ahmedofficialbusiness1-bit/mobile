@@ -1,9 +1,11 @@
 'use client'
 
 import * as React from 'react'
-import { SidebarTrigger } from '@/components/ui/sidebar'
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { usePathname } from 'next/navigation'
-import { Home, Cpu, FileText, ShoppingCart, Truck, Warehouse, Factory, Banknote, Landmark, ShieldCheck, Briefcase, UserCheck, Building2, Telescope, GanttChartSquare, Network } from 'lucide-react'
+import { Home, Cpu, FileText, ShoppingCart, Truck, Warehouse, Factory, Banknote, Landmark, ShieldCheck, Briefcase, UserCheck, Building2, Telescope, GanttChartSquare, Network, ChevronLeft } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 
 const navItems = [
@@ -37,11 +39,11 @@ const getPageTitle = (path: string) => {
 export function AppHeader() {
   const pathname = usePathname()
   const title = getPageTitle(pathname)
+  const { isMobile, toggleSidebar, state } = useSidebar();
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-      <div className="md:hidden">
-        <SidebarTrigger variant="outline" size="icon" className="shrink-0">
+       <SidebarTrigger variant="outline" size="icon" className="shrink-0 md:hidden">
           <svg
             className="h-5 w-5"
             xmlns="http://www.w3.org/2000/svg"
@@ -58,7 +60,6 @@ export function AppHeader() {
           </svg>
           <span className="sr-only">Toggle sidebar</span>
         </SidebarTrigger>
-      </div>
       <h1 className="text-xl font-semibold md:text-2xl font-headline">{title}</h1>
     </header>
   )
