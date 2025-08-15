@@ -44,6 +44,7 @@ export interface Product {
   category: string;
   description?: string;
   barcode?: string;
+  initialStock: number;
   currentStock: number;
   uom: string; // Unit of Measure
   reorderLevel: number;
@@ -211,7 +212,7 @@ const calculateDepreciation = (asset: Asset): { accumulatedDepreciation: number;
     return { accumulatedDepreciation, netBookValue };
 };
 
-const getProductStatus = (product: Omit<Product, 'status'>): Product['status'] => {
+const getProductStatus = (product: Omit<Product, 'status' | 'initialStock'>): Product['status'] => {
     const now = new Date();
     if (product.expiryDate && isAfter(now, product.expiryDate)) {
         return 'Expired';
@@ -325,7 +326,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 repaid: ownerLoans.find(l => l.id === c.id)?.repaid || 0
             }));
         setOwnerLoans(loans);
-    }, [capitalContributions, ownerLoans]);
+    }, [capitalContributions]);
 
 
     const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
@@ -552,6 +553,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                         id: `sku-${Date.now()}-${item.description.slice(0,5)}`,
                         name: item.description,
                         category: 'General',
+                        initialStock: item.quantity,
                         currentStock: item.quantity,
                         uom: item.uom,
                         reorderLevel: 10, 
