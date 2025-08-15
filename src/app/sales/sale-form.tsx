@@ -30,10 +30,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Product, PaymentMethod } from '@/context/financial-context'
-import { useToast } from '@/hooks/use-toast'
+import { Product, PaymentMethod, Customer } from '@/context/financial-context'
+import { Switch } from '@/components/ui/switch'
 
 export interface SaleFormData {
+  customerType: 'existing' | 'new'
+  customerId?: string
   customerName: string
   customerPhone: string
   productId: string
@@ -47,40 +49,89 @@ interface SaleFormProps {
   onClose: () => void
   onSave: (data: SaleFormData) => void
   products: Product[]
+  customers: Customer[]
 }
 
 const formSchema = z.object({
-  customerName: z.string().min(2, { message: 'Customer name is required.' }),
-  customerPhone: z.string().min(10, { message: 'Enter a valid phone number.' }),
+  customerType: z.enum(['existing', 'new']),
+  customerId: z.string().optional(),
+  customerName: z.string().optional(),
+  customerPhone: z.string().optional(),
   productId: z.string({ required_error: 'Please select a product.' }),
   quantity: z.coerce.number().min(1, { message: 'Quantity must be at least 1.' }),
-  paymentMethod: z.enum(['Cash', 'Mobile', 'Bank', 'Credit']),
+  paymentMethod: z.enum(['Cash', 'Mobile', 'Bank', 'Credit', 'Prepaid']),
+}).superRefine((data, ctx) => {
+    if (data.customerType === 'existing' && !data.customerId) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Please select a customer.",
+            path: ['customerId'],
+        });
+    }
+    if (data.customerType === 'new') {
+        if (!data.customerName || data.customerName.length < 2) {
+             ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Customer name is required.",
+                path: ['customerName'],
+            });
+        }
+        if (!data.customerPhone || data.customerPhone.length < 10) {
+             ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Enter a valid phone number.",
+                path: ['customerPhone'],
+            });
+        }
+    }
 })
 
-export function SaleForm({ isOpen, onClose, onSave, products }: SaleFormProps) {
+
+export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      customerName: '',
-      customerPhone: '',
+      customerType: 'existing',
       quantity: 1,
       paymentMethod: 'Cash',
     },
   })
 
   const selectedProductId = form.watch('productId');
+  const customerType = form.watch('customerType');
   const selectedProduct = products.find(p => p.id === selectedProductId);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!selectedProduct) {
-        return; // Should not happen if form is valid
+        return; 
     }
+
+    let saleCustomerName = '';
+    let saleCustomerPhone = '';
+
+    if (values.customerType === 'existing') {
+        const selectedCustomer = customers.find(c => c.id === values.customerId);
+        if (selectedCustomer) {
+            saleCustomerName = selectedCustomer.name;
+            saleCustomerPhone = selectedCustomer.phone;
+        }
+    } else {
+        saleCustomerName = values.customerName || '';
+        saleCustomerPhone = values.customerPhone || '';
+    }
+
     const saleData: SaleFormData = {
       ...values,
       productName: selectedProduct.name,
+      customerName: saleCustomerName,
+      customerPhone: saleCustomerPhone,
     }
     onSave(saleData)
-    form.reset()
+    form.reset({
+      customerType: 'existing',
+      quantity: 1,
+      paymentMethod: 'Cash',
+    })
     onClose()
   }
 
@@ -95,34 +146,83 @@ export function SaleForm({ isOpen, onClose, onSave, products }: SaleFormProps) {
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-                 <FormField
+
+            <FormField
+              control={form.control}
+              name="customerType"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0.5">
+                    <FormLabel>New Customer?</FormLabel>
+                    <FormDescription>
+                      Switch this on if the customer is not in your list.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value === 'new'}
+                      onCheckedChange={(checked) => field.onChange(checked ? 'new' : 'existing')}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {customerType === 'existing' ? (
+                <FormField
                   control={form.control}
-                  name="customerName"
+                  name="customerId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Customer Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. Jane Doe" {...field} />
-                      </FormControl>
+                      <FormLabel>Select Customer</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an existing customer" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {customers.map(customer => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name} ({customer.phone})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                 <FormField
-                  control={form.control}
-                  name="customerPhone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Customer Phone</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. 0712345678" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-            </div>
+            ) : (
+                <div className="grid grid-cols-2 gap-4">
+                     <FormField
+                      control={form.control}
+                      name="customerName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Customer Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g. Jane Doe" {...field} value={field.value || ''} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                      control={form.control}
+                      name="customerPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Customer Phone</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g. 0712345678" {...field} value={field.value || ''} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                </div>
+            )}
             
             <FormField
               control={form.control}
@@ -196,6 +296,7 @@ export function SaleForm({ isOpen, onClose, onSave, products }: SaleFormProps) {
                       <SelectItem value="Mobile">Mobile Money</SelectItem>
                       <SelectItem value="Bank">Bank Transfer</SelectItem>
                       <SelectItem value="Credit">On Credit</SelectItem>
+                       <SelectItem value="Prepaid">Use Customer Deposit</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

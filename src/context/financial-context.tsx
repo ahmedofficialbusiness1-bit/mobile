@@ -385,19 +385,21 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             return p;
         }));
 
-        // 3. Add or update customer
-        setCustomers(prev => {
-            const existingCustomer = prev.find(c => c.phone === saleData.customerPhone);
-            if (existingCustomer) {
-                return prev; // Customer already exists
-            }
-            const newCustomer: Customer = {
-                id: `cust-${Date.now()}`,
-                name: saleData.customerName,
-                phone: saleData.customerPhone,
-            };
-            return [...prev, newCustomer];
-        });
+        // 3. Add or update customer if they are new
+        if (saleData.customerType === 'new') {
+            setCustomers(prev => {
+                const existingCustomer = prev.find(c => c.phone === saleData.customerPhone);
+                if (existingCustomer) {
+                    return prev; // Customer already exists
+                }
+                const newCustomer: Customer = {
+                    id: `cust-${Date.now()}`,
+                    name: saleData.customerName,
+                    phone: saleData.customerPhone,
+                };
+                return [...prev, newCustomer];
+            });
+        }
     }
 
     const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {

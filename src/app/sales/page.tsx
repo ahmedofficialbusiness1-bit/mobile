@@ -32,7 +32,7 @@ import { SaleForm, type SaleFormData } from './sale-form'
 import { useToast } from '@/hooks/use-toast'
 
 export default function SalesPage() {
-  const { transactions, products, addSale, cashBalances } = useFinancials()
+  const { transactions, products, addSale, cashBalances, customers } = useFinancials()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const { toast } = useToast()
 
@@ -176,6 +176,7 @@ export default function SalesPage() {
         onClose={() => setIsFormOpen(false)}
         onSave={handleSaveSale}
         products={products}
+        customers={customers}
     />
     </>
   )
