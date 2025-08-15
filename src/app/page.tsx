@@ -122,7 +122,7 @@ export default function DashboardPage() {
       totalRevenue: 0,
       newCustomers: 0,
       sales: 0,
-      inventoryValue: 120483200,
+      inventoryValue: 0,
       transactions: [],
       chartData: [],
       slowMovingProducts: [],
@@ -230,12 +230,15 @@ export default function DashboardPage() {
         const activeCustomerPrepayments = allPrepayments.filter(p => p.status === 'Active').sort((a, b) => b.prepaidAmount - a.prepaidAmount);
         
         const totalPrepayments = activeCustomerPrepayments.reduce((acc, item) => acc + item.prepaidAmount, 0);
+        
+        const inventoryValue = allProducts.reduce((sum, product) => sum + (product.currentStock * product.purchasePrice), 0);
+
 
         setDashboardData({
             totalRevenue,
             newCustomers,
             sales,
-            inventoryValue: 120483200,
+            inventoryValue: inventoryValue,
             transactions: filteredTransactions.sort((a,b) => b.date.getTime() - a.date.getTime()),
             chartData,
             slowMovingProducts: slowMovingProducts,

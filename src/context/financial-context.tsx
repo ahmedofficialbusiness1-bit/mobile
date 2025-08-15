@@ -326,6 +326,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 repaid: ownerLoans.find(l => l.id === c.id)?.repaid || 0
             }));
         setOwnerLoans(loans);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [capitalContributions]);
 
 
@@ -552,6 +553,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     const newProductData = {
                         id: `sku-${Date.now()}-${item.description.slice(0,5)}`,
                         name: item.description,
+                        description: item.description,
                         category: 'General',
                         initialStock: item.quantity,
                         currentStock: item.quantity,
