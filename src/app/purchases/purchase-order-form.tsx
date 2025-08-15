@@ -90,6 +90,8 @@ export function PurchaseOrderForm({
           poNumber: `PO-${Date.now()}`,
           purchaseDate: new Date(),
           supplierName: '',
+          contactInformation: '',
+          referenceNumber: '',
           items: [
             {
               description: '',
@@ -102,6 +104,8 @@ export function PurchaseOrderForm({
           paymentTerms: 'Credit 30 days',
           paymentStatus: 'Unpaid',
           paymentMethod: 'Credit',
+          invoiceNumber: '',
+          shippingMethod: '',
           receivingStatus: 'Pending',
           shippingCost: 0,
           taxes: 0,
