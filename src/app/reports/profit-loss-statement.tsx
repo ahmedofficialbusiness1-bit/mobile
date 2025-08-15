@@ -5,38 +5,57 @@ import * as React from 'react';
 import { useFinancials } from '@/context/financial-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow, TableFooter } from '@/components/ui/table';
+import type { DateRange } from 'react-day-picker';
+import { isWithinInterval } from 'date-fns';
 
 const ReportRow = ({ label, value, isBold = false, isSub = false, isNegative = false }) => (
     <TableRow className={isBold ? 'font-bold' : ''}>
         <TableCell className={isSub ? 'pl-8' : ''}>{label}</TableCell>
         <TableCell className={`text-right ${isNegative ? 'text-red-600' : ''}`}>
-            {value ? `TSh ${value.toLocaleString()}` : '---'}
+            {value != null ? `TSh ${value.toLocaleString()}` : '---'}
         </TableCell>
     </TableRow>
 );
 
-export default function ProfitLossStatement() {
+interface ReportProps {
+    dateRange?: DateRange;
+}
+
+export default function ProfitLossStatement({ dateRange }: ReportProps) {
     const { transactions, expenses, products, purchaseOrders } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
-        setCurrentDate(new Date().toLocaleDateString());
+        setCurrentDate(new Date().toLocaleDateString('en-GB'));
     }, []);
 
+    const filteredTransactions = transactions.filter(t => 
+        dateRange?.from && dateRange?.to && isWithinInterval(t.date, { start: dateRange.from, end: dateRange.to })
+    );
+
+    const filteredExpenses = expenses.filter(e =>
+        dateRange?.from && dateRange?.to && isWithinInterval(e.date, { start: dateRange.from, end: dateRange.to })
+    );
+    
+    const filteredPurchases = purchaseOrders.filter(po =>
+        dateRange?.from && dateRange?.to && isWithinInterval(po.purchaseDate, { start: dateRange.from, end: dateRange.to })
+    );
+
+
     // Use netAmount for revenue calculation (Sales After VAT)
-    const revenue = transactions
+    const revenue = filteredTransactions
         .filter(t => t.status === 'Paid')
         .reduce((sum, t) => sum + t.netAmount, 0);
 
     const openingInventory = 0; // Simplified for now
-    const purchases = purchaseOrders
+    const purchases = filteredPurchases
         .filter(po => po.receivingStatus === 'Received')
         .reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.totalPrice, 0), 0);
     const closingInventory = products.reduce((sum, p) => sum + (p.currentStock * p.purchasePrice), 0);
     const costOfSales = openingInventory + purchases - closingInventory;
     const grossProfit = revenue - costOfSales;
 
-    const operatingExpenses = expenses
+    const operatingExpenses = filteredExpenses
         .filter(e => e.status === 'Approved')
         .reduce((sum, e) => sum + e.amount, 0);
 
@@ -91,5 +110,3 @@ export default function ProfitLossStatement() {
         </Card>
     );
 }
-
-    

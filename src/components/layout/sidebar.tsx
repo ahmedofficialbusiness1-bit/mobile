@@ -1,3 +1,4 @@
+
 'use client'
 
 import Link from 'next/link'
@@ -50,7 +51,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar
-      className="border-r"
+      className="border-r no-print"
       side="left"
       collapsible="offcanvas"
     >

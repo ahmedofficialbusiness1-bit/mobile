@@ -5,23 +5,27 @@ import * as React from 'react';
 import { useFinancials } from '@/context/financial-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow, TableFooter } from '@/components/ui/table';
+import type { DateRange } from 'react-day-picker';
 
 const ReportRow = ({ label, value, isBold = false, isSub = false, isNegative = false }) => (
     <TableRow className={isBold ? 'font-bold' : ''}>
         <TableCell className={isSub ? 'pl-8' : ''}>{label}</TableCell>
         <TableCell className={`text-right ${isNegative ? 'text-red-600' : ''}`}>
-            {value ? `TSh ${value.toLocaleString()}` : '---'}
+            {value != null ? `TSh ${value.toLocaleString()}` : '---'}
         </TableCell>
     </TableRow>
 );
 
+interface ReportProps {
+    dateRange?: DateRange;
+}
 
-export default function CashFlowStatement() {
+export default function CashFlowStatement({ dateRange }: ReportProps) {
     const { cashBalances } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
-        setCurrentDate(new Date().toLocaleDateString());
+        setCurrentDate(new Date().toLocaleDateString('en-GB'));
     }, []);
 
     // This is a simplified version. A real indirect method cash flow is very complex.

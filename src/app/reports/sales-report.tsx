@@ -5,20 +5,25 @@ import * as React from 'react';
 import { useFinancials } from '@/context/financial-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead, TableFooter } from '@/components/ui/table';
+import type { DateRange } from 'react-day-picker';
+import { isWithinInterval } from 'date-fns';
 
-export default function SalesReport() {
+interface ReportProps {
+    dateRange?: DateRange;
+}
+
+export default function SalesReport({ dateRange }: ReportProps) {
     const { transactions, products } = useFinancials();
-    const [currentDate, setCurrentDate] = React.useState('');
-
-    React.useEffect(() => {
-        setCurrentDate(new Date().toLocaleDateString());
-    }, []);
+    
+    const filteredTransactions = transactions.filter(t => 
+        dateRange?.from && dateRange?.to && isWithinInterval(t.date, { start: dateRange.from, end: dateRange.to })
+    );
 
     const salesByProduct = products.map(product => {
-        const totalSales = transactions
+        const totalSales = filteredTransactions
             .filter(t => t.product === product.name && t.status === 'Paid')
             .reduce((sum, t) => sum + t.amount, 0);
-        const quantitySold = transactions
+        const quantitySold = filteredTransactions
             .filter(t => t.product === product.name && (t.status === 'Paid' || t.status === 'Credit'))
             .length; // Simplified: Assumes 1 transaction = 1 unit
         return { name: product.name, quantity: quantitySold, total: totalSales };
@@ -30,7 +35,7 @@ export default function SalesReport() {
         <Card>
             <CardHeader>
                 <CardTitle>Sales Report</CardTitle>
-                <CardDescription>Breakdown of sales by product for the period ending {currentDate}</CardDescription>
+                <CardDescription>Breakdown of sales by product for the selected period</CardDescription>
             </CardHeader>
             <CardContent>
                  <Table>
@@ -49,6 +54,11 @@ export default function SalesReport() {
                                 <TableCell className="text-right">TSh {p.total.toLocaleString()}</TableCell>
                             </TableRow>
                         ))}
+                        {salesByProduct.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={3} className="text-center h-24">No sales recorded for this period.</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                     <TableFooter>
                         <TableRow className="font-bold text-lg bg-muted">

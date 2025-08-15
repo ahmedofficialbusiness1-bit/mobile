@@ -6,17 +6,27 @@ import { useFinancials } from '@/context/financial-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead, TableFooter } from '@/components/ui/table';
 import { expenseCategories } from '@/app/finance/expense-form';
+import type { DateRange } from 'react-day-picker';
+import { isWithinInterval } from 'date-fns';
 
-export default function ExpensesReport() {
+interface ReportProps {
+    dateRange?: DateRange;
+}
+
+export default function ExpensesReport({ dateRange }: ReportProps) {
     const { expenses } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
-        setCurrentDate(new Date().toLocaleDateString());
+        setCurrentDate(new Date().toLocaleDateString('en-GB'));
     }, []);
 
+    const filteredExpenses = expenses.filter(e =>
+        dateRange?.from && dateRange?.to && isWithinInterval(e.date, { start: dateRange.from, end: dateRange.to })
+    );
+
     const expensesByCategory = expenseCategories.map(category => {
-        const total = expenses
+        const total = filteredExpenses
             .filter(e => e.status === 'Approved' && e.category === category)
             .reduce((sum, e) => sum + e.amount, 0);
         return { category, total };
@@ -28,7 +38,7 @@ export default function ExpensesReport() {
         <Card>
             <CardHeader>
                 <CardTitle>Expenses Report</CardTitle>
-                <CardDescription>Breakdown of expenses by category for the period ending {currentDate}</CardDescription>
+                <CardDescription>Breakdown of expenses by category for the selected period</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -45,6 +55,11 @@ export default function ExpensesReport() {
                                 <TableCell className="text-right">TSh {exp.total.toLocaleString()}</TableCell>
                             </TableRow>
                         ))}
+                         {expensesByCategory.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={2} className="text-center h-24">No expenses recorded for this period.</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                     <TableFooter>
                         <TableRow className="font-bold text-lg bg-muted">
