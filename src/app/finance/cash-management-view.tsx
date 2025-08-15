@@ -4,7 +4,7 @@
 import * as React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Wallet, Landmark, Smartphone, PiggyBank, ArrowUpRight, ArrowDownLeft, MinusCircle, PlusCircle, CreditCard } from 'lucide-react'
+import { Wallet, Landmark, Smartphone, PiggyBank, ArrowUpRight, ArrowDownLeft, MinusCircle, PlusCircle, CreditCard, ReceiptText } from 'lucide-react'
 import { useFinancials } from '@/context/financial-context'
 import { LoanRepaymentForm } from './loan-repayment-form'
 import { useToast } from '@/hooks/use-toast'
@@ -13,7 +13,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 export default function CashManagementView() {
-    const { cashBalances, ownerLoans, repayOwnerLoan, addDrawing, transactions } = useFinancials();
+    const { cashBalances, ownerLoans, repayOwnerLoan, addDrawing, transactions, payables } = useFinancials();
     const router = useRouter();
     const { toast } = useToast();
     const [isRepayOpen, setIsRepayOpen] = React.useState(false);
@@ -21,6 +21,8 @@ export default function CashManagementView() {
     
     const totalLoan = ownerLoans.reduce((acc, loan) => acc + loan.amount - loan.repaid, 0);
     const totalReceivable = transactions.filter(t => t.status === 'Credit').reduce((acc, t) => acc + t.amount, 0);
+    const totalPayable = payables.filter(p => p.status === 'Unpaid').reduce((acc, p) => acc + p.amount, 0);
+
 
     const handleRepayment = (amount: number, paymentMethod: "Cash" | "Bank" | "Mobile", notes: string) => {
         if (ownerLoans.length === 0) return;
@@ -102,7 +104,7 @@ export default function CashManagementView() {
                         </Card>
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between pb-2">
-                               <CardTitle className="text-sm font-medium">Customer Credits</CardTitle>
+                               <CardTitle className="text-sm font-medium">Customer Credits (Receivable)</CardTitle>
                                <CreditCard className="h-5 w-5 text-muted-foreground"/>
                             </CardHeader>
                             <CardContent>
@@ -126,7 +128,7 @@ export default function CashManagementView() {
                     <CardHeader>
                         <CardTitle>Capital & Liabilities</CardTitle>
                         <CardDescription>
-                           Overview of capital structure including owner's loans.
+                           Overview of capital structure including owner's loans and supplier debts.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-6 md:grid-cols-2">
@@ -145,6 +147,16 @@ export default function CashManagementView() {
                                     Repay Loan
                                 </Button>
                             </CardFooter>
+                        </Card>
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                               <CardTitle className="text-sm font-medium">Supplier Credits (Payable)</CardTitle>
+                               <ReceiptText className="h-5 w-5 text-muted-foreground"/>
+                            </CardHeader>
+                            <CardContent>
+                               <p className="text-2xl font-bold">TSh {totalPayable.toLocaleString()}</p>
+                               <p className="text-xs text-muted-foreground">Total amount owed to suppliers</p>
+                            </CardContent>
                         </Card>
                     </CardContent>
                 </Card>
