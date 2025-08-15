@@ -2,7 +2,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { differenceInYears, format } from 'date-fns';
+import { differenceInYears, format, isAfter } from 'date-fns';
 
 // --- Type Definitions ---
 export type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit" | "Prepaid";
@@ -39,12 +39,26 @@ export interface CustomerPrepayment {
 }
 
 export interface Product {
-    id: string;
-    name: string;
-    initialStock: number;
-    currentStock: number;
-    entryDate: Date;
+  id: string; // SKU
+  name: string;
+  category: string;
+  description?: string;
+  barcode?: string;
+  currentStock: number;
+  uom: string; // Unit of Measure
+  reorderLevel: number;
+  reorderQuantity: number;
+  purchasePrice: number;
+  sellingPrice: number;
+  entryDate: Date; // Date Received
+  expiryDate?: Date;
+  lastUpdated: Date;
+  location?: string;
+  batchNumber?: string;
+  supplier?: string;
+  status: 'In Stock' | 'Low Stock' | 'Out of Stock' | 'Expired';
 }
+
 
 export interface Asset {
     id: string;
@@ -197,6 +211,21 @@ const calculateDepreciation = (asset: Asset): { accumulatedDepreciation: number;
     return { accumulatedDepreciation, netBookValue };
 };
 
+const getProductStatus = (product: Omit<Product, 'status'>): Product['status'] => {
+    const now = new Date();
+    if (product.expiryDate && isAfter(now, product.expiryDate)) {
+        return 'Expired';
+    }
+    if (product.currentStock <= 0) {
+        return 'Out of Stock';
+    }
+    if (product.currentStock <= product.reorderLevel) {
+        return 'Low Stock';
+    }
+    return 'In Stock';
+}
+
+
 // --- Context Provider ---
 export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -296,8 +325,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 repaid: ownerLoans.find(l => l.id === c.id)?.repaid || 0
             }));
         setOwnerLoans(loans);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [capitalContributions]);
+    }, [capitalContributions, ownerLoans]);
 
 
     const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
@@ -482,7 +510,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
         setPurchaseOrders(prev => [...prev, newPO]);
 
-        if (newPO.paymentStatus === 'Unpaid') {
+        if (newPO.paymentTerms.startsWith('Credit')) {
             const totalAmount = newPO.items.reduce((sum, item) => sum + item.totalPrice, 0);
             const newPayable: Payable = {
                 id: `payable-po-${newPO.id}`,
@@ -502,29 +530,54 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         setPurchaseOrders(prev => prev.map(p => p.id === poId ? { ...p, receivingStatus: 'Received' } : p));
         
-        const updatedProducts = [...products];
-        po.items.forEach(item => {
-            const existingProduct = updatedProducts.find(p => p.name.toLowerCase() === item.description.toLowerCase());
-            if (existingProduct) {
-                existingProduct.currentStock += item.quantity;
-            } else {
-                updatedProducts.push({
-                    id: `prod-${Date.now()}-${item.description}`,
-                    name: item.description,
-                    initialStock: item.quantity,
-                    currentStock: item.quantity,
-                    entryDate: new Date(),
-                });
-            }
+        setProducts(prevProducts => {
+            const updatedProducts = [...prevProducts];
+            po.items.forEach(item => {
+                const existingProductIndex = updatedProducts.findIndex(p => p.name.toLowerCase() === item.description.toLowerCase());
+                
+                if (existingProductIndex !== -1) {
+                    const existingProduct = updatedProducts[existingProductIndex];
+                    const newStock = existingProduct.currentStock + item.quantity;
+                    const updatedProduct = {
+                        ...existingProduct,
+                        currentStock: newStock,
+                        lastUpdated: new Date(),
+                    };
+                    updatedProducts[existingProductIndex] = {
+                        ...updatedProduct,
+                        status: getProductStatus(updatedProduct)
+                    }
+                } else {
+                    const newProductData = {
+                        id: `sku-${Date.now()}-${item.description.slice(0,5)}`,
+                        name: item.description,
+                        category: 'General',
+                        currentStock: item.quantity,
+                        uom: item.uom,
+                        reorderLevel: 10, 
+                        reorderQuantity: 20,
+                        purchasePrice: item.unitPrice,
+                        sellingPrice: item.sellingPrice,
+                        entryDate: new Date(),
+                        lastUpdated: new Date(),
+                        supplier: po.supplierName,
+                    };
+                     const newProduct: Product = {
+                        ...newProductData,
+                        status: getProductStatus(newProductData),
+                    };
+                    updatedProducts.push(newProduct);
+                }
+            });
+            return updatedProducts;
         });
-        setProducts(updatedProducts);
     }
     
     const payPurchaseOrder = (poId: string, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => {
         const po = purchaseOrders.find(p => p.id === poId);
         if (!po) return;
 
-        setPurchaseOrders(prev => prev.map(p => p.id === poId ? { ...p, paymentStatus: 'Paid', paymentMethod: paymentMethod } : p));
+        setPurchaseOrders(prev => prev.map(p => p.id === poId ? { ...p, paymentStatus: 'Paid', paymentMethod: paymentMethod as any } : p));
 
         const payableId = `payable-po-${poId}`;
         const existingPayable = payables.find(p => p.id === payableId);
