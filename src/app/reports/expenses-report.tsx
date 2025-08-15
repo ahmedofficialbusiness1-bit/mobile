@@ -9,6 +9,11 @@ import { expenseCategories } from '@/app/finance/expense-form';
 
 export default function ExpensesReport() {
     const { expenses } = useFinancials();
+    const [currentDate, setCurrentDate] = React.useState('');
+
+    React.useEffect(() => {
+        setCurrentDate(new Date().toLocaleDateString());
+    }, []);
 
     const expensesByCategory = expenseCategories.map(category => {
         const total = expenses
@@ -23,7 +28,7 @@ export default function ExpensesReport() {
         <Card>
             <CardHeader>
                 <CardTitle>Expenses Report</CardTitle>
-                <CardDescription>Breakdown of expenses by category for the period ending {new Date().toLocaleDateString()}</CardDescription>
+                <CardDescription>Breakdown of expenses by category for the period ending {currentDate}</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>

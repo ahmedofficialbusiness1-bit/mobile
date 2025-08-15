@@ -17,6 +17,11 @@ const ReportRow = ({ label, value, isBold = false, isSub = false, isNegative = f
 
 export default function ProfitLossStatement() {
     const { transactions, expenses, products, purchaseOrders } = useFinancials();
+    const [currentDate, setCurrentDate] = React.useState('');
+
+    React.useEffect(() => {
+        setCurrentDate(new Date().toLocaleDateString());
+    }, []);
 
     // Use netAmount for revenue calculation (Sales After VAT)
     const revenue = transactions
@@ -48,7 +53,7 @@ export default function ProfitLossStatement() {
         <Card>
             <CardHeader>
                 <CardTitle>Profit and Loss Statement</CardTitle>
-                <CardDescription>For the period ending {new Date().toLocaleDateString()}</CardDescription>
+                <CardDescription>For the period ending {currentDate}</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>

@@ -8,6 +8,11 @@ import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead, TableFoo
 
 export default function SalesReport() {
     const { transactions, products } = useFinancials();
+    const [currentDate, setCurrentDate] = React.useState('');
+
+    React.useEffect(() => {
+        setCurrentDate(new Date().toLocaleDateString());
+    }, []);
 
     const salesByProduct = products.map(product => {
         const totalSales = transactions
@@ -25,7 +30,7 @@ export default function SalesReport() {
         <Card>
             <CardHeader>
                 <CardTitle>Sales Report</CardTitle>
-                <CardDescription>Breakdown of sales by product for the period ending {new Date().toLocaleDateString()}</CardDescription>
+                <CardDescription>Breakdown of sales by product for the period ending {currentDate}</CardDescription>
             </CardHeader>
             <CardContent>
                  <Table>

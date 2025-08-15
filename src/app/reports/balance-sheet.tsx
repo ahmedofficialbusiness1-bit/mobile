@@ -15,6 +15,11 @@ const ReportRow = ({ label, value, isBold = false, isSub = false }) => (
 
 export default function BalanceSheet() {
     const { assets, products, transactions, payables, cashBalances, capitalContributions, ownerLoans } = useFinancials();
+    const [currentDate, setCurrentDate] = React.useState('');
+
+    React.useEffect(() => {
+        setCurrentDate(new Date().toLocaleDateString());
+    }, []);
 
     // Assets
     const nonCurrentAssets = assets.reduce((sum, asset) => sum + asset.netBookValue, 0);
@@ -42,7 +47,7 @@ export default function BalanceSheet() {
         <Card>
             <CardHeader>
                 <CardTitle>Statement of Financial Position (Balance Sheet)</CardTitle>
-                <CardDescription>As at {new Date().toLocaleDateString()}</CardDescription>
+                <CardDescription>As at {currentDate}</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>

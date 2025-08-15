@@ -18,6 +18,12 @@ const ReportRow = ({ label, value, isBold = false, isSub = false, isNegative = f
 
 export default function CashFlowStatement() {
     const { cashBalances } = useFinancials();
+    const [currentDate, setCurrentDate] = React.useState('');
+
+    React.useEffect(() => {
+        setCurrentDate(new Date().toLocaleDateString());
+    }, []);
+
     // This is a simplified version. A real indirect method cash flow is very complex.
     const openingBalance = 0; // Simplified
     const closingBalance = cashBalances.cash + cashBalances.bank + cashBalances.mobile;
@@ -27,7 +33,7 @@ export default function CashFlowStatement() {
         <Card>
             <CardHeader>
                 <CardTitle>Cash Flow Statement</CardTitle>
-                <CardDescription>For the period ending {new Date().toLocaleDateString()} (Simplified)</CardDescription>
+                <CardDescription>For the period ending {currentDate} (Simplified)</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
