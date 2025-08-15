@@ -116,6 +116,7 @@ export interface PurchaseOrderItem {
   description: string
   quantity: number
   unitPrice: number
+  sellingPrice: number
   uom: string
   totalPrice: number
 }
@@ -279,6 +280,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [transactions, capitalContributions, expenses, payables, payrollHistory]);
 
     useEffect(() => {
+        recalculateBalances();
+    }, [recalculateBalances]);
+
+    useEffect(() => {
         const loans = capitalContributions
             .filter(c => c.type === 'Liability')
             .map(c => ({
@@ -289,8 +294,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 repaid: ownerLoans.find(l => l.id === c.id)?.repaid || 0
             }));
         setOwnerLoans(loans);
-        recalculateBalances();
-    }, [capitalContributions, transactions, expenses, payables, payrollHistory, recalculateBalances]);
+    }, [capitalContributions]);
 
 
     const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
