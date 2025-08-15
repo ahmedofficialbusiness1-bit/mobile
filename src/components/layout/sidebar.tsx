@@ -16,17 +16,12 @@ import {
 import { Logo } from '@/components/logo'
 import {
   Home,
-  Cpu,
   FileText,
   ShoppingCart,
   Truck,
   Warehouse,
   Banknote,
   Landmark,
-  ShieldCheck,
-  Briefcase,
-  GanttChartSquare,
-  Network,
   ChevronLeft,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -41,16 +36,11 @@ import {
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },
-  { href: '/co-pilot', label: 'AI Co-Pilot', icon: Cpu },
   { href: '/sales', label: 'Sales & POS', icon: ShoppingCart },
   { href: '/purchases', label: 'Purchases', icon: Truck },
   { href: '/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/finance', label: 'Finance', icon: Banknote },
   { href: '/tax', label: 'Tax & Compliance', icon: Landmark },
-  { href: '/projects', label: 'Projects & Jobs', icon: GanttChartSquare },
-  { href: '/grc', label: 'Governance & Risk', icon: ShieldCheck },
-  { href: '/bi', label: 'BI & Forecasting', icon: Briefcase },
-  { href: '/integrations', label: 'Integrations', icon: Network },
   { href: '/receipts', label: 'Digital Receipts', icon: FileText },
 ]
 
