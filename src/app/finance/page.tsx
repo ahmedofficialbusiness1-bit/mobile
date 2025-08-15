@@ -8,7 +8,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { Menu, Briefcase, FileText, Banknote, Landmark, Users, PiggyBank } from 'lucide-react'
+import { Menu, Briefcase, FileText, Banknote, Landmark, Users, PiggyBank, BookUser } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import AccountsView from './accounts-view'
 import PayrollView from './payroll-view'
@@ -16,23 +16,8 @@ import ExpensesView from './expenses-view'
 import CapitalView from './capital-view'
 import AssetsView from './assets-view'
 import CashManagementView from './cash-management-view'
+import JournalView from './journal-view'
 
-
-function PlaceholderCard({ title, description }: { title: string, description: string }) {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>{title}</CardTitle>
-                <CardDescription>{description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center justify-center h-48 border-2 border-dashed rounded-lg">
-                    <p className="text-muted-foreground">Coming Soon</p>
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
 
 const financeNavItems = [
     { id: 'accounts', label: 'Accounts', icon: Briefcase },
@@ -41,6 +26,7 @@ const financeNavItems = [
     { id: 'capital', label: 'Capital', icon: Landmark },
     { id: 'assets', label: 'Assets', icon: Banknote },
     { id: 'cash', label: 'Cash Management', icon: PiggyBank },
+    { id: 'journal', label: 'Journal', icon: BookUser },
 ]
 
 export default function FinancePage() {
@@ -60,6 +46,8 @@ export default function FinancePage() {
                 return <AssetsView />;
             case 'cash':
                 return <CashManagementView />;
+            case 'journal':
+                return <JournalView />;
             default:
                 return <AccountsView />;
         }
