@@ -112,6 +112,34 @@ export interface Expense {
 
 export type AddExpenseData = Omit<Expense, 'id' | 'status' | 'paymentMethod'>;
 
+export interface PurchaseOrderItem {
+  description: string
+  quantity: number
+  unitPrice: number
+  uom: string
+  totalPrice: number
+}
+
+export interface PurchaseOrder {
+  id: string
+  poNumber: string
+  purchaseDate: Date
+  supplierName: string
+  contactInformation?: string
+  referenceNumber?: string
+  items: PurchaseOrderItem[]
+  paymentTerms: 'Cash' | 'Credit 30 days' | 'Credit 60 days'
+  paymentStatus: 'Paid' | 'Unpaid'
+  paymentMethod: 'Cash' | 'Bank Transfer' | 'Mpesa' | 'Credit'
+  invoiceNumber?: string
+  shippingMethod?: string
+  expectedDeliveryDate?: Date
+  receivingStatus: 'Pending' | 'Partial' | 'Received'
+  shippingCost: number
+  taxes: number
+  otherCharges: number
+}
+
 // --- Context Definition ---
 interface FinancialContextType {
     transactions: Transaction[];
@@ -124,6 +152,7 @@ interface FinancialContextType {
     expenses: Expense[];
     employees: Employee[];
     payrollHistory: PayrollRun[];
+    purchaseOrders: PurchaseOrder[];
     cashBalances: { cash: number; bank: number; mobile: number };
     markReceivableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
     markPayableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
@@ -141,6 +170,7 @@ interface FinancialContextType {
     updateEmployee: (id: string, employeeData: Omit<Employee, 'id'>) => void;
     deleteEmployee: (id: string) => void;
     processPayroll: (paymentMethod: PaymentMethod, totalGross: number, totalNet: number) => void;
+    addPurchaseOrder: (data: Omit<PurchaseOrder, 'id'>) => void;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -176,6 +206,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [ownerLoans, setOwnerLoans] = useState<OwnerLoan[]>([]);
     const [assets, setAssets] = useState<Asset[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([])
     const [cashBalances, setCashBalances] = useState({ cash: 0, bank: 0, mobile: 0 });
 
     const recalculateBalances = useCallback(() => {
@@ -375,7 +406,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             description: data.description,
             type: 'Drawing',
             amount: data.amount,
-            source: data.source
+            source: data.source,
         };
         setCapitalContributions(prev => [...prev, newDrawing]);
     };
@@ -437,6 +468,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         setExpenses(prev => [...prev, newExpense]);
     };
 
+    const addPurchaseOrder = (data: Omit<PurchaseOrder, 'id'>) => {
+        const newPO: PurchaseOrder = {
+        id: `po-${Date.now()}`,
+        ...data,
+        }
+        setPurchaseOrders(prev => [...prev, newPO])
+    }
+
 
     const contextValue: FinancialContextType = {
         transactions,
@@ -450,6 +489,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         employees,
         payrollHistory,
         cashBalances,
+        purchaseOrders,
         markReceivableAsPaid,
         markPayableAsPaid,
         markPrepaymentAsUsed,
@@ -465,7 +505,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         addEmployee,
         updateEmployee,
         deleteEmployee,
-        processPayroll
+        processPayroll,
+        addPurchaseOrder
     };
 
     return (
