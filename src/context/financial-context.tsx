@@ -116,6 +116,7 @@ export interface PurchaseOrderItem {
   description: string
   quantity: number
   unitPrice: number
+  sellingPrice: number
   uom: string
   totalPrice: number
 }
@@ -290,7 +291,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }));
         setOwnerLoans(loans);
         recalculateBalances();
-    }, [capitalContributions, transactions, expenses, payables, payrollHistory, recalculateBalances]);
+    }, [capitalContributions, transactions, expenses, payables, payrollHistory, recalculateBalances, ownerLoans]);
 
 
     const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {

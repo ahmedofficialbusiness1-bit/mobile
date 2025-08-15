@@ -1,6 +1,7 @@
 
 'use client'
 
+import * as React from 'react'
 import { z } from 'zod'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -53,6 +54,7 @@ const itemSchema = z.object({
   description: z.string().min(1, 'Item description is required.'),
   quantity: z.coerce.number().min(0.1, 'Quantity must be positive.'),
   unitPrice: z.coerce.number().min(0, 'Unit price cannot be negative.'),
+  sellingPrice: z.coerce.number().min(0, 'Selling price cannot be negative.'),
   uom: z.string().min(1, 'UoM is required.'),
   totalPrice: z.coerce.number(),
 })
@@ -97,6 +99,7 @@ export function PurchaseOrderForm({
               description: '',
               quantity: 1,
               unitPrice: 0,
+              sellingPrice: 0,
               uom: 'pcs',
               totalPrice: 0,
             },
@@ -113,26 +116,29 @@ export function PurchaseOrderForm({
         },
   })
 
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'items',
   })
 
   const watchItems = form.watch('items')
 
-  const handleItemChange = (
-    index: number,
-    field: 'quantity' | 'unitPrice',
-    value: number
-  ) => {
-    const currentItem = form.getValues(`items.${index}`)
-    const quantity =
-      field === 'quantity' ? value : currentItem.quantity
-    const unitPrice =
-      field === 'unitPrice' ? value : currentItem.unitPrice
-    const totalPrice = quantity * unitPrice
-    update(index, { ...currentItem, [field]: value, totalPrice: totalPrice })
-  }
+  React.useEffect(() => {
+    const subscription = form.watch((value, { name, type }) => {
+      if (name && (name.includes('.quantity') || name.includes('.unitPrice'))) {
+        const index = parseInt(name.split('.')[1], 10)
+        const item = form.getValues(`items.${index}`)
+        const newTotal = (item.quantity || 0) * (item.unitPrice || 0)
+        if (item.totalPrice !== newTotal) {
+          form.setValue(`items.${index}.totalPrice`, newTotal, {
+            shouldValidate: true,
+          })
+        }
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [form])
+
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     onSave(values)
@@ -214,7 +220,7 @@ export function PurchaseOrderForm({
                       <FormItem>
                         <FormLabel>Reference Number</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g. INV-123" {...field} />
+                          <Input placeholder="e.g. INV-123" {...field} value={field.value || ''} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -247,7 +253,7 @@ export function PurchaseOrderForm({
                           <FormItem>
                             <FormLabel>Contact Information</FormLabel>
                             <FormControl>
-                              <Input placeholder="e.g. 0712345678" {...field} />
+                              <Input placeholder="e.g. 0712345678" {...field} value={field.value || ''} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -262,13 +268,13 @@ export function PurchaseOrderForm({
                   <h3 className="text-lg font-medium">Items</h3>
                   <div className="space-y-4 mt-2">
                     {fields.map((item, index) => (
-                      <div key={item.id} className="grid grid-cols-12 gap-2 items-start">
+                      <div key={item.id} className="grid grid-cols-12 gap-2 items-start p-2 border rounded-md">
                         <FormField
                             control={form.control}
                             name={`items.${index}.description`}
                             render={({ field }) => (
-                                <FormItem className="col-span-4">
-                                <FormLabel className={cn(index !== 0 && "sr-only")}>Item</FormLabel>
+                                <FormItem className="col-span-12">
+                                <FormLabel>Item Description</FormLabel>
                                 <FormControl>
                                     <Input placeholder="Item description" {...field} />
                                 </FormControl>
@@ -276,14 +282,14 @@ export function PurchaseOrderForm({
                                 </FormItem>
                             )}
                         />
-                        <FormField
+                         <FormField
                             control={form.control}
                             name={`items.${index}.quantity`}
                             render={({ field }) => (
-                                <FormItem className="col-span-2">
-                                <FormLabel className={cn(index !== 0 && "sr-only")}>Qty</FormLabel>
+                                <FormItem className="col-span-3 md:col-span-2">
+                                <FormLabel>Qty</FormLabel>
                                 <FormControl>
-                                    <Input type="number" {...field} onChange={e => handleItemChange(index, 'quantity', +e.target.value)} />
+                                    <Input type="number" {...field} />
                                 </FormControl>
                                 <FormMessage />
                                 </FormItem>
@@ -293,8 +299,8 @@ export function PurchaseOrderForm({
                             control={form.control}
                             name={`items.${index}.uom`}
                             render={({ field }) => (
-                                <FormItem className="col-span-1">
-                                <FormLabel className={cn(index !== 0 && "sr-only")}>UoM</FormLabel>
+                                <FormItem className="col-span-3 md:col-span-2">
+                                <FormLabel>UoM</FormLabel>
                                 <FormControl>
                                     <Input placeholder="pcs" {...field} />
                                 </FormControl>
@@ -306,17 +312,30 @@ export function PurchaseOrderForm({
                             control={form.control}
                             name={`items.${index}.unitPrice`}
                             render={({ field }) => (
-                                <FormItem className="col-span-2">
-                                <FormLabel className={cn(index !== 0 && "sr-only")}>Unit Price</FormLabel>
+                                <FormItem className="col-span-3 md:col-span-2">
+                                <FormLabel>Unit Price</FormLabel>
                                 <FormControl>
-                                    <Input type="number" {...field} onChange={e => handleItemChange(index, 'unitPrice', +e.target.value)} />
+                                    <Input type="number" {...field} />
                                 </FormControl>
                                 <FormMessage />
                                 </FormItem>
                             )}
                         />
-                        <div className="col-span-2">
-                            <FormLabel className={cn(index !== 0 && "sr-only")}>Total</FormLabel>
+                        <FormField
+                            control={form.control}
+                            name={`items.${index}.sellingPrice`}
+                            render={({ field }) => (
+                                <FormItem className="col-span-3 md:col-span-2">
+                                <FormLabel>Selling Price</FormLabel>
+                                <FormControl>
+                                    <Input type="number" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <div className="col-span-full md:col-span-3">
+                            <FormLabel>Total</FormLabel>
                             <Input value={watchItems[index]?.totalPrice.toLocaleString() || '0'} readOnly className="font-mono text-right bg-muted" />
                         </div>
                         <div className="col-span-1 flex items-end h-full">
@@ -332,7 +351,7 @@ export function PurchaseOrderForm({
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => append({ description: '', quantity: 1, unitPrice: 0, uom: 'pcs', totalPrice: 0 })}
+                        onClick={() => append({ description: '', quantity: 1, unitPrice: 0, sellingPrice: 0, uom: 'pcs', totalPrice: 0 })}
                     >
                       <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                     </Button>
