@@ -28,15 +28,37 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useFinancials, type Transaction } from '@/context/financial-context'
 import { format } from 'date-fns'
+import { SaleForm, type SaleFormData } from './sale-form'
+import { useToast } from '@/hooks/use-toast'
 
 export default function SalesPage() {
-  const { transactions } = useFinancials()
+  const { transactions, products, addSale, cashBalances } = useFinancials()
+  const [isFormOpen, setIsFormOpen] = React.useState(false)
+  const { toast } = useToast()
 
   const totalRevenue = transactions.reduce((sum, t) => sum + t.amount, 0)
   const todaySales = transactions.filter(t => format(t.date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')).length
   const creditSales = transactions.filter(t => t.status === 'Credit').length
 
+  const handleSaveSale = (data: SaleFormData) => {
+    try {
+        addSale(data);
+        toast({
+            title: 'Sale Recorded Successfully',
+            description: `A sale of ${data.quantity} x ${data.productName} has been recorded.`,
+        });
+        setIsFormOpen(false);
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error Recording Sale',
+            description: error.message,
+        })
+    }
+  }
+
   return (
+    <>
     <div className="flex flex-col gap-8">
       <div className="text-left">
         <h1 className="text-3xl font-bold font-headline">
@@ -88,7 +110,7 @@ export default function SalesPage() {
                     A log of all sales transactions recorded in the system.
                 </CardDescription>
             </div>
-            <Button>
+            <Button onClick={() => setIsFormOpen(true)}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add New Sale
             </Button>
@@ -149,5 +171,12 @@ export default function SalesPage() {
         </CardContent>
       </Card>
     </div>
+    <SaleForm
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSave={handleSaveSale}
+        products={products}
+    />
+    </>
   )
 }

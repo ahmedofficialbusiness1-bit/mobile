@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { differenceInYears, format, isAfter } from 'date-fns';
+import type { SaleFormData } from '@/app/sales/sale-form';
 
 // --- Type Definitions ---
 export type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit" | "Prepaid";
@@ -170,6 +171,7 @@ interface FinancialContextType {
     payrollHistory: PayrollRun[];
     purchaseOrders: PurchaseOrder[];
     cashBalances: { cash: number; bank: number; mobile: number };
+    addSale: (saleData: SaleFormData) => void;
     markReceivableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
     markPayableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
     markPrepaymentAsUsed: (id: string) => void;
@@ -329,6 +331,46 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [capitalContributions]);
 
+
+    const addSale = (saleData: SaleFormData) => {
+        const product = products.find(p => p.id === saleData.productId);
+        if (!product) {
+            throw new Error("Product not found");
+        }
+        if (product.currentStock < saleData.quantity) {
+            throw new Error(`Not enough stock for ${product.name}. Only ${product.currentStock} available.`);
+        }
+
+        // 1. Create new transaction
+        const newTransaction: Transaction = {
+            id: `txn-${Date.now()}`,
+            name: saleData.customerName,
+            phone: saleData.customerPhone,
+            amount: product.sellingPrice * saleData.quantity,
+            status: saleData.paymentMethod === 'Credit' ? 'Credit' : 'Paid',
+            date: new Date(),
+            paymentMethod: saleData.paymentMethod,
+            product: product.name,
+            notes: 'Retail Sale',
+        };
+        setTransactions(prev => [...prev, newTransaction].sort((a,b) => b.date.getTime() - a.date.getTime()));
+
+        // 2. Update product stock
+        setProducts(prev => prev.map(p => {
+            if (p.id === saleData.productId) {
+                const updatedProduct = {
+                    ...p,
+                    currentStock: p.currentStock - saleData.quantity,
+                    lastUpdated: new Date(),
+                };
+                return {
+                    ...updatedProduct,
+                    status: getProductStatus(updatedProduct)
+                }
+            }
+            return p;
+        }));
+    }
 
     const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
         setTransactions(prev => {
@@ -618,6 +660,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         payrollHistory,
         cashBalances,
         purchaseOrders,
+        addSale,
         markReceivableAsPaid,
         markPayableAsPaid,
         markPrepaymentAsUsed,
