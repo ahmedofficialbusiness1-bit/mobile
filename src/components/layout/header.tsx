@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { usePathname } from 'next/navigation'
-import { Home, Cpu, FileText, ShoppingCart, Truck, Warehouse, Factory, Banknote, Landmark, ShieldCheck, Briefcase, UserCheck, Building2, Telescope, GanttChartSquare, Network, ChevronLeft } from 'lucide-react'
+import { Home, Cpu, FileText, ShoppingCart, Truck, Warehouse, Banknote, Landmark, ShieldCheck, Briefcase, GanttChartSquare, Network } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -14,12 +14,8 @@ const navItems = [
   { href: '/sales', label: 'Sales & POS', icon: ShoppingCart },
   { href: '/purchases', label: 'Purchases', icon: Truck },
   { href: '/inventory', label: 'Inventory', icon: Warehouse },
-  { href: '/production', label: 'Production', icon: Factory },
   { href: '/finance', label: 'Finance', icon: Banknote },
   { href: '/tax', label: 'Tax & Compliance', icon: Landmark },
-  { href: '/hr', label: 'HR & Payroll', icon: UserCheck },
-  { href: '/crm', label: 'CRM & Field Sales', icon: Telescope },
-  { href: '/procurement', label: 'Procurement', icon: Building2 },
   { href: '/projects', label: 'Projects & Jobs', icon: GanttChartSquare },
   { href: '/grc', label: 'Governance & Risk', icon: ShieldCheck },
   { href: '/bi', label: 'BI & Forecasting', icon: Briefcase },
