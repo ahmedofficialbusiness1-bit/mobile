@@ -3,7 +3,7 @@
 
 import * as React from 'react'
 import { z } from 'zod'
-import { useForm, useFieldArray, useWatch, Control } from 'react-hook-form'
+import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Dialog,
@@ -54,7 +54,6 @@ const itemSchema = z.object({
   description: z.string().min(1, 'Item description is required.'),
   quantity: z.coerce.number().min(0.1, 'Quantity must be positive.'),
   unitPrice: z.coerce.number().min(0, 'Unit price cannot be negative.'),
-  sellingPrice: z.coerce.number().min(0, 'Selling price cannot be negative.'),
   uom: z.string().min(1, 'UoM is required.'),
   totalPrice: z.coerce.number(),
 })
@@ -80,17 +79,6 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const TotalPriceDisplay = ({ control, index }: { control: Control<FormValues>, index: number }) => {
-    const quantity = useWatch({ control, name: `items.${index}.quantity`});
-    const unitPrice = useWatch({ control, name: `items.${index}.unitPrice`});
-    const totalPrice = (quantity || 0) * (unitPrice || 0);
-
-    return (
-        <Input value={totalPrice.toLocaleString()} readOnly className="font-mono text-right bg-muted" />
-    );
-};
-
-
 export function PurchaseOrderForm({
   isOpen,
   onClose,
@@ -112,7 +100,6 @@ export function PurchaseOrderForm({
               description: '',
               quantity: 1,
               unitPrice: 0,
-              sellingPrice: 0,
               uom: 'pcs',
               totalPrice: 0,
             },
@@ -269,82 +256,74 @@ export function PurchaseOrderForm({
                   <h3 className="text-lg font-medium">Items</h3>
                   <div className="space-y-4 mt-2">
                     {fields.map((item, index) => (
-                      <div key={item.id} className="p-3 border rounded-md relative space-y-3">
-                        {fields.length > 1 && (
-                            <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1" onClick={() => remove(index)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                        )}
+                      <div key={item.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 p-3 border rounded-md relative">
+                        <div className="col-span-full">
+                            <FormField
+                                control={form.control}
+                                name={`items.${index}.description`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Item Description</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Item description" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
                         <FormField
                             control={form.control}
-                            name={`items.${index}.description`}
+                            name={`items.${index}.quantity`}
                             render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Item Description</FormLabel>
+                                <FormLabel>Qty</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="Item description" {...field} />
+                                    <Input type="number" {...field} />
                                 </FormControl>
                                 <FormMessage />
                                 </FormItem>
                             )}
                         />
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-                            <FormField
-                                control={form.control}
-                                name={`items.${index}.quantity`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Qty</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name={`items.${index}.uom`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>UoM</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="pcs" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name={`items.${index}.unitPrice`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Unit Price</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name={`items.${index}.sellingPrice`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Selling Price</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <div>
-                                <FormLabel>Total</FormLabel>
-                                <TotalPriceDisplay control={form.control} index={index} />
-                            </div>
+                         <FormField
+                            control={form.control}
+                            name={`items.${index}.uom`}
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>UoM</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="pcs" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name={`items.${index}.unitPrice`}
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Unit Price</FormLabel>
+                                <FormControl>
+                                    <Input type="number" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormItem>
+                            <FormLabel>Total</FormLabel>
+                            <FormControl>
+                               <Input readOnly value={"-"} />
+                            </FormControl>
+                        </FormItem>
+
+                        <div className="flex items-end">
+                             {fields.length > 1 && (
+                                <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            )}
                         </div>
                       </div>
                     ))}
@@ -352,7 +331,7 @@ export function PurchaseOrderForm({
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => append({ description: '', quantity: 1, unitPrice: 0, sellingPrice: 0, uom: 'pcs', totalPrice: 0 })}
+                        onClick={() => append({ description: '', quantity: 1, unitPrice: 0, uom: 'pcs', totalPrice: 0 })}
                     >
                       <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                     </Button>

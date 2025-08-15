@@ -116,7 +116,6 @@ export interface PurchaseOrderItem {
   description: string
   quantity: number
   unitPrice: number
-  sellingPrice: number
   uom: string
   totalPrice: number
 }
