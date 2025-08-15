@@ -4,7 +4,7 @@
 import * as React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Wallet, Landmark, Smartphone, PiggyBank, ArrowUpRight, ArrowDownLeft, MinusCircle, PlusCircle } from 'lucide-react'
+import { Wallet, Landmark, Smartphone, PiggyBank, ArrowUpRight, ArrowDownLeft, MinusCircle, PlusCircle, CreditCard } from 'lucide-react'
 import { useFinancials } from '@/context/financial-context'
 import { LoanRepaymentForm } from './loan-repayment-form'
 import { useToast } from '@/hooks/use-toast'
@@ -13,13 +13,14 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 export default function CashManagementView() {
-    const { cashBalances, ownerLoans, repayOwnerLoan, addDrawing } = useFinancials();
+    const { cashBalances, ownerLoans, repayOwnerLoan, addDrawing, transactions } = useFinancials();
     const router = useRouter();
     const { toast } = useToast();
     const [isRepayOpen, setIsRepayOpen] = React.useState(false);
     const [isDrawingOpen, setIsDrawingOpen] = React.useState(false);
     
     const totalLoan = ownerLoans.reduce((acc, loan) => acc + loan.amount - loan.repaid, 0);
+    const totalReceivable = transactions.filter(t => t.status === 'Credit').reduce((acc, t) => acc + t.amount, 0);
 
     const handleRepayment = (amount: number, paymentMethod: "Cash" | "Bank" | "Mobile", notes: string) => {
         if (ownerLoans.length === 0) return;
@@ -68,10 +69,10 @@ export default function CashManagementView() {
                     <CardHeader>
                         <CardTitle>Cash & Bank Balances</CardTitle>
                         <CardDescription>
-                            An overview of your liquid funds across different accounts.
+                            An overview of your liquid funds and credits across different accounts.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between pb-2">
                                <CardTitle className="text-sm font-medium">Cash on Hand</CardTitle>
@@ -97,6 +98,15 @@ export default function CashManagementView() {
                             </CardHeader>
                             <CardContent>
                                <p className="text-2xl font-bold">TSh {cashBalances.mobile.toLocaleString()}</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                               <CardTitle className="text-sm font-medium">Customer Credits</CardTitle>
+                               <CreditCard className="h-5 w-5 text-muted-foreground"/>
+                            </CardHeader>
+                            <CardContent>
+                               <p className="text-2xl font-bold">TSh {totalReceivable.toLocaleString()}</p>
                             </CardContent>
                         </Card>
                     </CardContent>
