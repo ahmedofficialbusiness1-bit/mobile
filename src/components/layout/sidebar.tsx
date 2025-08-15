@@ -21,18 +21,19 @@ import {
   Truck,
   Warehouse,
   Banknote,
-  Landmark,
+  BarChart2,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },
-  { href: '/sales', label: 'Sales & POS', icon: ShoppingCart },
+  { href: '/sales', label: 'Sales', icon: ShoppingCart },
+  { href: '/invoices', label: 'Invoice', icon: FileText },
   { href: '/purchases', label: 'Purchases', icon: Truck },
   { href: '/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/finance', label: 'Finance', icon: Banknote },
-  { href: '/tax', label: 'Tax & Compliance', icon: Landmark },
+  { href: '/reports', label: 'Reports', icon: BarChart2 },
   { href: '/receipts', label: 'Digital Receipts', icon: FileText },
 ]
 
@@ -46,7 +47,11 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar className="border-r" side="left" collapsible="offcanvas">
+    <Sidebar
+      className="border-r"
+      side="left"
+      collapsible="offcanvas"
+    >
       <div className="flex h-full flex-col">
         <SidebarHeader>
           <Logo />

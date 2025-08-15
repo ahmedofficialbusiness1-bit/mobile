@@ -10,7 +10,7 @@ import {
   Truck,
   Warehouse,
   Banknote,
-  Landmark,
+  BarChart2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -18,11 +18,12 @@ import { Menu } from 'lucide-react'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },
-  { href: '/sales', label: 'Sales & POS', icon: ShoppingCart },
+  { href: '/sales', label: 'Sales', icon: ShoppingCart },
+  { href: '/invoices', label: 'Invoice', icon: FileText },
   { href: '/purchases', label: 'Purchases', icon: Truck },
   { href: '/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/finance', label: 'Finance', icon: Banknote },
-  { href: '/tax', label: 'Tax & Compliance', icon: Landmark },
+  { href: '/reports', label: 'Reports', icon: BarChart2 },
   { href: '/receipts', label: 'Digital Receipts', icon: FileText },
 ]
 
