@@ -135,10 +135,7 @@ export function PurchaseOrderForm({
     }
 
     item.totalPrice = (item.quantity || 0) * (item.unitPrice || 0);
-
-    form.setValue('items', items, { shouldDirty: true });
-    // Manually trigger re-render for the total price field
-    form.trigger(`items.${index}.totalPrice`);
+    form.setValue(`items.${index}.totalPrice`, item.totalPrice, { shouldDirty: true });
   };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
@@ -465,3 +462,5 @@ export function PurchaseOrderForm({
     </Dialog>
   )
 }
+
+    
