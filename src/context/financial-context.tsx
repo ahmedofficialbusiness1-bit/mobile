@@ -290,7 +290,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }));
         setOwnerLoans(loans);
         recalculateBalances();
-    }, [capitalContributions, transactions, expenses, payables, payrollHistory, recalculateBalances, ownerLoans]);
+    }, [capitalContributions, transactions, expenses, payables, payrollHistory, recalculateBalances]);
 
 
     const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
