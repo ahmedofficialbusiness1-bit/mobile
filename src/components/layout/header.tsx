@@ -11,6 +11,7 @@ import {
   Warehouse,
   Banknote,
   BarChart2,
+  Users,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -19,6 +20,7 @@ import { Menu } from 'lucide-react'
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },
   { href: '/sales', label: 'Sales', icon: ShoppingCart },
+  { href: '/customers', label: 'Customers', icon: Users },
   { href: '/invoices', label: 'Invoice', icon: FileText },
   { href: '/purchases', label: 'Purchases', icon: Truck },
   { href: '/inventory', label: 'Inventory', icon: Warehouse },
