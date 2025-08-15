@@ -183,8 +183,8 @@ interface FinancialContextType {
     purchaseOrders: PurchaseOrder[];
     cashBalances: { cash: number; bank: number; mobile: number };
     addSale: (saleData: SaleFormData) => void;
-    markReceivableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
-    markPayableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
+    markReceivableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => void;
+    markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => void;
     markPrepaymentAsUsed: (id: string) => void;
     markPrepaymentAsRefunded: (id: string) => void;
     addCustomer: (customerData: Omit<Customer, 'id'>) => void;
@@ -402,33 +402,50 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
     }
 
-    const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
-        setTransactions(prev => {
-            const receivable = prev.find(t => t.id === id);
-            if (!receivable) return prev;
-            
-            const newTransaction: Transaction = {
-                 id: `txn-${Date.now()}`,
-                 name: receivable.name,
-                 phone: receivable.phone,
-                 amount: receivable.amount,
-                 status: 'Paid',
-                 date: new Date(),
-                 paymentMethod: paymentMethod,
-                 product: "Debt Repayment",
-                 notes: "Debt Repayment"
-            }
+    const markReceivableAsPaid = (id: string, amount: number, paymentMethod: PaymentMethod) => {
+        let receivableToUpdate = transactions.find(t => t.id === id);
+        if (!receivableToUpdate) return;
+        
+        const remainingAmount = receivableToUpdate.amount - amount;
 
-            return [...prev.filter(t => t.id !== id), newTransaction];
-        });
+        // Create the payment transaction
+        const paymentTransaction: Transaction = {
+            id: `txn-pay-${Date.now()}`,
+            name: receivableToUpdate.name,
+            phone: receivableToUpdate.phone,
+            amount: amount,
+            status: 'Paid',
+            date: new Date(),
+            paymentMethod: paymentMethod,
+            product: `Payment for ${receivableToUpdate.product}`,
+            notes: "Debt Repayment"
+        };
+        
+        if (remainingAmount <= 0) {
+            // If fully paid, remove the credit transaction and add the payment transaction
+            setTransactions(prev => [...prev.filter(t => t.id !== id), paymentTransaction]);
+        } else {
+            // If partially paid, update the credit transaction amount and add the payment transaction
+            setTransactions(prev => [
+                ...prev.map(t => t.id === id ? { ...t, amount: remainingAmount } : t),
+                paymentTransaction
+            ]);
+        }
     };
 
-    const markPayableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
-        setPayables(prev =>
-            prev.map(p =>
-                p.id === id ? { ...p, status: 'Paid', paymentMethod: paymentMethod } : p
-            )
-        );
+    const markPayableAsPaid = (id: string, amount: number, paymentMethod: PaymentMethod) => {
+        setPayables(prev => {
+            const payable = prev.find(p => p.id === id);
+            if (!payable) return prev;
+
+            const remainingAmount = payable.amount - amount;
+
+            if (remainingAmount <= 0) {
+                return prev.map(p => p.id === id ? { ...p, status: 'Paid', amount: payable.amount, paymentMethod } : p);
+            } else {
+                return prev.map(p => p.id === id ? { ...p, amount: remainingAmount } : p);
+            }
+        });
     };
 
     const markPrepaymentAsUsed = (id: string) => {
@@ -673,7 +690,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const existingPayable = payables.find(p => p.id === payableId);
 
         if (existingPayable) {
-            markPayableAsPaid(payableId, paymentMethod);
+            markPayableAsPaid(payableId, existingPayable.amount, paymentMethod);
         } else {
              // If it was a cash purchase initially, record it as an expense now
              const totalAmount = po.items.reduce((sum, item) => sum + item.totalPrice, 0);

@@ -30,7 +30,7 @@ export default function AccountsView() {
     } = useFinancials();
 
     const [dialogOpen, setDialogOpen] = React.useState(false);
-    const [selectedItem, setSelectedItem] = React.useState<{ id: string; type: 'receivable' | 'payable' } | null>(null);
+    const [selectedItem, setSelectedItem] = React.useState<{ id: string; type: 'receivable' | 'payable', amount: number } | null>(null);
 
     const receivables = transactions.filter(t => t.status === 'Credit');
     const activePayables = payables.filter(p => p.status === 'Unpaid');
@@ -40,17 +40,17 @@ export default function AccountsView() {
     const totalPayable = activePayables.reduce((sum, item) => sum + item.amount, 0);
     const totalPrepayment = activePrepayments.reduce((sum, item) => sum + item.prepaidAmount, 0);
 
-    const handleOpenDialog = (id: string, type: 'receivable' | 'payable') => {
-      setSelectedItem({ id, type });
+    const handleOpenDialog = (id: string, type: 'receivable' | 'payable', amount: number) => {
+      setSelectedItem({ id, type, amount });
       setDialogOpen(true);
     };
 
-    const handlePaymentSubmit = (paymentMethod: PaymentMethod) => {
+    const handlePaymentSubmit = (paymentData: { amount: number, paymentMethod: PaymentMethod }) => {
       if (selectedItem) {
         if (selectedItem.type === 'receivable') {
-          markReceivableAsPaid(selectedItem.id, paymentMethod);
+          markReceivableAsPaid(selectedItem.id, paymentData.amount, paymentData.paymentMethod);
         } else if (selectedItem.type === 'payable') {
-          markPayableAsPaid(selectedItem.id, paymentMethod);
+          markPayableAsPaid(selectedItem.id, paymentData.amount, paymentData.paymentMethod);
         }
       }
       setDialogOpen(false);
@@ -91,9 +91,9 @@ export default function AccountsView() {
                                         <TableCell className="whitespace-nowrap">{format(new Date(item.date), 'dd/MM/yyyy')}</TableCell>
                                         <TableCell className="text-right whitespace-nowrap">TSh {item.amount.toLocaleString()}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" onClick={() => handleOpenDialog(item.id, 'receivable')} className="whitespace-nowrap">
+                                            <Button variant="outline" size="sm" onClick={() => handleOpenDialog(item.id, 'receivable', item.amount)} className="whitespace-nowrap">
                                                 <CheckCircle className="mr-2 h-4 w-4"/>
-                                                Mark as Paid
+                                                Receive Payment
                                             </Button>
                                         </TableCell>
                                     </TableRow>
@@ -143,9 +143,9 @@ export default function AccountsView() {
                                             <TableCell className="whitespace-nowrap">{format(new Date(item.date), 'dd/MM/yyyy')}</TableCell>
                                             <TableCell className="text-right whitespace-nowrap">TSh {item.amount.toLocaleString()}</TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="outline" size="sm" onClick={() => handleOpenDialog(item.id, 'payable')} className="whitespace-nowrap">
+                                                <Button variant="outline" size="sm" onClick={() => handleOpenDialog(item.id, 'payable', item.amount)} className="whitespace-nowrap">
                                                     <CheckCircle className="mr-2 h-4 w-4"/>
-                                                    Mark as Paid
+                                                    Make Payment
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
@@ -228,6 +228,7 @@ export default function AccountsView() {
         isOpen={dialogOpen}
         onClose={() => setDialogOpen(false)}
         onSubmit={handlePaymentSubmit}
+        totalAmount={selectedItem?.amount}
       />
     </>
     );
