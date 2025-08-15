@@ -50,7 +50,8 @@ export function InventoryDataTable({ products }: InventoryDataTableProps) {
             <TableHead>Product Name</TableHead>
             <TableHead>Category</TableHead>
             <TableHead className="text-right">Qty in Stock</TableHead>
-            <TableHead className="text-right">Purchase Price</TableHead>
+            <TableHead className="text-right">Reorder Lvl</TableHead>
+            <TableHead className="text-right">Reorder Qty</TableHead>
             <TableHead className="text-right">Selling Price</TableHead>
             <TableHead className="text-right">Total Value</TableHead>
             <TableHead className="text-center">Status</TableHead>
@@ -69,9 +70,8 @@ export function InventoryDataTable({ products }: InventoryDataTableProps) {
                 <TableCell className="text-right font-medium">
                   {product.currentStock.toLocaleString()} {product.uom}
                 </TableCell>
-                <TableCell className="text-right">
-                  {product.purchasePrice.toLocaleString()}
-                </TableCell>
+                <TableCell className="text-right">{product.reorderLevel.toLocaleString()}</TableCell>
+                <TableCell className="text-right">{product.reorderQuantity.toLocaleString()}</TableCell>
                 <TableCell className="text-right">
                   {product.sellingPrice.toLocaleString()}
                 </TableCell>
@@ -109,7 +109,7 @@ export function InventoryDataTable({ products }: InventoryDataTableProps) {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={9} className="h-24 text-center">
+              <TableCell colSpan={10} className="h-24 text-center">
                 No products found for the selected filter.
               </TableCell>
             </TableRow>

@@ -2,8 +2,8 @@
 'use client'
 
 import * as React from 'react'
-import { PlusCircle, Search } from 'lucide-react'
-import { useFinancials } from '@/context/financial-context'
+import { PlusCircle, Search, Package, Clock, ShoppingCart, TrendingUp } from 'lucide-react'
+import { useFinancials, type Product } from '@/context/financial-context'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -21,11 +21,29 @@ import {
 import { Input } from '@/components/ui/input'
 import { InventorySummaryCards } from './inventory-summary-cards'
 import { InventoryDataTable } from './inventory-data-table'
+import { differenceInDays, startOfMonth, isWithinInterval } from 'date-fns'
+
+interface AgingData {
+  new: number;
+  threeMonths: number;
+  sixMonths: number;
+  overYear: number;
+}
+
+interface MonthlyStockData {
+  opening: number;
+  purchases: number;
+  sales: number;
+  closing: number;
+}
 
 export default function InventoryPage() {
-  const { products } = useFinancials()
+  const { products, transactions, purchaseOrders } = useFinancials()
   const [searchTerm, setSearchTerm] = React.useState('')
   const [statusFilter, setStatusFilter] = React.useState('All')
+  const [agingData, setAgingData] = React.useState<AgingData>({ new: 0, threeMonths: 0, sixMonths: 0, overYear: 0 });
+  const [monthlyStockData, setMonthlyStockData] = React.useState<MonthlyStockData>({ opening: 0, purchases: 0, sales: 0, closing: 0 });
+
 
   const filteredProducts = React.useMemo(() => {
     return products
@@ -37,6 +55,50 @@ export default function InventoryPage() {
         return product.status === statusFilter
       })
   }, [products, searchTerm, statusFilter])
+  
+  React.useEffect(() => {
+    // Calculate Stock Aging
+    const today = new Date();
+    const agingCounts = products.reduce((acc, product) => {
+        const daysInStock = differenceInDays(today, product.entryDate);
+        if (daysInStock > 365) {
+            acc.overYear++;
+        } else if (daysInStock > 180) {
+            acc.sixMonths++;
+        } else if (daysInStock > 90) {
+            acc.threeMonths++;
+        } else {
+            acc.new++;
+        }
+        return acc;
+    }, { new: 0, threeMonths: 0, sixMonths: 0, overYear: 0 });
+    setAgingData(agingCounts);
+
+    // Calculate Monthly Stock Movement
+    const monthStart = startOfMonth(today);
+    const monthInterval = { start: monthStart, end: today };
+
+    const salesThisMonth = transactions
+        .filter(t => isWithinInterval(t.date, monthInterval) && (t.status === 'Paid' || t.status === 'Credit'))
+        .length; // Assuming 1 transaction item = 1 unit sold for simplicity. A real system would track quantity per transaction item.
+
+    const purchasesThisMonth = purchaseOrders
+      .filter(po => po.receivingStatus === 'Received' && isWithinInterval(po.purchaseDate, monthInterval))
+      .reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
+      
+    const currentStockTotal = products.reduce((sum, p) => sum + p.currentStock, 0);
+    const openingStock = currentStockTotal - purchasesThisMonth + salesThisMonth;
+    const closingStock = currentStockTotal;
+
+    setMonthlyStockData({
+        opening: openingStock,
+        purchases: purchasesThisMonth,
+        sales: salesThisMonth,
+        closing: closingStock,
+    })
+
+  }, [products, transactions, purchaseOrders]);
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -50,6 +112,79 @@ export default function InventoryPage() {
       </div>
 
       <InventorySummaryCards products={products} />
+      
+       <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-muted-foreground"/>
+                Stock Aging Analysis
+            </CardTitle>
+            <CardDescription>
+                Breakdown of products by how long they've been in stock.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">New (&lt; 3 Months)</p>
+                <p className="text-2xl font-bold">{agingData.new}</p>
+            </div>
+             <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">&gt; 3 Months</p>
+                <p className="text-2xl font-bold">{agingData.threeMonths}</p>
+            </div>
+             <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">&gt; 6 Months</p>
+                <p className="text-2xl font-bold">{agingData.sixMonths}</p>
+            </div>
+             <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">&gt; 1 Year</p>
+                <p className="text-2xl font-bold">{agingData.overYear}</p>
+            </div>
+          </CardContent>
+        </Card>
+         <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-muted-foreground"/>
+                This Month's Stock Movement
+            </CardTitle>
+            <CardDescription>
+                Summary of stock changes for the current month.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                    <Package className="h-5 w-5 text-blue-500" />
+                    <span className="font-medium">Opening Stock</span>
+                </div>
+                <span className="font-bold text-lg">{monthlyStockData.opening}</span>
+            </div>
+             <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                    <ShoppingCart className="h-5 w-5 text-green-500" />
+                    <span className="font-medium">Purchases</span>
+                </div>
+                <span className="font-bold text-lg">{monthlyStockData.purchases}</span>
+            </div>
+             <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                    <TrendingUp className="h-5 w-5 text-red-500" />
+                    <span className="font-medium">Sales</span>
+                </div>
+                <span className="font-bold text-lg">{monthlyStockData.sales}</span>
+            </div>
+             <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                <div className="flex items-center gap-3">
+                    <Package className="h-5 w-5 text-foreground" />
+                    <span className="font-bold">Closing Stock</span>
+                </div>
+                <span className="font-extrabold text-xl">{monthlyStockData.closing}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
