@@ -121,27 +121,20 @@ export function PurchaseOrderForm({
     name: 'items',
   })
 
-  const watchedItems = form.watch('items');
-
-  const handleItemChange = (index: number, field: 'quantity' | 'unitPrice', value: string) => {
-    const numericValue = parseFloat(value) || 0;
-    const items = form.getValues('items');
-    const item = items[index];
-
-    if (field === 'quantity') {
-        item.quantity = numericValue;
-    } else if (field === 'unitPrice') {
-        item.unitPrice = numericValue;
-    }
-
-    item.totalPrice = (item.quantity || 0) * (item.unitPrice || 0);
-    form.setValue(`items.${index}.totalPrice`, item.totalPrice, { shouldDirty: true });
-  };
+  const watchedItems = form.watch('items')
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    onSave(values)
-    form.reset()
-    onClose()
+    // Before submitting, recalculate all total prices to ensure they are correct
+    const finalValues = {
+      ...values,
+      items: values.items.map(item => ({
+        ...item,
+        totalPrice: (item.quantity || 0) * (item.unitPrice || 0)
+      }))
+    };
+    onSave(finalValues);
+    form.reset();
+    onClose();
   }
 
   return (
@@ -265,7 +258,11 @@ export function PurchaseOrderForm({
                 <div>
                   <h3 className="text-lg font-medium">Items</h3>
                   <div className="space-y-4 mt-2">
-                    {fields.map((item, index) => (
+                    {fields.map((item, index) => {
+                      const quantity = watchedItems[index]?.quantity || 0;
+                      const unitPrice = watchedItems[index]?.unitPrice || 0;
+                      const totalPrice = quantity * unitPrice;
+                      return (
                       <div key={item.id} className="grid grid-cols-12 gap-2 items-start p-2 border rounded-md">
                         <FormField
                             control={form.control}
@@ -287,7 +284,7 @@ export function PurchaseOrderForm({
                                 <FormItem className="col-span-3 md:col-span-2">
                                 <FormLabel>Qty</FormLabel>
                                 <FormControl>
-                                    <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleItemChange(index, 'quantity', e.target.value); }} />
+                                    <Input type="number" {...field} />
                                 </FormControl>
                                 <FormMessage />
                                 </FormItem>
@@ -313,7 +310,7 @@ export function PurchaseOrderForm({
                                 <FormItem className="col-span-3 md:col-span-2">
                                 <FormLabel>Unit Price</FormLabel>
                                 <FormControl>
-                                    <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleItemChange(index, 'unitPrice', e.target.value); }} />
+                                    <Input type="number" {...field} />
                                 </FormControl>
                                 <FormMessage />
                                 </FormItem>
@@ -334,7 +331,7 @@ export function PurchaseOrderForm({
                         />
                         <div className="col-span-full md:col-span-3">
                             <FormLabel>Total</FormLabel>
-                            <Input value={watchedItems[index]?.totalPrice.toLocaleString() || '0'} readOnly className="font-mono text-right bg-muted" />
+                            <Input value={totalPrice.toLocaleString()} readOnly className="font-mono text-right bg-muted" />
                         </div>
                         <div className="col-span-1 flex items-end h-full">
                            {fields.length > 1 && (
@@ -344,7 +341,7 @@ export function PurchaseOrderForm({
                            )}
                         </div>
                       </div>
-                    ))}
+                    )})}
                     <Button
                         type="button"
                         variant="outline"
@@ -462,5 +459,3 @@ export function PurchaseOrderForm({
     </Dialog>
   )
 }
-
-    
