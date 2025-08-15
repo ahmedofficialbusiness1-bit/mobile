@@ -2,13 +2,14 @@
 'use client'
 
 import * as React from 'react'
-import { PlusCircle, MoreHorizontal, DollarSign, Users, CreditCard } from 'lucide-react'
+import { PlusCircle, MoreHorizontal, DollarSign, Users, CreditCard, Calendar as CalendarIcon } from 'lucide-react'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,6 +19,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -27,14 +29,25 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useFinancials, type Transaction } from '@/context/financial-context'
-import { format } from 'date-fns'
+import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns'
+import type { DateRange } from "react-day-picker"
 import { SaleForm, type SaleFormData } from './sale-form'
 import { useToast } from '@/hooks/use-toast'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 
 export default function SalesPage() {
-  const { transactions, products, addSale, cashBalances, customers } = useFinancials()
+  const { transactions, products, addSale, customers } = useFinancials()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const { toast } = useToast()
+  
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
+  const [paymentFilter, setPaymentFilter] = React.useState('All');
 
   const totalRevenue = transactions.reduce((sum, t) => sum + t.amount, 0)
   const todaySales = transactions.filter(t => format(t.date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')).length
@@ -56,6 +69,21 @@ export default function SalesPage() {
         })
     }
   }
+
+  const filteredTransactions = React.useMemo(() => {
+    return transactions
+        .filter(t => {
+            if (!date?.from || !date?.to) return true;
+            return isWithinInterval(t.date, { start: date.from, end: date.to });
+        })
+        .filter(t => {
+            if (paymentFilter === 'All') return true;
+            if (paymentFilter === 'Credit') return t.status === 'Credit';
+            return t.paymentMethod === paymentFilter && t.status === 'Paid';
+        });
+  }, [transactions, date, paymentFilter]);
+  
+  const filteredTotal = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   return (
     <>
@@ -103,19 +131,69 @@ export default function SalesPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-                <CardTitle>Sales History</CardTitle>
-                <CardDescription>
-                    A log of all sales transactions recorded in the system.
-                </CardDescription>
-            </div>
-            <Button onClick={() => setIsFormOpen(true)}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add New Sale
-            </Button>
+        <CardHeader>
+            <CardTitle>Sales History</CardTitle>
+            <CardDescription>
+                A log of all sales transactions recorded in the system.
+            </CardDescription>
         </CardHeader>
         <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-4">
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="date"
+                          variant={"outline"}
+                          className={cn(
+                            "w-full sm:w-[260px] justify-start text-left font-normal",
+                            !date && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {date?.from ? (
+                            date.to ? (
+                              <>
+                                {format(date.from, "LLL dd, y")} -{" "}
+                                {format(date.to, "LLL dd, y")}
+                              </>
+                            ) : (
+                              format(date.from, "LLL dd, y")
+                            )
+                          ) : (
+                            <span>Pick a date range</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          initialFocus
+                          mode="range"
+                          defaultMonth={date?.from}
+                          selected={date}
+                          onSelect={setDate}
+                          numberOfMonths={2}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Filter by payment" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Payments</SelectItem>
+                            <SelectItem value="Cash">Cash</SelectItem>
+                            <SelectItem value="Mobile">Mobile</SelectItem>
+                            <SelectItem value="Bank">Bank</SelectItem>
+                            <SelectItem value="Credit">Credit</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <Button onClick={() => setIsFormOpen(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add New Sale
+                </Button>
+            </div>
             <div className="overflow-x-auto">
             <Table>
                 <TableHeader>
@@ -129,15 +207,15 @@ export default function SalesPage() {
                 </TableRow>
                 </TableHeader>
                 <TableBody>
-                {transactions.length > 0 ? (
-                    transactions.map((sale) => (
+                {filteredTransactions.length > 0 ? (
+                    filteredTransactions.map((sale) => (
                     <TableRow key={sale.id}>
                         <TableCell className="font-medium">{sale.name}</TableCell>
                         <TableCell>{sale.product}</TableCell>
                         <TableCell>{format(sale.date, 'PPP')}</TableCell>
                         <TableCell>
                             <Badge variant={sale.status === 'Paid' ? 'default' : 'secondary'}>
-                                {sale.status}
+                                {sale.status} {sale.status === 'Paid' && `(${sale.paymentMethod})`}
                             </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -161,11 +239,18 @@ export default function SalesPage() {
                 ) : (
                     <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">
-                        No sales recorded yet.
+                        No sales recorded for the selected period/filter.
                     </TableCell>
                     </TableRow>
                 )}
                 </TableBody>
+                <TableFooter>
+                    <TableRow>
+                        <TableCell colSpan={4} className="font-bold text-lg">Filtered Total</TableCell>
+                        <TableCell className="text-right font-bold text-lg">TSh {filteredTotal.toLocaleString()}</TableCell>
+                        <TableCell></TableCell>
+                    </TableRow>
+                </TableFooter>
             </Table>
             </div>
         </CardContent>
