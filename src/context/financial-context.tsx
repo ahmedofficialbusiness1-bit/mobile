@@ -172,6 +172,8 @@ interface FinancialContextType {
     deleteEmployee: (id: string) => void;
     processPayroll: (paymentMethod: PaymentMethod, totalGross: number, totalNet: number) => void;
     addPurchaseOrder: (data: Omit<PurchaseOrder, 'id'>) => void;
+    receivePurchaseOrder: (poId: string) => void;
+    payPurchaseOrder: (poId: string, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => void;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -294,6 +296,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 repaid: ownerLoans.find(l => l.id === c.id)?.repaid || 0
             }));
         setOwnerLoans(loans);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [capitalContributions]);
 
 
@@ -477,7 +480,71 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         id: `po-${Date.now()}`,
         ...data,
         }
-        setPurchaseOrders(prev => [...prev, newPO])
+        setPurchaseOrders(prev => [...prev, newPO]);
+
+        if (newPO.paymentStatus === 'Unpaid') {
+            const totalAmount = newPO.items.reduce((sum, item) => sum + item.totalPrice, 0);
+            const newPayable: Payable = {
+                id: `payable-po-${newPO.id}`,
+                supplierName: newPO.supplierName,
+                product: `From PO #${newPO.poNumber}`,
+                amount: totalAmount,
+                date: newPO.purchaseDate,
+                status: 'Unpaid'
+            };
+            setPayables(prev => [...prev, newPayable]);
+        }
+    }
+
+    const receivePurchaseOrder = (poId: string) => {
+        const po = purchaseOrders.find(p => p.id === poId);
+        if (!po) return;
+
+        setPurchaseOrders(prev => prev.map(p => p.id === poId ? { ...p, receivingStatus: 'Received' } : p));
+        
+        const updatedProducts = [...products];
+        po.items.forEach(item => {
+            const existingProduct = updatedProducts.find(p => p.name.toLowerCase() === item.description.toLowerCase());
+            if (existingProduct) {
+                existingProduct.currentStock += item.quantity;
+            } else {
+                updatedProducts.push({
+                    id: `prod-${Date.now()}-${item.description}`,
+                    name: item.description,
+                    initialStock: item.quantity,
+                    currentStock: item.quantity,
+                    entryDate: new Date(),
+                });
+            }
+        });
+        setProducts(updatedProducts);
+    }
+    
+    const payPurchaseOrder = (poId: string, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => {
+        const po = purchaseOrders.find(p => p.id === poId);
+        if (!po) return;
+
+        setPurchaseOrders(prev => prev.map(p => p.id === poId ? { ...p, paymentStatus: 'Paid', paymentMethod: paymentMethod } : p));
+
+        const payableId = `payable-po-${poId}`;
+        const existingPayable = payables.find(p => p.id === payableId);
+
+        if (existingPayable) {
+            markPayableAsPaid(payableId, paymentMethod);
+        } else {
+             // If it was a cash purchase initially, record it as an expense now
+             const totalAmount = po.items.reduce((sum, item) => sum + item.totalPrice, 0);
+             const newExpense: Expense = {
+                id: `exp-po-${po.id}`,
+                description: `Payment for PO #${po.poNumber}`,
+                category: 'Manunuzi Ofisi', // Or a more suitable category
+                amount: totalAmount,
+                date: new Date(),
+                status: 'Approved',
+                paymentMethod: paymentMethod,
+            };
+            setExpenses(prev => [...prev, newExpense]);
+        }
     }
 
 
@@ -510,7 +577,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         updateEmployee,
         deleteEmployee,
         processPayroll,
-        addPurchaseOrder
+        addPurchaseOrder,
+        receivePurchaseOrder,
+        payPurchaseOrder
     };
 
     return (
