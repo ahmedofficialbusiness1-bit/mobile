@@ -18,9 +18,10 @@ const ReportRow = ({ label, value, isBold = false, isSub = false, isNegative = f
 export default function ProfitLossStatement() {
     const { transactions, expenses, products, purchaseOrders } = useFinancials();
 
+    // Use netAmount for revenue calculation (Sales After VAT)
     const revenue = transactions
         .filter(t => t.status === 'Paid')
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + t.netAmount, 0);
 
     const openingInventory = 0; // Simplified for now
     const purchases = purchaseOrders
@@ -52,7 +53,7 @@ export default function ProfitLossStatement() {
             <CardContent>
                 <Table>
                     <TableBody>
-                        <ReportRow label="Revenue" value={revenue} isBold />
+                        <ReportRow label="Revenue (Net of VAT)" value={revenue} isBold />
                         
                         <ReportRow label="Cost of Sales" value={costOfSales} isNegative isBold />
                         <ReportRow label="Opening Inventory" value={openingInventory} isSub />
@@ -85,3 +86,5 @@ export default function ProfitLossStatement() {
         </Card>
     );
 }
+
+    

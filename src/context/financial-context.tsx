@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { differenceInYears, format, isAfter } from 'date-fns';
-import type { SaleFormData } from '@/app/sales/sale-form';
+import type { SaleFormData, VatRate } from '@/app/sales/sale-form';
 
 // --- Type Definitions ---
 export type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit" | "Prepaid";
@@ -12,7 +12,9 @@ export interface Transaction {
     id: string;
     name: string;
     phone: string;
-    amount: number;
+    amount: number; // This is now grossAmount (including VAT)
+    netAmount: number; // Amount before VAT
+    vatAmount: number; // The VAT part of the amount
     status: 'Paid' | 'Credit';
     date: Date;
     paymentMethod: PaymentMethod;
@@ -354,13 +356,20 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (product.currentStock < saleData.quantity) {
             throw new Error(`Not enough stock for ${product.name}. Only ${product.currentStock} available.`);
         }
+        
+        // Calculate amounts
+        const netAmount = product.sellingPrice * saleData.quantity;
+        const vatAmount = netAmount * saleData.vatRate;
+        const grossAmount = netAmount + vatAmount;
 
         // 1. Create new transaction
         const newTransaction: Transaction = {
             id: `txn-${Date.now()}`,
             name: saleData.customerName,
             phone: saleData.customerPhone,
-            amount: product.sellingPrice * saleData.quantity,
+            amount: grossAmount, // Total amount customer pays
+            netAmount: netAmount,
+            vatAmount: vatAmount,
             status: saleData.paymentMethod === 'Credit' ? 'Credit' : 'Paid',
             date: new Date(),
             paymentMethod: saleData.paymentMethod,
@@ -414,6 +423,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             name: receivableToUpdate.name,
             phone: receivableToUpdate.phone,
             amount: amount,
+            netAmount: amount / (1 + (receivableToUpdate.vatAmount / receivableToUpdate.netAmount)), // Approximate net from payment
+            vatAmount: amount - (amount / (1 + (receivableToUpdate.vatAmount / receivableToUpdate.netAmount))), // Approximate vat from payment
             status: 'Paid',
             date: new Date(),
             paymentMethod: paymentMethod,
@@ -426,8 +437,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             setTransactions(prev => [...prev.filter(t => t.id !== id), paymentTransaction]);
         } else {
             // If partially paid, update the credit transaction amount and add the payment transaction
+            const originalNet = receivableToUpdate.netAmount;
+            const originalGross = receivableToUpdate.amount;
+            const newGross = remainingAmount;
+            const newNet = (newGross / originalGross) * originalNet;
+            const newVat = newGross - newNet;
+
             setTransactions(prev => [
-                ...prev.map(t => t.id === id ? { ...t, amount: remainingAmount } : t),
+                ...prev.map(t => t.id === id ? { ...t, amount: newGross, netAmount: newNet, vatAmount: newVat } : t),
                 paymentTransaction
             ]);
         }
@@ -500,6 +517,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             name: "Asset Sale",
             phone: "",
             amount: sellPrice,
+            netAmount: sellPrice, // Assuming no VAT on used asset sales for simplicity
+            vatAmount: 0,
             status: paymentMethod === 'Credit' ? 'Credit' : 'Paid',
             date: new Date(),
             paymentMethod: paymentMethod,
@@ -760,3 +779,5 @@ export const useFinancials = (): FinancialContextType => {
     }
     return context;
 };
+
+    

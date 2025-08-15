@@ -34,6 +34,8 @@ import {
 import { Product, PaymentMethod, Customer } from '@/context/financial-context'
 import { Switch } from '@/components/ui/switch'
 
+export type VatRate = 0 | 0.15 | 0.18;
+
 export interface SaleFormData {
   customerType: 'existing' | 'new'
   customerId?: string
@@ -43,6 +45,7 @@ export interface SaleFormData {
   productName: string
   quantity: number
   paymentMethod: PaymentMethod
+  vatRate: VatRate
 }
 
 interface SaleFormProps {
@@ -61,6 +64,7 @@ const formSchema = z.object({
   productId: z.string({ required_error: 'Please select a product.' }),
   quantity: z.coerce.number().min(1, { message: 'Quantity must be at least 1.' }),
   paymentMethod: z.enum(['Cash', 'Mobile', 'Bank', 'Credit', 'Prepaid']),
+  vatRate: z.coerce.number().min(0).max(0.18),
 }).superRefine((data, ctx) => {
     if (data.customerType === 'existing' && !data.customerId) {
         ctx.addIssue({
@@ -95,11 +99,14 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
       customerType: 'existing',
       quantity: 1,
       paymentMethod: 'Cash',
+      vatRate: 0.18,
     },
   })
 
   const selectedProductId = form.watch('productId');
   const customerType = form.watch('customerType');
+  const quantity = form.watch('quantity');
+  const vatRate = form.watch('vatRate');
   const selectedProduct = products.find(p => p.id === selectedProductId);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
@@ -126,14 +133,23 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
       productName: selectedProduct.name,
       customerName: saleCustomerName,
       customerPhone: saleCustomerPhone,
+      vatRate: values.vatRate as VatRate,
     }
     onSave(saleData)
     form.reset({
       customerType: 'existing',
       quantity: 1,
       paymentMethod: 'Cash',
+      vatRate: 0.18,
     })
     onClose()
+  }
+  
+  const calculateTotal = () => {
+      if (!selectedProduct || !quantity) return 0;
+      const netTotal = selectedProduct.sellingPrice * quantity;
+      const vatAmount = netTotal * (vatRate || 0);
+      return netTotal + vatAmount;
   }
 
   return (
@@ -267,15 +283,38 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
                     </FormItem>
                   )}
                 />
-                <FormItem>
-                    <FormLabel>Total Price (TSh)</FormLabel>
-                    <Input 
-                        readOnly 
-                        value={selectedProduct ? (selectedProduct.sellingPrice * (form.getValues('quantity') || 0)).toLocaleString() : '0'} 
-                        className="font-bold bg-muted"
-                    />
-                </FormItem>
+                 <FormField
+                  control={form.control}
+                  name="vatRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>VAT</FormLabel>
+                      <Select onValueChange={(value) => field.onChange(parseFloat(value))} defaultValue={String(field.value)}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="0.18">Mainland (18%)</SelectItem>
+                          <SelectItem value="0.15">Zanzibar (15%)</SelectItem>
+                          <SelectItem value="0">No VAT (0%)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
             </div>
+
+             <FormItem>
+                <FormLabel>Total Price (TSh)</FormLabel>
+                <Input 
+                    readOnly 
+                    value={calculateTotal().toLocaleString()} 
+                    className="font-bold bg-muted"
+                />
+            </FormItem>
 
             <FormField
               control={form.control}
@@ -317,3 +356,5 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
     </Dialog>
   )
 }
+
+    
