@@ -121,24 +121,25 @@ export function PurchaseOrderForm({
     name: 'items',
   })
 
-  const watchItems = form.watch('items')
+  const watchedItems = form.watch('items');
 
-  React.useEffect(() => {
-    const subscription = form.watch((value, { name, type }) => {
-      if (name && (name.includes('.quantity') || name.includes('.unitPrice'))) {
-        const index = parseInt(name.split('.')[1], 10)
-        const item = form.getValues(`items.${index}`)
-        const newTotal = (item.quantity || 0) * (item.unitPrice || 0)
-        if (item.totalPrice !== newTotal) {
-          form.setValue(`items.${index}.totalPrice`, newTotal, {
-            shouldValidate: true,
-          })
-        }
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [form])
+  const handleItemChange = (index: number, field: 'quantity' | 'unitPrice', value: string) => {
+    const numericValue = parseFloat(value) || 0;
+    const items = form.getValues('items');
+    const item = items[index];
 
+    if (field === 'quantity') {
+        item.quantity = numericValue;
+    } else if (field === 'unitPrice') {
+        item.unitPrice = numericValue;
+    }
+
+    item.totalPrice = (item.quantity || 0) * (item.unitPrice || 0);
+
+    form.setValue('items', items, { shouldDirty: true });
+    // Manually trigger re-render for the total price field
+    form.trigger(`items.${index}.totalPrice`);
+  };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     onSave(values)
@@ -289,7 +290,7 @@ export function PurchaseOrderForm({
                                 <FormItem className="col-span-3 md:col-span-2">
                                 <FormLabel>Qty</FormLabel>
                                 <FormControl>
-                                    <Input type="number" {...field} />
+                                    <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleItemChange(index, 'quantity', e.target.value); }} />
                                 </FormControl>
                                 <FormMessage />
                                 </FormItem>
@@ -315,7 +316,7 @@ export function PurchaseOrderForm({
                                 <FormItem className="col-span-3 md:col-span-2">
                                 <FormLabel>Unit Price</FormLabel>
                                 <FormControl>
-                                    <Input type="number" {...field} />
+                                    <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleItemChange(index, 'unitPrice', e.target.value); }} />
                                 </FormControl>
                                 <FormMessage />
                                 </FormItem>
@@ -336,7 +337,7 @@ export function PurchaseOrderForm({
                         />
                         <div className="col-span-full md:col-span-3">
                             <FormLabel>Total</FormLabel>
-                            <Input value={watchItems[index]?.totalPrice.toLocaleString() || '0'} readOnly className="font-mono text-right bg-muted" />
+                            <Input value={watchedItems[index]?.totalPrice.toLocaleString() || '0'} readOnly className="font-mono text-right bg-muted" />
                         </div>
                         <div className="col-span-1 flex items-end h-full">
                            {fields.length > 1 && (
