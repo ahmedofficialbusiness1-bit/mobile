@@ -39,6 +39,16 @@ export interface CustomerPrepayment {
     status: 'Active' | 'Used' | 'Refunded';
 }
 
+export interface Customer {
+    id: string;
+    name: string;
+    contactPerson?: string;
+    phone: string;
+    email?: string;
+    address?: string;
+    location?: string;
+}
+
 export interface Product {
   id: string; // SKU
   name: string;
@@ -162,6 +172,7 @@ interface FinancialContextType {
     transactions: Transaction[];
     payables: Payable[];
     prepayments: CustomerPrepayment[];
+    customers: Customer[];
     products: Product[];
     assets: Asset[];
     capitalContributions: CapitalContribution[];
@@ -176,6 +187,8 @@ interface FinancialContextType {
     markPayableAsPaid: (id: string, paymentMethod: PaymentMethod) => void;
     markPrepaymentAsUsed: (id: string) => void;
     markPrepaymentAsRefunded: (id: string) => void;
+    addCustomer: (customerData: Omit<Customer, 'id'>) => void;
+    updateCustomer: (id: string, customerData: Omit<Customer, 'id'>) => void;
     addAsset: (assetData: AddAssetData) => void;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => void;
     writeOffAsset: (id: string) => void;
@@ -234,6 +247,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [payables, setPayables] = useState<Payable[]>([]);
     const [prepayments, setPrepayments] = useState<CustomerPrepayment[]>([]);
+    const [customers, setCustomers] = useState<Customer[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [payrollHistory, setPayrollHistory] = useState<PayrollRun[]>([]);
@@ -370,6 +384,20 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
             return p;
         }));
+
+        // 3. Add or update customer
+        setCustomers(prev => {
+            const existingCustomer = prev.find(c => c.phone === saleData.customerPhone);
+            if (existingCustomer) {
+                return prev; // Customer already exists
+            }
+            const newCustomer: Customer = {
+                id: `cust-${Date.now()}`,
+                name: saleData.customerName,
+                phone: saleData.customerPhone,
+            };
+            return [...prev, newCustomer];
+        });
     }
 
     const markReceivableAsPaid = (id: string, paymentMethod: PaymentMethod) => {
@@ -410,6 +438,20 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const markPrepaymentAsRefunded = (id: string) => {
         setPrepayments(prev =>
             prev.map(p => (p.id === id ? { ...p, status: 'Refunded' } : p))
+        );
+    };
+
+    const addCustomer = (customerData: Omit<Customer, 'id'>) => {
+        const newCustomer: Customer = {
+            id: `cust-${Date.now()}`,
+            ...customerData,
+        };
+        setCustomers(prev => [...prev, newCustomer]);
+    };
+
+    const updateCustomer = (id: string, customerData: Omit<Customer, 'id'>) => {
+        setCustomers(prev =>
+            prev.map(c => (c.id === id ? { id, ...customerData } : c))
         );
     };
     
@@ -651,6 +693,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         transactions,
         payables,
         prepayments,
+        customers,
         products,
         assets,
         capitalContributions,
@@ -665,6 +708,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         markPayableAsPaid,
         markPrepaymentAsUsed,
         markPrepaymentAsRefunded,
+        addCustomer,
+        updateCustomer,
         addAsset,
         sellAsset,
         writeOffAsset,
