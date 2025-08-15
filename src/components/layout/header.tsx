@@ -3,10 +3,18 @@
 import * as React from 'react'
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { usePathname } from 'next/navigation'
-import { Home, FileText, ShoppingCart, Truck, Warehouse, Banknote, Landmark } from 'lucide-react'
+import {
+  Home,
+  FileText,
+  ShoppingCart,
+  Truck,
+  Warehouse,
+  Banknote,
+  Landmark,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-
+import { Menu } from 'lucide-react'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },
@@ -19,38 +27,42 @@ const navItems = [
 ]
 
 const getPageTitle = (path: string) => {
-    for (const item of navItems) {
-        if (path.startsWith(item.href) && (item.href !== '/' || path === '/')) {
-            return item.label;
-        }
-    }
-    return 'DiraBiz';
+  // Find a direct match first for nested routes
+  const directMatch = navItems.find((item) => path === item.href)
+  if (directMatch) {
+    return directMatch.label
+  }
+
+  // Find the best parent match for nested routes
+  const parentMatch = navItems
+    .filter((item) => item.href !== '/')
+    .sort((a, b) => b.href.length - a.href.length) // Sort by length to find most specific match
+    .find((item) => path.startsWith(item.href))
+
+  if (parentMatch) {
+    return parentMatch.label
+  }
+  
+  // Fallback for root
+  if (path === '/') {
+    return 'Dashboard'
+  }
+  
+  // If no match found, fallback to a default title or parse the path
+  const pageName = path.split('/').filter(Boolean).pop() || 'Page';
+  return pageName.charAt(0).toUpperCase() + pageName.slice(1);
 }
 
 export function AppHeader() {
   const pathname = usePathname()
   const title = getPageTitle(pathname)
-  const { isMobile, toggleSidebar, state } = useSidebar();
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-       <SidebarTrigger variant="outline" size="icon" className="shrink-0 md:hidden">
-          <svg
-            className="h-5 w-5"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="4" x2="20" y1="12" y2="12" />
-            <line x1="4" x2="20" y1="6" y2="6" />
-            <line x1="4" x2="20" y1="18" y2="18" />
-          </svg>
-          <span className="sr-only">Toggle sidebar</span>
-        </SidebarTrigger>
+      <SidebarTrigger variant="outline" size="icon" className="shrink-0">
+        <Menu className="h-5 w-5" />
+        <span className="sr-only">Toggle sidebar</span>
+      </SidebarTrigger>
       <h1 className="text-xl font-semibold md:text-2xl font-headline">{title}</h1>
     </header>
   )
