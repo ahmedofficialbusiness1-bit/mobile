@@ -27,7 +27,7 @@ import {
   Shield,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { cn } from '@/lib/utils'
+import { useAuth } from '@/context/auth-context'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },
@@ -38,17 +38,23 @@ const navItems = [
   { href: '/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/finance', label: 'Finance', icon: Banknote },
   { href: '/reports', label: 'Reports', icon: BarChart2 },
-  { href: '/admin', label: 'Admin Panel', icon: Shield },
 ]
+
+const adminNavItem = { href: '/admin', label: 'Admin Panel', icon: Shield }
 
 export function AppSidebar() {
   const pathname = usePathname()
   const { setOpenMobile } = useSidebar()
+  const { user, isAdmin } = useAuth()
 
   const handleLinkClick = () => {
     // Close sidebar on link click on mobile
     setOpenMobile(false)
   }
+  
+  const visibleNavItems = isAdmin ? [...navItems, adminNavItem] : navItems;
+  
+  if (!user) return null;
 
   return (
     <Sidebar
@@ -61,7 +67,7 @@ export function AppSidebar() {
           <Logo />
         </SidebarHeader>
         <SidebarMenu className="flex-1 p-2">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 asChild
@@ -86,17 +92,19 @@ export function AppSidebar() {
             <Avatar className="h-9 w-9">
               <AvatarImage
                 src="https://placehold.co/40x40.png"
-                alt="@shadcn"
+                alt={user?.email || 'User'}
                 data-ai-hint="avatar placeholder"
               />
-              <AvatarFallback>JD</AvatarFallback>
+              <AvatarFallback>
+                {user?.email?.[0].toUpperCase()}
+              </AvatarFallback>
             </Avatar>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-sidebar-foreground">
-                Juma Doe
+            <div className="flex flex-col overflow-hidden">
+              <span className="text-sm font-medium text-sidebar-foreground truncate">
+                {user?.displayName || user?.email}
               </span>
-              <span className="text-xs text-sidebar-foreground/70">
-                muhasibu@dirabiz.co
+              <span className="text-xs text-sidebar-foreground/70 truncate">
+                {user?.email}
               </span>
             </div>
           </div>

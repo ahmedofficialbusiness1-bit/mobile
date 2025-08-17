@@ -2,7 +2,7 @@
 'use client'
 
 import * as React from 'react'
-import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 import { usePathname } from 'next/navigation'
 import {
   Home,
@@ -14,10 +14,14 @@ import {
   BarChart2,
   Users,
   Shield,
+  LogOut,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import { Menu } from 'lucide-react'
+import { useAuth } from '@/context/auth-context'
+import { auth } from '@/lib/firebase'
+import { signOut } from 'firebase/auth'
+import { useRouter } from 'next/navigation'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },
@@ -60,15 +64,30 @@ const getPageTitle = (path: string) => {
 
 export function AppHeader() {
   const pathname = usePathname()
+  const router = useRouter()
   const title = getPageTitle(pathname)
+  const { user } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  }
+
+  if (!user) return null;
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 no-print">
-      <SidebarTrigger variant="outline" size="icon" className="shrink-0">
-        <Menu className="h-5 w-5" />
-        <span className="sr-only">Toggle sidebar</span>
-      </SidebarTrigger>
-      <h1 className="text-xl font-semibold md:text-2xl font-headline">{title}</h1>
+    <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 md:px-6 no-print">
+      <div className="flex items-center gap-4">
+        <SidebarTrigger variant="outline" size="icon" className="shrink-0">
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Toggle sidebar</span>
+        </SidebarTrigger>
+        <h1 className="text-xl font-semibold md:text-2xl font-headline">{title}</h1>
+      </div>
+      <Button variant="ghost" size="sm" onClick={handleLogout}>
+        <LogOut className="mr-2 h-4 w-4" />
+        Logout
+      </Button>
     </header>
   )
 }

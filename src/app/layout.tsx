@@ -1,11 +1,10 @@
 
 import type { Metadata } from 'next'
 import './globals.css'
-import { SidebarProvider } from '@/components/ui/sidebar'
-import { AppSidebar } from '@/components/layout/sidebar'
-import { AppHeader } from '@/components/layout/header'
+import { AppContent } from '@/components/layout/app-content'
 import { Toaster } from '@/components/ui/toaster'
 import { FinancialProvider } from '@/context/financial-context'
+import { AuthProvider } from '@/context/auth-context'
 
 export const metadata: Metadata = {
   title: 'DiraBiz',
@@ -33,15 +32,11 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <FinancialProvider>
-          <SidebarProvider>
-            <div className="flex">
-              <AppSidebar />
-              <div className="flex-1 flex flex-col">
-                <AppHeader />
-                <main className="p-4 sm:p-6 lg:p-8">{children}</main>
-              </div>
-            </div>
-          </SidebarProvider>
+            <AuthProvider>
+                <AppContent>
+                  {children}
+                </AppContent>
+            </AuthProvider>
         </FinancialProvider>
         <Toaster />
       </body>
