@@ -103,9 +103,11 @@ export default function AdminPage() {
   }
 
   const filteredCustomers = displayCustomers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone.includes(searchTerm)
+    (customer) => {
+        const nameMatch = customer.name && customer.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const phoneMatch = customer.phone && customer.phone.includes(searchTerm);
+        return nameMatch || phoneMatch;
+    }
   )
 
   return (
@@ -155,8 +157,8 @@ export default function AdminPage() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-medium whitespace-nowrap">{customer.name}</div>
-                            <div className="text-sm text-muted-foreground whitespace-nowrap">{customer.phone}</div>
+                            <div className="font-medium whitespace-nowrap">{customer.name || 'No Name'}</div>
+                            <div className="text-sm text-muted-foreground whitespace-nowrap">{customer.phone || 'No Phone'}</div>
                           </div>
                         </div>
                       </TableCell>
