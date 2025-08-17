@@ -2,6 +2,9 @@
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { useAuth } from './auth-context';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 // Simple "hashing" for demonstration. In a real app, use a proper library like bcrypt.
 const simpleHash = (s: string) => {
@@ -25,34 +28,51 @@ interface SecurityContextType {
 const SecurityContext = createContext<SecurityContextType | undefined>(undefined);
 
 export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [lockedTabs, setLockedTabs] = useState<Record<string, string>>({});
   const [unlockedTabs, setUnlockedTabs] = useState<Set<string>>(new Set());
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const storedLocks = localStorage.getItem('dirabiz_locks');
-      if (storedLocks) {
-        setLockedTabs(JSON.parse(storedLocks));
+    const fetchSettings = async () => {
+      if (user) {
+        try {
+          const settingsRef = doc(db, 'securitySettings', user.uid);
+          const docSnap = await getDoc(settingsRef);
+          if (docSnap.exists()) {
+            setLockedTabs(docSnap.data().lockedTabs || {});
+          } else {
+            setLockedTabs({});
+          }
+        } catch (error) {
+          console.error("Failed to load security settings from Firestore", error);
+        } finally {
+           setIsLoaded(true);
+        }
+      } else {
+        // If no user, reset settings and mark as loaded
+        setLockedTabs({});
+        setUnlockedTabs(new Set());
+        setIsLoaded(true);
       }
-    } catch (error) {
-        console.error("Failed to load security settings from localStorage", error)
-    }
-    setIsLoaded(true);
-  }, []);
+    };
+    fetchSettings();
+  }, [user]);
 
-  const saveToLocalStorage = (data: Record<string, string>) => {
+  const saveToFirestore = async (data: Record<string, string>) => {
+      if (!user) return;
       try {
-        localStorage.setItem('dirabiz_locks', JSON.stringify(data));
+        const settingsRef = doc(db, 'securitySettings', user.uid);
+        await setDoc(settingsRef, { lockedTabs: data }, { merge: true });
       } catch (error) {
-        console.error("Failed to save security settings to localStorage", error)
+        console.error("Failed to save security settings to Firestore", error)
       }
   }
 
-  const lockTab = (tabId: string, password: string) => {
+  const lockTab = async (tabId: string, password: string) => {
     const newLocks = { ...lockedTabs, [tabId]: simpleHash(password) };
     setLockedTabs(newLocks);
-    saveToLocalStorage(newLocks);
+    await saveToFirestore(newLocks);
     // Re-lock the tab if it was previously unlocked
     setUnlockedTabs(prev => {
         const newSet = new Set(prev);
@@ -61,11 +81,11 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
     })
   };
   
-  const removeLock = (tabId: string) => {
+  const removeLock = async (tabId: string) => {
     const newLocks = { ...lockedTabs };
     delete newLocks[tabId];
     setLockedTabs(newLocks);
-    saveToLocalStorage(newLocks);
+    await saveToFirestore(newLocks);
     setUnlockedTabs(prev => {
         const newSet = new Set(prev);
         newSet.delete(tabId);
@@ -82,9 +102,9 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   const isTabLocked = useCallback((tabId: string) => {
-    if (!isLoaded) return false; // Don't lock tabs until settings are loaded
+    if (!isLoaded || !user) return false; // Don't lock tabs if not loaded or no user
     return lockedTabs.hasOwnProperty(tabId) && !unlockedTabs.has(tabId);
-  }, [lockedTabs, unlockedTabs, isLoaded]);
+  }, [lockedTabs, unlockedTabs, isLoaded, user]);
 
   if (!isLoaded) {
     return null; // Or a loading spinner
