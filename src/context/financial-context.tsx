@@ -2,8 +2,6 @@
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getFirestore } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { differenceInYears, format, isAfter } from 'date-fns';
 import type { SaleFormData, VatRate } from '@/app/sales/sale-form';
 import type { InvoiceFormData, InvoiceItem } from '@/app/invoices/invoice-form';
@@ -53,6 +51,15 @@ export interface Customer {
     address?: string;
     location?: string;
 }
+
+export interface UserAccount {
+    id: string;
+    companyName: string;
+    email: string;
+    phone: string;
+    address?: string;
+}
+
 
 export interface Product {
   id: string; // SKU
@@ -195,6 +202,7 @@ interface FinancialContextType {
     payables: Payable[];
     prepayments: CustomerPrepayment[];
     customers: Customer[];
+    userAccounts: UserAccount[];
     products: Product[];
     assets: Asset[];
     capitalContributions: CapitalContribution[];
@@ -213,6 +221,8 @@ interface FinancialContextType {
     addCustomer: (customerData: Omit<Customer, 'id'>) => Promise<void>;
     updateCustomer: (id: string, customerData: Omit<Customer, 'id'>) => Promise<void>;
     deleteCustomer: (id: string) => Promise<void>;
+    addUserAccount: (userData: UserAccount) => void;
+    deleteUserAccount: (id: string) => void;
     addAsset: (assetData: AddAssetData) => void;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => void;
     writeOffAsset: (id: string) => void;
@@ -275,6 +285,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [payables, setPayables] = useState<Payable[]>([]);
     const [prepayments, setPrepayments] = useState<CustomerPrepayment[]>([]);
     const [customers, setCustomers] = useState<Customer[]>([]);
+    const [userAccounts, setUserAccounts] = useState<UserAccount[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [payrollHistory, setPayrollHistory] = useState<PayrollRun[]>([]);
@@ -285,18 +296,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([])
     const [invoices, setInvoices] = useState<Invoice[]>([])
     const [cashBalances, setCashBalances] = useState({ cash: 0, bank: 0, mobile: 0 });
-
-     useEffect(() => {
-        const firestore = getFirestore();
-        const customersCollection = collection(firestore, 'customers');
-        const unsubscribe = onSnapshot(customersCollection, (snapshot) => {
-            const customersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
-            setCustomers(customersData);
-        });
-
-        // Cleanup subscription on unmount
-        return () => unsubscribe();
-    }, []);
 
     const recalculateBalances = useCallback(() => {
         let cash = 0;
@@ -517,20 +516,25 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const addCustomer = async (customerData: Omit<Customer, 'id'>) => {
-        const firestore = getFirestore();
-        await addDoc(collection(firestore, 'customers'), customerData);
+        const newCustomer = { id: `cust-${Date.now()}`, ...customerData };
+        setCustomers(prev => [...prev, newCustomer]);
     };
 
     const updateCustomer = async (id: string, customerData: Omit<Customer, 'id'>) => {
-        const firestore = getFirestore();
-        const customerDoc = doc(firestore, 'customers', id);
-        await updateDoc(customerDoc, customerData);
+        setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...customerData } : c));
     };
 
     const deleteCustomer = async (id: string) => {
-        const firestore = getFirestore();
-        await deleteDoc(doc(firestore, 'customers', id));
+        setCustomers(prev => prev.filter(c => c.id !== id));
     };
+
+    const addUserAccount = (userData: UserAccount) => {
+        setUserAccounts(prev => [...prev, userData]);
+    }
+
+    const deleteUserAccount = (id: string) => {
+        setUserAccounts(prev => prev.filter(u => u.id !== id));
+    }
     
     const addAsset = (assetData: AddAssetData) => {
         const newAsset: Asset = {
@@ -930,6 +934,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         payables,
         prepayments,
         customers,
+        userAccounts,
         products,
         assets,
         capitalContributions,
@@ -948,6 +953,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         addCustomer,
         updateCustomer,
         deleteCustomer,
+        addUserAccount,
+        deleteUserAccount,
         addAsset,
         sellAsset,
         writeOffAsset,

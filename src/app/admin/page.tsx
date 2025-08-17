@@ -52,63 +52,58 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
-import { useFinancials, type Customer } from '@/context/financial-context'
+import { useFinancials, type UserAccount } from '@/context/financial-context'
 
-interface DisplayCustomer extends Customer {
-    joinedDate: Date;
+interface DisplayUser extends UserAccount {
     accountStatus: 'Active' | 'Suspended';
     paymentStatus: 'Paid' | 'Unpaid';
 }
 
 export default function AdminPage() {
   const { toast } = useToast()
-  const { customers, deleteCustomer } = useFinancials()
+  const { userAccounts, deleteUserAccount } = useFinancials()
   const [searchTerm, setSearchTerm] = React.useState('')
-  const [displayCustomers, setDisplayCustomers] = React.useState<DisplayCustomer[]>([]);
+  const [displayUsers, setDisplayUsers] = React.useState<DisplayUser[]>([]);
 
   React.useEffect(() => {
-     // This syncs the local display state when the context (from Firestore) changes
-    setDisplayCustomers(customers.map(c => ({
-        ...c,
-        joinedDate: new Date(), // Dummy data for display
+     // This syncs the local display state when the context changes
+    setDisplayUsers(userAccounts.map(u => ({
+        ...u,
         accountStatus: 'Active', // Default status
         paymentStatus: 'Unpaid' // Default status
     })));
-  }, [customers]);
+  }, [userAccounts]);
 
 
   const handleStatusChange = (id: string, newStatus: 'Active' | 'Suspended') => {
-    // In a real app, this should update a 'status' field in the customer's Firestore document.
-    // For now, it only updates the local state.
-    setDisplayCustomers(displayCustomers.map(c => c.id === id ? { ...c, accountStatus: newStatus } : c))
+    setDisplayUsers(displayUsers.map(u => u.id === id ? { ...u, accountStatus: newStatus } : u))
     toast({
       title: 'Account Status Updated',
-      description: `The customer's account has been set to ${newStatus}. Please complete this action in the Firebase Console.`,
+      description: `The user's account has been set to ${newStatus}. Please complete this action in the Firebase Console.`,
     })
   }
   
   const handlePaymentMark = (id: string) => {
-    // In a real app, you would also update this in Firestore
-    setDisplayCustomers(displayCustomers.map(c => c.id === id ? { ...c, paymentStatus: 'Paid' } : c))
+    setDisplayUsers(displayUsers.map(u => u.id === id ? { ...u, paymentStatus: 'Paid' } : u))
      toast({
       title: 'Payment Marked as Paid',
-      description: `The customer has been marked as paid for the current cycle.`,
+      description: `The user has been marked as paid for the current cycle.`,
     })
   }
 
   const handleDelete = (id: string) => {
-    deleteCustomer(id);
+    deleteUserAccount(id);
      toast({
-      title: 'Customer Record Deleted',
-      description: 'The customer has been removed from the list. Please delete their account from the Firebase Console as well.',
+      title: 'User Account Record Deleted',
+      description: 'The user has been removed from this list. Please delete their account from the Firebase Console as well.',
       variant: 'destructive',
     })
   }
 
-  const filteredCustomers = displayCustomers.filter(
-    (customer) => {
-        const nameMatch = customer.name && customer.name.toLowerCase().includes(searchTerm.toLowerCase());
-        const phoneMatch = customer.phone && customer.phone.includes(searchTerm);
+  const filteredUsers = displayUsers.filter(
+    (user) => {
+        const nameMatch = user.companyName && user.companyName.toLowerCase().includes(searchTerm.toLowerCase());
+        const phoneMatch = user.phone && user.phone.includes(searchTerm);
         return nameMatch || phoneMatch;
     }
   )
@@ -123,7 +118,7 @@ export default function AdminPage() {
               SaaS Admin Panel
             </CardTitle>
             <CardDescription className="max-w-xl">
-              Manage all customer accounts and their subscription status. For full user management like deleting or suspending login, please use the Firebase Console.
+              Manage all user accounts and their subscription status. For full user management like deleting or suspending login, please use the Firebase Console.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -136,7 +131,7 @@ export default function AdminPage() {
             <div className="relative w-full sm:max-w-xs">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                placeholder="Search by name or phone..."
+                placeholder="Search by company or phone..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -149,7 +144,7 @@ export default function AdminPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Customer</TableHead>
+                  <TableHead>User</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead className="text-center">Account Status</TableHead>
                   <TableHead className="text-center">Payment Status</TableHead>
@@ -157,9 +152,9 @@ export default function AdminPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCustomers.length > 0 ? (
-                  filteredCustomers.map((customer) => (
-                    <TableRow key={customer.id}>
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
+                    <TableRow key={user.id}>
                       <TableCell>
                          <div className="flex items-center gap-3">
                           <Avatar>
@@ -168,27 +163,27 @@ export default function AdminPage() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-medium whitespace-nowrap">{customer.name || 'No Name'}</div>
-                            <div className="text-sm text-muted-foreground whitespace-nowrap">{customer.phone || 'No Phone'}</div>
+                            <div className="font-medium whitespace-nowrap">{user.companyName || 'No Name'}</div>
+                            <div className="text-sm text-muted-foreground whitespace-nowrap">{user.phone || 'No Phone'}</div>
                           </div>
                         </div>
                       </TableCell>
                        <TableCell className="whitespace-nowrap">
-                        {customer.email}
+                        {user.email}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={customer.accountStatus === 'Active' ? 'default' : 'secondary'}
+                        <Badge variant={user.accountStatus === 'Active' ? 'default' : 'secondary'}
                          className={cn(
-                            customer.accountStatus === 'Active' && 'bg-green-500/20 text-green-700 hover:bg-green-500/30',
-                            customer.accountStatus === 'Suspended' && 'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30'
+                            user.accountStatus === 'Active' && 'bg-green-500/20 text-green-700 hover:bg-green-500/30',
+                            user.accountStatus === 'Suspended' && 'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30'
                           )}
                         >
-                          {customer.accountStatus}
+                          {user.accountStatus}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
-                         <Badge variant={customer.paymentStatus === 'Paid' ? 'default' : 'outline'}>
-                          {customer.paymentStatus}
+                         <Badge variant={user.paymentStatus === 'Paid' ? 'default' : 'outline'}>
+                          {user.paymentStatus}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -200,23 +195,23 @@ export default function AdminPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
                             <DropdownMenuItem
-                                disabled={customer.paymentStatus === 'Paid'}
-                                onClick={() => handlePaymentMark(customer.id)}
+                                disabled={user.paymentStatus === 'Paid'}
+                                onClick={() => handlePaymentMark(user.id)}
                             >
                               <CheckCircle className="mr-2 h-4 w-4" />
                               Mark as Paid
                             </DropdownMenuItem>
                             <DropdownMenuSeparator/>
-                            {customer.accountStatus === 'Active' ? (
+                            {user.accountStatus === 'Active' ? (
                               <DropdownMenuItem
-                                onClick={() => handleStatusChange(customer.id, 'Suspended')}
+                                onClick={() => handleStatusChange(user.id, 'Suspended')}
                               >
                                 <PauseCircle className="mr-2 h-4 w-4" />
                                 Suspend Account
                               </DropdownMenuItem>
                             ) : (
                               <DropdownMenuItem
-                                onClick={() => handleStatusChange(customer.id, 'Active')}
+                                onClick={() => handleStatusChange(user.id, 'Active')}
                               >
                                 <XCircle className="mr-2 h-4 w-4" />
                                 Reactivate Account
@@ -232,12 +227,12 @@ export default function AdminPage() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            This action will only remove the customer's record from this list. To fully delete their login account, you must do so from the Firebase Console.
+                                            This action will only remove the user's record from this list. To fully delete their login account, you must do so from the Firebase Console.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDelete(customer.id)}>
+                                        <AlertDialogAction onClick={() => handleDelete(user.id)}>
                                             Continue
                                         </AlertDialogAction>
                                     </AlertDialogFooter>
@@ -251,7 +246,7 @@ export default function AdminPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">
-                      No customers found in the database.
+                      No user accounts found.
                     </TableCell>
                   </TableRow>
                 )}

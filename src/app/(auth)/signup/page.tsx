@@ -45,7 +45,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
-  const { addCustomer } = useFinancials()
+  const { addUserAccount } = useFinancials()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -61,16 +61,16 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true)
     try {
-      await createUserWithEmailAndPassword(auth, values.email, values.password)
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password)
+      const user = userCredential.user;
       
-      // Add the new user to the customer list in Firestore
-      await addCustomer({
-          name: values.companyName,
+      // Add the new user to the user accounts list
+      await addUserAccount({
+          id: user.uid,
+          companyName: values.companyName,
           phone: values.phone,
           email: values.email,
           address: values.address || '',
-          contactPerson: '',
-          location: '',
       });
 
       toast({
