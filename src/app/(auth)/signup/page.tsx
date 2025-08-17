@@ -63,8 +63,8 @@ export default function SignupPage() {
     try {
       await createUserWithEmailAndPassword(auth, values.email, values.password)
       
-      // Add the new user to the customer list in the financial context
-      addCustomer({
+      // Add the new user to the customer list in Firestore
+      await addCustomer({
           name: values.companyName,
           phone: values.phone,
           email: values.email,

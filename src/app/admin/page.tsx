@@ -10,7 +10,8 @@ import {
   Trash2,
   User,
   Shield,
-  XCircle
+  XCircle,
+  ExternalLink
 } from 'lucide-react'
 import {
   Card,
@@ -76,11 +77,12 @@ export default function AdminPage() {
 
 
   const handleStatusChange = (id: string, newStatus: 'Active' | 'Suspended') => {
-    // In a real app, you would also update this in Firestore
+    // In a real app, this should update a 'status' field in the customer's Firestore document.
+    // For now, it only updates the local state.
     setDisplayCustomers(displayCustomers.map(c => c.id === id ? { ...c, accountStatus: newStatus } : c))
     toast({
       title: 'Account Status Updated',
-      description: `The customer's account has been set to ${newStatus}.`,
+      description: `The customer's account has been set to ${newStatus}. Please complete this action in the Firebase Console.`,
     })
   }
   
@@ -96,8 +98,8 @@ export default function AdminPage() {
   const handleDelete = (id: string) => {
     deleteCustomer(id);
      toast({
-      title: 'Customer Account Deleted',
-      description: 'The customer account has been permanently deleted from the database.',
+      title: 'Customer Record Deleted',
+      description: 'The customer has been removed from the list. Please delete their account from the Firebase Console as well.',
       variant: 'destructive',
     })
   }
@@ -119,18 +121,26 @@ export default function AdminPage() {
               <Shield className="text-primary"/>
               SaaS Admin Panel
             </CardTitle>
-            <CardDescription>
-              Manage all customer accounts and their subscription status.
+            <CardDescription className="max-w-xl">
+              Manage all customer accounts and their subscription status. For full user management like deleting or suspending login, please use the Firebase Console.
             </CardDescription>
           </div>
-          <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name or phone..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="flex items-center gap-2">
+             <Button variant="outline" asChild>
+                <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-4 w-4"/>
+                    Open Firebase Console
+                </a>
+            </Button>
+            <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                placeholder="Search by name or phone..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -139,7 +149,7 @@ export default function AdminPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Joined Date</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead className="text-center">Account Status</TableHead>
                   <TableHead className="text-center">Payment Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -163,7 +173,7 @@ export default function AdminPage() {
                         </div>
                       </TableCell>
                        <TableCell className="whitespace-nowrap">
-                        {customer.joinedDate.toLocaleDateString()}
+                        {customer.email}
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant={customer.accountStatus === 'Active' ? 'default' : 'secondary'}
@@ -221,7 +231,7 @@ export default function AdminPage() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            This action is permanent and cannot be undone. This will permanently delete the customer's account and all their data from the database.
+                                            This action will only remove the customer's record from this list. To fully delete their login account, you must do so from the Firebase Console.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
