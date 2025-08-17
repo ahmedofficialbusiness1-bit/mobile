@@ -2,6 +2,7 @@
 'use client'
 
 import * as React from 'react'
+import { PageGuard } from '@/components/security/page-guard'
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
 import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, FileText } from 'lucide-react'
@@ -39,7 +40,7 @@ import { InvoiceForm, type InvoiceFormData } from './invoice-form'
 import { useToast } from '@/hooks/use-toast'
 import { PaymentDialog } from '@/components/payment-dialog'
 
-export default function InvoicesPage() {
+function InvoicesPageContent() {
   const { invoices, products, customers, addInvoice, payInvoice } = useFinancials()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false)
@@ -253,4 +254,13 @@ export default function InvoicesPage() {
       />
     </>
   )
+}
+
+
+export default function InvoicesPage() {
+    return (
+        <PageGuard tabId="invoices">
+            <InvoicesPageContent />
+        </PageGuard>
+    )
 }

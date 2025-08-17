@@ -2,6 +2,7 @@
 'use client'
 
 import * as React from 'react'
+import { PageGuard } from '@/components/security/page-guard'
 import { PlusCircle, Search, Package, Clock, ShoppingCart, TrendingUp } from 'lucide-react'
 import { useFinancials, type Product } from '@/context/financial-context'
 import { Button } from '@/components/ui/button'
@@ -39,7 +40,7 @@ interface MonthlyStockData {
   closing: number;
 }
 
-export default function InventoryPage() {
+function InventoryPageContent() {
   const { products, transactions, purchaseOrders, addProduct, updateProduct, deleteProduct } = useFinancials()
   const { toast } = useToast()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
@@ -277,4 +278,12 @@ export default function InventoryPage() {
     />
     </>
   )
+}
+
+export default function InventoryPage() {
+    return (
+        <PageGuard tabId="inventory">
+            <InventoryPageContent />
+        </PageGuard>
+    )
 }

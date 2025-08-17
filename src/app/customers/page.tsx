@@ -2,6 +2,7 @@
 'use client'
 
 import * as React from 'react'
+import { PageGuard } from '@/components/security/page-guard'
 import { PlusCircle, MoreHorizontal, Search, Trash2 } from 'lucide-react'
 import {
   Card,
@@ -33,7 +34,7 @@ import { useToast } from '@/hooks/use-toast'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 
 
-export default function CustomersPage() {
+function CustomersPageContent() {
   const { customers, addCustomer, updateCustomer, deleteCustomer } = useFinancials()
   const { toast } = useToast()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
@@ -188,4 +189,12 @@ export default function CustomersPage() {
       />
     </>
   )
+}
+
+export default function CustomersPage() {
+    return (
+        <PageGuard tabId="customers">
+            <CustomersPageContent />
+        </PageGuard>
+    )
 }

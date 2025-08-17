@@ -2,6 +2,7 @@
 'use client'
 
 import * as React from 'react'
+import { PageGuard } from '@/components/security/page-guard'
 import {
   Sheet,
   SheetContent,
@@ -29,7 +30,7 @@ const financeNavItems = [
     { id: 'journal', label: 'Journal', icon: BookUser },
 ]
 
-export default function FinancePage() {
+function FinancePageContent() {
     const [activeView, setActiveView] = React.useState('accounts');
 
     const renderContent = () => {
@@ -104,4 +105,12 @@ export default function FinancePage() {
             </div>
         </div>
     );
+}
+
+export default function FinancePage() {
+    return (
+        <PageGuard tabId="finance">
+            <FinancePageContent />
+        </PageGuard>
+    )
 }

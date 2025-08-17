@@ -2,6 +2,7 @@
 'use client'
 
 import * as React from 'react'
+import { PageGuard } from '@/components/security/page-guard'
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
 import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, Trash2 } from 'lucide-react'
@@ -40,8 +41,7 @@ import { useToast } from '@/hooks/use-toast'
 import { PaymentDialog } from '@/components/payment-dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 
-
-export default function PurchasesPage() {
+function PurchasesPageContent() {
   const { purchaseOrders, addPurchaseOrder, receivePurchaseOrder, payPurchaseOrder, deletePurchaseOrder } = useFinancials()
   const { toast } = useToast()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
@@ -329,4 +329,12 @@ export default function PurchasesPage() {
       />
     </>
   )
+}
+
+export default function PurchasesPage() {
+    return (
+        <PageGuard tabId="purchases">
+            <PurchasesPageContent />
+        </PageGuard>
+    )
 }

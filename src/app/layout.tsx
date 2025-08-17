@@ -5,6 +5,7 @@ import { AppContent } from '@/components/layout/app-content'
 import { Toaster } from '@/components/ui/toaster'
 import { FinancialProvider } from '@/context/financial-context'
 import { AuthProvider } from '@/context/auth-context'
+import { SecurityProvider } from '@/context/security-context'
 
 export const metadata: Metadata = {
   title: 'DiraBiz',
@@ -33,9 +34,11 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FinancialProvider>
             <AuthProvider>
-                <AppContent>
-                  {children}
-                </AppContent>
+                <SecurityProvider>
+                    <AppContent>
+                    {children}
+                    </AppContent>
+                </SecurityProvider>
             </AuthProvider>
         </FinancialProvider>
         <Toaster />

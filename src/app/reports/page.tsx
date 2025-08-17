@@ -2,6 +2,7 @@
 'use client'
 
 import * as React from 'react'
+import { PageGuard } from '@/components/security/page-guard'
 import {
   Tabs,
   TabsContent,
@@ -21,7 +22,7 @@ import CashFlowStatement from './cash-flow-statement'
 import ExpensesReport from './expenses-report'
 import SalesReport from './sales-report'
 
-export default function ReportsPage() {
+function ReportsPageContent() {
     const [date, setDate] = React.useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -113,4 +114,13 @@ export default function ReportsPage() {
       </Tabs>
     </div>
   )
+}
+
+
+export default function ReportsPage() {
+    return (
+        <PageGuard tabId="reports">
+            <ReportsPageContent />
+        </PageGuard>
+    )
 }

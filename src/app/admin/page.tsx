@@ -2,6 +2,7 @@
 'use client'
 
 import * as React from 'react'
+import { PageGuard } from '@/components/security/page-guard'
 import {
   MoreHorizontal,
   Search,
@@ -59,7 +60,7 @@ interface DisplayUser extends UserAccount {
     paymentStatus: 'Paid' | 'Unpaid';
 }
 
-export default function AdminPage() {
+function AdminPageContent() {
   const { toast } = useToast()
   const { userAccounts, deleteUserAccount } = useFinancials()
   const [searchTerm, setSearchTerm] = React.useState('')
@@ -269,4 +270,12 @@ export default function AdminPage() {
       </Card>
     </div>
   )
+}
+
+export default function AdminPage() {
+    return (
+        <PageGuard tabId="admin">
+            <AdminPageContent />
+        </PageGuard>
+    )
 }
