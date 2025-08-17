@@ -1,7 +1,7 @@
 
 'use client'
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { differenceInYears, format, isAfter } from 'date-fns';
 import type { SaleFormData, VatRate } from '@/app/sales/sale-form';
 import type { InvoiceFormData, InvoiceItem } from '@/app/invoices/invoice-form';
@@ -301,12 +301,15 @@ const getProductStatus = (product: Omit<Product, 'status' | 'initialStock'>): Pr
 function useFirestoreCollection<T>(collectionName: string, dateFields: string[] = ['date']) {
     const [data, setData] = useState<T[]>([]);
 
+    // Memoize the dateFields array to prevent re-renders
+    const stableDateFields = useMemo(() => dateFields, [JSON.stringify(dateFields)]);
+
     useEffect(() => {
         const unsubscribe = onSnapshot(collection(db, collectionName), (snapshot) => {
             const collectionData = snapshot.docs.map(doc => {
                 const docData = doc.data();
                 // Convert Firestore Timestamps to JS Date objects
-                for (const field of dateFields) {
+                for (const field of stableDateFields) {
                     if (docData[field]) {
                         docData[field] = toDate(docData[field]);
                     }
@@ -319,7 +322,7 @@ function useFirestoreCollection<T>(collectionName: string, dateFields: string[] 
         });
 
         return () => unsubscribe();
-    }, [collectionName, dateFields]);
+    }, [collectionName, stableDateFields]);
 
     return data;
 }
