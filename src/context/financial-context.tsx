@@ -233,7 +233,7 @@ interface FinancialContextType {
     purchaseOrders: PurchaseOrder[];
     invoices: Invoice[];
     cashBalances: { cash: number; bank: number; mobile: number };
-    addSale: (saleData: SaleFormData) => Promise<void>;
+    addSale: (saleData: Omit<SaleFormData, 'notes'>) => Promise<void>;
     markReceivableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
     markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
     markPrepaymentAsUsed: (id: string) => Promise<void>;
@@ -429,10 +429,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 repaid: ownerLoans.find(l => l.id === c.id)?.repaid || 0
             }));
         setOwnerLoans(loans);
-    }, [capitalContributions]);
+    }, [capitalContributions, ownerLoans]);
 
 
-    const addSale = async (saleData: SaleFormData) => {
+    const addSale = async (saleData: Omit<SaleFormData, 'notes'>) => {
         const product = products.find(p => p.id === saleData.productId);
         if (!product) {
             throw new Error("Product not found");
