@@ -121,10 +121,12 @@ export interface Employee {
 }
 
 export interface PayrollRun {
+    id: string;
+    employeeId: string;
     month: string; // e.g., "May 2024"
     date: Date;
-    totalGross: number;
-    totalNet: number;
+    grossSalary: number;
+    netSalary: number;
     paymentMethod: PaymentMethod;
 }
 
@@ -220,7 +222,8 @@ interface FinancialContextType {
     addEmployee: (employeeData: Omit<Employee, 'id'>) => void;
     updateEmployee: (id: string, employeeData: Omit<Employee, 'id'>) => void;
     deleteEmployee: (id: string) => void;
-    processPayroll: (paymentData: { amount: number, paymentMethod: PaymentMethod }, totalGross: number) => void;
+    processPayroll: (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => void;
+    paySingleEmployee: (data: { employeeId: string; grossSalary: number; netSalary: number; paymentMethod: PaymentMethod; }) => void;
     addPurchaseOrder: (data: Omit<PurchaseOrder, 'id'>) => void;
     receivePurchaseOrder: (poId: string) => void;
     payPurchaseOrder: (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => void;
@@ -341,9 +344,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         
         // Payroll Payments
         payrollHistory.forEach(run => {
-            if (run.paymentMethod === 'Cash') cash -= run.totalNet;
-            if (run.paymentMethod === 'Bank') bank -= run.totalNet;
-            if (run.paymentMethod === 'Mobile') mobile -= run.totalNet;
+            if (run.paymentMethod === 'Cash') cash -= run.netSalary;
+            if (run.paymentMethod === 'Bank') bank -= run.netSalary;
+            if (run.paymentMethod === 'Mobile') mobile -= run.netSalary;
         });
 
         setCashBalances({ cash, bank, mobile });
@@ -643,7 +646,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         setEmployees(prev => prev.filter(emp => emp.id !== id));
     };
     
-    const processPayroll = (paymentData: { amount: number, paymentMethod: PaymentMethod }, totalGross: number) => {
+    const processPayroll = (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => {
         const { amount, paymentMethod } = paymentData;
         const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
         if (amount > balance) {
@@ -652,20 +655,62 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         const currentMonth = format(new Date(), 'MMMM yyyy');
         
-        const newPayrollRun: PayrollRun = {
+        const newPayrollRuns: PayrollRun[] = employeesToPay.map(emp => ({
+            id: `pr-${emp.employeeId}-${Date.now()}`,
+            employeeId: emp.employeeId,
             month: currentMonth,
             date: new Date(),
-            totalGross: totalGross,
-            totalNet: amount,
+            grossSalary: emp.grossSalary,
+            netSalary: emp.netSalary,
+            paymentMethod: paymentMethod
+        }));
+        setPayrollHistory(prev => [...prev, ...newPayrollRuns]);
+
+        const totalGross = employeesToPay.reduce((sum, emp) => sum + emp.grossSalary, 0);
+
+        const newExpense: Expense = {
+            id: `exp-payroll-${Date.now()}`,
+            description: `Payroll for ${employeesToPay.length} employees for ${currentMonth}`,
+            category: 'Mishahara',
+            amount: totalGross,
+            date: new Date(),
+            status: 'Approved',
+            paymentMethod: paymentMethod
+        };
+        setExpenses(prev => [...prev, newExpense]);
+    };
+    
+    const paySingleEmployee = (data: {
+        employeeId: string;
+        grossSalary: number;
+        netSalary: number;
+        paymentMethod: PaymentMethod;
+    }) => {
+        const { netSalary, paymentMethod, grossSalary, employeeId } = data;
+        const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
+        if (netSalary > balance) {
+            throw new Error(`Insufficient funds for payroll in ${paymentMethod}. Required: ${netSalary}, Available: ${balance}`);
+        }
+
+        const currentMonth = format(new Date(), 'MMMM yyyy');
+        
+        const newPayrollRun: PayrollRun = {
+            id: `pr-${employeeId}-${Date.now()}`,
+            employeeId: employeeId,
+            month: currentMonth,
+            date: new Date(),
+            grossSalary: grossSalary,
+            netSalary: netSalary,
             paymentMethod: paymentMethod
         };
         setPayrollHistory(prev => [...prev, newPayrollRun]);
 
+        const employee = employees.find(e => e.id === employeeId);
         const newExpense: Expense = {
-            id: `exp-payroll-${Date.now()}`,
-            description: `Payroll for ${currentMonth}`,
+            id: `exp-payroll-${employeeId}-${Date.now()}`,
+            description: `Salary for ${employee?.name || employeeId} for ${currentMonth}`,
             category: 'Mishahara',
-            amount: totalGross,
+            amount: grossSalary,
             date: new Date(),
             status: 'Approved',
             paymentMethod: paymentMethod
@@ -680,7 +725,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
         setPurchaseOrders(prev => [...prev, newPO]);
 
-        if (newPO.paymentStatus === 'Unpaid') {
+        if (newPO.paymentStatus === 'Unpaid' && newPO.paymentTerms.startsWith('Credit')) {
             const totalAmount = newPO.items.reduce((sum, item) => sum + item.totalPrice, 0);
             const newPayable: Payable = {
                 id: `payable-po-${newPO.id}`,
@@ -880,6 +925,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         updateEmployee,
         deleteEmployee,
         processPayroll,
+        paySingleEmployee,
         addPurchaseOrder,
         receivePurchaseOrder,
         payPurchaseOrder,

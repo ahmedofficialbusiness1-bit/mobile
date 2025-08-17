@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MoreHorizontal, UserPlus, Info, Wallet, CheckCircle } from 'lucide-react';
+import { MoreHorizontal, UserPlus, Info, Wallet, CheckCircle, CircleDollarSign } from 'lucide-react';
 import { EmployeeForm } from './employee-form';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
@@ -40,15 +40,18 @@ const calculatePAYE = (taxableIncome: number) => {
 
 
 export default function PayrollView() {
-  const { employees, addEmployee, updateEmployee, deleteEmployee, processPayroll, payrollHistory, cashBalances } = useFinancials();
+  const { employees, addEmployee, updateEmployee, deleteEmployee, processPayroll, payrollHistory, paySingleEmployee } = useFinancials();
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [selectedEmployee, setSelectedEmployee] = React.useState<Employee | null>(null);
   const [payslipEmployee, setPayslipEmployee] = React.useState<PayrollData | null>(null);
+  const [paymentEmployee, setPaymentEmployee] = React.useState<PayrollData | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const { toast } = useToast();
 
   const currentMonth = format(new Date(), 'MMMM yyyy');
-  const isPayrollRun = payrollHistory.some(run => run.month === currentMonth);
+  const payrollForMonth = payrollHistory.filter(run => run.month === currentMonth);
+  const paidEmployeeIds = new Set(payrollForMonth.map(p => p.employeeId));
+
 
   const handleAddEmployee = () => {
     setSelectedEmployee(null);
@@ -80,6 +83,8 @@ export default function PayrollView() {
       const taxableIncome = emp.salary - nssf; // NSSF is deducted before tax
       const paye = calculatePAYE(taxableIncome);
       const netSalary = emp.salary - totalDeductions - paye;
+      const isPaid = paidEmployeeIds.has(emp.id);
+
       return {
           ...emp,
           nssf,
@@ -87,22 +92,32 @@ export default function PayrollView() {
           totalDeductions,
           taxableIncome,
           netSalary,
+          isPaid
       }
     })
+
+    const unpaidEmployees = payrollData.filter(emp => !emp.isPaid);
 
     const totals = {
       gross: payrollData.reduce((acc, emp) => acc + emp.salary, 0),
       deductions: payrollData.reduce((acc, emp) => acc + emp.totalDeductions, 0),
       paye: payrollData.reduce((acc, emp) => acc + emp.paye, 0),
       net: payrollData.reduce((acc, emp) => acc + emp.netSalary, 0),
+      unpaidNet: unpaidEmployees.reduce((acc, emp) => acc + emp.netSalary, 0),
     }
 
   const handlePayAll = (paymentData: { amount: number, paymentMethod: PaymentMethod }) => {
     try {
-        processPayroll(paymentData, totals.gross);
+        const employeesToPay = unpaidEmployees.map(emp => ({
+            employeeId: emp.id,
+            grossSalary: emp.salary,
+            netSalary: emp.netSalary
+        }));
+
+        processPayroll(paymentData, employeesToPay);
         toast({
             title: "Payroll Processed Successfully",
-            description: `Paid TSh ${totals.net.toLocaleString()} to ${employees.length} employees for ${currentMonth} via ${paymentData.paymentMethod}.`,
+            description: `Paid TSh ${totals.unpaidNet.toLocaleString()} to ${unpaidEmployees.length} employees for ${currentMonth} via ${paymentData.paymentMethod}.`,
             variant: "default",
         })
         setIsPaymentDialogOpen(false);
@@ -112,6 +127,29 @@ export default function PayrollView() {
             title: "Error Processing Payroll",
             description: error.message,
         });
+    }
+  }
+
+  const handlePaySingle = (paymentData: { amount: number, paymentMethod: PaymentMethod }) => {
+    if (!paymentEmployee) return;
+    try {
+        paySingleEmployee({
+            employeeId: paymentEmployee.id,
+            grossSalary: paymentEmployee.salary,
+            netSalary: paymentEmployee.netSalary,
+            paymentMethod: paymentData.paymentMethod
+        });
+        toast({
+            title: "Payment Successful",
+            description: `${paymentEmployee.name} has been paid TSh ${paymentEmployee.netSalary.toLocaleString()} for ${currentMonth}.`
+        });
+        setPaymentEmployee(null);
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Payment Failed',
+            description: error.message,
+        })
     }
   }
 
@@ -146,15 +184,15 @@ export default function PayrollView() {
                     <UserPlus className="mr-2 h-4 w-4" />
                     Register Employee
                 </Button>
-                 {isPayrollRun ? (
+                 {unpaidEmployees.length === 0 && employees.length > 0 ? (
                     <Button disabled variant="outline">
                         <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                        Payroll Run for {currentMonth}
+                        Payroll Paid for {currentMonth}
                     </Button>
                 ) : (
-                    <Button variant="default" onClick={() => setIsPaymentDialogOpen(true)} disabled={employees.length === 0}>
+                    <Button variant="default" onClick={() => setIsPaymentDialogOpen(true)} disabled={unpaidEmployees.length === 0}>
                         <Wallet className="mr-2 h-4 w-4" />
-                        Pay All Employees
+                        Pay Unpaid ({unpaidEmployees.length})
                     </Button>
                 )}
             </div>
@@ -167,7 +205,6 @@ export default function PayrollView() {
                   <TableHead>Employee</TableHead>
                   <TableHead className="text-right">Gross Salary</TableHead>
                   <TableHead className="text-right">Deductions</TableHead>
-                  <TableHead className="text-right">Taxable Income</TableHead>
                   <TableHead className="text-right">
                     <TooltipProvider>
                       <Tooltip>
@@ -181,6 +218,7 @@ export default function PayrollView() {
                     </TooltipProvider>
                   </TableHead>
                   <TableHead className="text-right">Net Salary</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -202,9 +240,17 @@ export default function PayrollView() {
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">{employee.salary.toLocaleString()}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{employee.totalDeductions.toLocaleString()}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap">{employee.taxableIncome.toLocaleString()}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{employee.paye.toLocaleString()}</TableCell>
                       <TableCell className="text-right font-semibold whitespace-nowrap">{employee.netSalary.toLocaleString()}</TableCell>
+                      <TableCell className="text-center">
+                        {employee.isPaid ? (
+                            <span className="text-green-600 font-semibold flex items-center justify-center gap-1">
+                                <CheckCircle className="h-4 w-4"/> Paid
+                            </span>
+                        ) : (
+                            <span className="text-amber-600">Pending</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -213,6 +259,12 @@ export default function PayrollView() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
+                                {!employee.isPaid && (
+                                    <DropdownMenuItem onClick={() => setPaymentEmployee(employee)}>
+                                        <CircleDollarSign className="mr-2 h-4 w-4" />
+                                        Pay Employee
+                                    </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onClick={() => handleEditEmployee(employee)}>Edit</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleViewPayslip(employee)}>View Payslip</DropdownMenuItem>
                                 <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteEmployee(employee.id)}>Delete</DropdownMenuItem>
@@ -232,10 +284,9 @@ export default function PayrollView() {
                     <TableCell>Total Company Expense</TableCell>
                     <TableCell className="text-right">{totals.gross.toLocaleString()}</TableCell>
                     <TableCell className="text-right">{totals.deductions.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">-</TableCell>
                     <TableCell className="text-right">{totals.paye.toLocaleString()}</TableCell>
                     <TableCell className="text-right">{totals.net.toLocaleString()}</TableCell>
-                    <TableCell></TableCell>
+                    <TableCell colSpan={2}></TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
@@ -258,8 +309,16 @@ export default function PayrollView() {
         onClose={() => setIsPaymentDialogOpen(false)}
         onSubmit={handlePayAll}
         title={`Confirm Payroll for ${currentMonth}`}
-        description={`You are about to pay a total of TSh ${totals.net.toLocaleString()} to ${employees.length} employees. Please select the payment method.`}
-        totalAmount={totals.net}
+        description={`You are about to pay a total of TSh ${totals.unpaidNet.toLocaleString()} to ${unpaidEmployees.length} employees. Please select the payment method.`}
+        totalAmount={totals.unpaidNet}
+      />
+       <PaymentDialog
+        isOpen={!!paymentEmployee}
+        onClose={() => setPaymentEmployee(null)}
+        onSubmit={handlePaySingle}
+        title={`Pay ${paymentEmployee?.name}`}
+        description={`You are about to pay ${paymentEmployee?.name} a net salary of TSh ${paymentEmployee?.netSalary.toLocaleString()} for ${currentMonth}.`}
+        totalAmount={paymentEmployee?.netSalary}
       />
     </>
   );
