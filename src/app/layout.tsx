@@ -3,9 +3,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { AppContent } from '@/components/layout/app-content'
 import { Toaster } from '@/components/ui/toaster'
-import { FinancialProvider } from '@/context/financial-context'
 import { AuthProvider } from '@/context/auth-context'
-import { SecurityProvider } from '@/context/security-context'
+
 
 export const metadata: Metadata = {
   title: 'MaliMax',
@@ -33,13 +32,9 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-          <FinancialProvider>
-            <SecurityProvider>
-              <AppContent>
+            <AppContent>
                 {children}
-              </AppContent>
-            </SecurityProvider>
-          </FinancialProvider>
+            </AppContent>
         </AuthProvider>
         <Toaster />
       </body>
