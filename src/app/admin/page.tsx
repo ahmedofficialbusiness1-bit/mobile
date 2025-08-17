@@ -48,64 +48,33 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
-
-type CustomerStatus = 'Active' | 'Suspended'
-type PaymentStatus = 'Paid' | 'Unpaid'
-
-interface AdminCustomer {
-  id: string
-  name: string
-  phone: string
-  joinedDate: Date
-  accountStatus: CustomerStatus
-  paymentStatus: PaymentStatus
-}
-
-const initialCustomers: AdminCustomer[] = [
-  {
-    id: 'cust_001',
-    name: 'Juma Kondo Supplies',
-    phone: '0712345678',
-    joinedDate: new Date('2024-05-01'),
-    accountStatus: 'Active',
-    paymentStatus: 'Paid',
-  },
-  {
-    id: 'cust_002',
-    name: 'Mariam\'s Boutique',
-    phone: '0755123456',
-    joinedDate: new Date('2024-04-15'),
-    accountStatus: 'Active',
-    paymentStatus: 'Unpaid',
-  },
-  {
-    id: 'cust_003',
-    name: 'Kilimo Fresh Farm',
-    phone: '0688987654',
-    joinedDate: new Date('2024-02-20'),
-    accountStatus: 'Suspended',
-    paymentStatus: 'Unpaid',
-  },
-   {
-    id: 'cust_004',
-    name: 'Pwani Hardware',
-    phone: '0784112233',
-    joinedDate: new Date('2024-06-10'),
-    accountStatus: 'Active',
-    paymentStatus: 'Paid',
-  },
-]
+import { useFinancials } from '@/context/financial-context'
 
 export default function AdminPage() {
   const { toast } = useToast()
-  const [customers, setCustomers] = React.useState<AdminCustomer[]>(initialCustomers)
+  const { customers } = useFinancials() // Use customers from context
   const [searchTerm, setSearchTerm] = React.useState('')
 
-  const handleStatusChange = (id: string, newStatus: CustomerStatus) => {
-    setCustomers(customers.map(c => c.id === id ? { ...c, accountStatus: newStatus } : c))
+  // Admin actions will now be handled by functions in the context if they need to be persistent.
+  // For this example, we will simulate the changes locally, but ideally, these would be context functions.
+  // Note: The context does not yet support status or payment status updates, so this remains local simulation for now.
+  const [localCustomers, setLocalCustomers] = React.useState(customers);
+
+  React.useEffect(() => {
+     // This syncs the local state if the context state changes (e.g. new user signs up)
+    setLocalCustomers(customers.map(c => ({
+        ...c,
+        joinedDate: new Date(), // Add dummy data for display
+        accountStatus: 'Active', // Default status
+        paymentStatus: 'Unpaid' // Default status
+    })));
+  }, [customers]);
+
+
+  const handleStatusChange = (id: string, newStatus: 'Active' | 'Suspended') => {
+    setLocalCustomers(localCustomers.map(c => c.id === id ? { ...c, accountStatus: newStatus } : c))
     toast({
       title: 'Account Status Updated',
       description: `The customer's account has been set to ${newStatus}.`,
@@ -113,7 +82,7 @@ export default function AdminPage() {
   }
   
   const handlePaymentMark = (id: string) => {
-    setCustomers(customers.map(c => c.id === id ? { ...c, paymentStatus: 'Paid' } : c))
+    setLocalCustomers(localCustomers.map(c => c.id === id ? { ...c, paymentStatus: 'Paid' } : c))
      toast({
       title: 'Payment Marked as Paid',
       description: `The customer has been marked as paid for the current cycle.`,
@@ -121,7 +90,8 @@ export default function AdminPage() {
   }
 
   const handleDelete = (id: string) => {
-    setCustomers(customers.filter(c => c.id !== id))
+    // Ideally, you would call a function from the context like `deleteCustomer(id)`
+    setLocalCustomers(localCustomers.filter(c => c.id !== id))
      toast({
       title: 'Customer Account Deleted',
       description: 'The customer account has been permanently deleted.',
@@ -129,7 +99,7 @@ export default function AdminPage() {
     })
   }
 
-  const filteredCustomers = customers.filter(
+  const filteredCustomers = localCustomers.filter(
     (customer) =>
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.phone.includes(searchTerm)
@@ -265,7 +235,7 @@ export default function AdminPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">
-                      No customers found.
+                      No customers found. Try signing up a new user.
                     </TableCell>
                   </TableRow>
                 )}
