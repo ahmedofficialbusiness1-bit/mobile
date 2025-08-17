@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import * as React from 'react'
@@ -33,7 +34,6 @@ import {
 } from '@/components/ui/select'
 import { Product, PaymentMethod, Customer } from '@/context/financial-context'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
 
 export type VatRate = 0 | 0.15 | 0.18;
 
@@ -357,3 +357,4 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
     </Dialog>
   )
 }
+
