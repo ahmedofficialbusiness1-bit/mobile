@@ -64,13 +64,13 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password)
       const user = userCredential.user;
       
-      // Add the new user to the user accounts list
+      // Add the new user to the user accounts list in firestore
       await addUserAccount({
-          id: user.uid,
           companyName: values.companyName,
           phone: values.phone,
           email: values.email,
           address: values.address || '',
+          id: user.uid
       });
 
       toast({

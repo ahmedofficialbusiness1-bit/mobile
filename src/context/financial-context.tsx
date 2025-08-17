@@ -5,6 +5,9 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useCa
 import { differenceInYears, format, isAfter } from 'date-fns';
 import type { SaleFormData, VatRate } from '@/app/sales/sale-form';
 import type { InvoiceFormData, InvoiceItem } from '@/app/invoices/invoice-form';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, addDoc, deleteDoc, doc } from 'firebase/firestore';
+
 
 // --- Type Definitions ---
 export type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit" | "Prepaid";
@@ -218,11 +221,11 @@ interface FinancialContextType {
     markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => void;
     markPrepaymentAsUsed: (id: string) => void;
     markPrepaymentAsRefunded: (id: string) => void;
-    addCustomer: (customerData: Omit<Customer, 'id'>) => Promise<void>;
-    updateCustomer: (id: string, customerData: Omit<Customer, 'id'>) => Promise<void>;
-    deleteCustomer: (id: string) => Promise<void>;
-    addUserAccount: (userData: UserAccount) => void;
-    deleteUserAccount: (id: string) => void;
+    addCustomer: (customerData: Omit<Customer, 'id'>) => void;
+    updateCustomer: (id: string, customerData: Omit<Customer, 'id'>) => void;
+    deleteCustomer: (id: string) => void;
+    addUserAccount: (userData: Omit<UserAccount, 'id'>) => Promise<void>;
+    deleteUserAccount: (id: string) => Promise<void>;
     addAsset: (assetData: AddAssetData) => void;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => void;
     writeOffAsset: (id: string) => void;
@@ -296,6 +299,20 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([])
     const [invoices, setInvoices] = useState<Invoice[]>([])
     const [cashBalances, setCashBalances] = useState({ cash: 0, bank: 0, mobile: 0 });
+
+     useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'userAccounts'), (snapshot) => {
+            const accountsData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as UserAccount[];
+            setUserAccounts(accountsData);
+        }, (error) => {
+            console.error("Error fetching user accounts:", error);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     const recalculateBalances = useCallback(() => {
         let cash = 0;
@@ -515,25 +532,25 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         );
     };
 
-    const addCustomer = async (customerData: Omit<Customer, 'id'>) => {
+    const addCustomer = (customerData: Omit<Customer, 'id'>) => {
         const newCustomer = { id: `cust-${Date.now()}`, ...customerData };
         setCustomers(prev => [...prev, newCustomer]);
     };
 
-    const updateCustomer = async (id: string, customerData: Omit<Customer, 'id'>) => {
+    const updateCustomer = (id: string, customerData: Omit<Customer, 'id'>) => {
         setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...customerData } : c));
     };
 
-    const deleteCustomer = async (id: string) => {
+    const deleteCustomer = (id: string) => {
         setCustomers(prev => prev.filter(c => c.id !== id));
     };
 
-    const addUserAccount = (userData: UserAccount) => {
-        setUserAccounts(prev => [...prev, userData]);
+    const addUserAccount = async (userData: Omit<UserAccount, 'id'>) => {
+        await addDoc(collection(db, 'userAccounts'), userData);
     }
 
-    const deleteUserAccount = (id: string) => {
-        setUserAccounts(prev => prev.filter(u => u.id !== id));
+    const deleteUserAccount = async (id: string) => {
+        await deleteDoc(doc(db, 'userAccounts', id));
     }
     
     const addAsset = (assetData: AddAssetData) => {
