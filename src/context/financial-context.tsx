@@ -428,7 +428,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 repaid: ownerLoans.find(l => l.id === c.id)?.repaid || 0
             }));
         setOwnerLoans(loans);
-    }, [capitalContributions, ownerLoans]);
+    }, [capitalContributions]);
 
 
     const addSale = async (saleData: SaleFormData) => {
@@ -641,8 +641,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         batch.set(doc(capRef), newDrawing);
         
         // This is tricky as OwnerLoan is derived state. We need to update the source capitalContribution
-        const loanContributionRef = doc(db, 'capitalContributions', loanId);
-        // We'll need a "repaid" field on the liability capital contribution
         // For simplicity, this action will just create the drawing for now.
         // A more complex system would link these.
 
