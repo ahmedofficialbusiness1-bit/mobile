@@ -60,7 +60,7 @@ export interface UserAccount {
     companyName: string;
     email: string;
     phone: string;
-    address?: string;
+    country: string;
 }
 
 
@@ -224,7 +224,7 @@ interface FinancialContextType {
     addCustomer: (customerData: Omit<Customer, 'id'>) => void;
     updateCustomer: (id: string, customerData: Omit<Customer, 'id'>) => void;
     deleteCustomer: (id: string) => void;
-    addUserAccount: (userData: Omit<UserAccount, 'id'>) => Promise<void>;
+    addUserAccount: (userData: Omit<UserAccount, 'id'> & { id: string }) => Promise<void>;
     deleteUserAccount: (id: string) => Promise<void>;
     addAsset: (assetData: AddAssetData) => void;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => void;
@@ -545,8 +545,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         setCustomers(prev => prev.filter(c => c.id !== id));
     };
 
-    const addUserAccount = async (userData: Omit<UserAccount, 'id'>) => {
-        await addDoc(collection(db, 'userAccounts'), userData);
+    const addUserAccount = async (userData: Omit<UserAccount, 'id'> & { id: string }) => {
+        const { id, ...data } = userData;
+        await addDoc(collection(db, 'userAccounts'), data);
     }
 
     const deleteUserAccount = async (id: string) => {
@@ -674,9 +675,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     
     const approveExpense = (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => {
         const { amount, paymentMethod } = paymentData;
-        const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
-        if (amount > balance) {
-            throw new Error(`Insufficient funds in ${paymentMethod} account. Required: ${amount}, Available: ${balance}`);
+        const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
+
+        if (cashBalances[balanceKey] < amount) {
+            throw new Error(`Insufficient funds in ${paymentMethod} account. Required: ${amount}, Available: ${cashBalances[balanceKey]}`);
         }
 
         setExpenses(prev => 
@@ -704,9 +706,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     
     const processPayroll = (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => {
         const { amount, paymentMethod } = paymentData;
-        const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
-        if (amount > balance) {
-            throw new Error(`Insufficient funds for payroll in ${paymentMethod}. Required: ${amount}, Available: ${balance}`);
+        const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
+        if (cashBalances[balanceKey] < amount) {
+            throw new Error(`Insufficient funds for payroll in ${paymentMethod}. Required: ${amount}, Available: ${cashBalances[balanceKey]}`);
         }
 
         const currentMonth = format(new Date(), 'MMMM yyyy');
@@ -743,9 +745,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         paymentMethod: PaymentMethod;
     }) => {
         const { netSalary, paymentMethod, grossSalary, employeeId } = data;
-        const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
-        if (netSalary > balance) {
-            throw new Error(`Insufficient funds for payroll in ${paymentMethod}. Required: ${netSalary}, Available: ${balance}`);
+        const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
+        if (cashBalances[balanceKey] < netSalary) {
+            throw new Error(`Insufficient funds for payroll in ${paymentMethod}. Required: ${netSalary}, Available: ${cashBalances[balanceKey]}`);
         }
 
         const currentMonth = format(new Date(), 'MMMM yyyy');
@@ -781,7 +783,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
         setPurchaseOrders(prev => [...prev, newPO]);
 
-        if (newPO.paymentStatus === 'Unpaid' && (newPO.paymentTerms.startsWith('Credit') || newPO.paymentMethod === 'Credit')) {
+        if (newPO.paymentStatus === 'Unpaid') {
             const totalAmount = newPO.items.reduce((sum, item) => sum + item.totalPrice, 0);
             const newPayable: Payable = {
                 id: `payable-po-${newPO.id}`,
@@ -848,8 +850,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     
     const payPurchaseOrder = (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => {
         const { amount, paymentMethod } = paymentData;
-        const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
-        if (amount > balance) {
+        const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
+        if (cashBalances[balanceKey] < amount) {
             throw new Error(`Insufficient funds in ${paymentMethod} account.`);
         }
 

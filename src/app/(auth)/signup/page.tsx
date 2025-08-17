@@ -26,16 +26,24 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { Logo } from '@/components/logo'
+import { countries } from '@/lib/countries'
 
 
 const formSchema = z.object({
   companyName: z.string().min(2, { message: 'Company name is required.' }),
-  address: z.string().optional(),
+  country: z.string({ required_error: 'Please select a country.' }),
   phone: z.string().min(10, { message: 'Please enter a valid phone number.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
@@ -51,7 +59,6 @@ export default function SignupPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       companyName: '',
-      address: '',
       phone: '',
       email: '',
       password: '',
@@ -64,12 +71,13 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password)
       const user = userCredential.user;
       
-      // Add the new user to the user accounts list in firestore
+      const selectedCountry = countries.find(c => c.value === values.country);
+      
       await addUserAccount({
           companyName: values.companyName,
           phone: values.phone,
           email: values.email,
-          address: values.address || '',
+          country: selectedCountry?.label || values.country,
           id: user.uid
       });
 
@@ -117,13 +125,24 @@ export default function SignupPage() {
               />
                <FormField
                 control={form.control}
-                name="address"
+                name="country"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Address (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Mbezi Beach, Dar es Salaam" {...field} />
-                    </FormControl>
+                    <FormLabel>Country</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select your country" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {countries.map(country => (
+                                <SelectItem key={country.value} value={country.value}>
+                                    {country.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

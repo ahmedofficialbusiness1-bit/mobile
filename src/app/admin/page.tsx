@@ -104,7 +104,8 @@ export default function AdminPage() {
     (user) => {
         const nameMatch = user.companyName && user.companyName.toLowerCase().includes(searchTerm.toLowerCase());
         const phoneMatch = user.phone && user.phone.includes(searchTerm);
-        return nameMatch || phoneMatch;
+        const countryMatch = user.country && user.country.toLowerCase().includes(searchTerm.toLowerCase());
+        return nameMatch || phoneMatch || countryMatch;
     }
   )
 
@@ -131,7 +132,7 @@ export default function AdminPage() {
             <div className="relative w-full sm:max-w-xs">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                placeholder="Search by company or phone..."
+                placeholder="Search by company, phone, or country..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -146,6 +147,7 @@ export default function AdminPage() {
                 <TableRow>
                   <TableHead>User</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Country</TableHead>
                   <TableHead className="text-center">Account Status</TableHead>
                   <TableHead className="text-center">Payment Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -170,6 +172,9 @@ export default function AdminPage() {
                       </TableCell>
                        <TableCell className="whitespace-nowrap">
                         {user.email}
+                      </TableCell>
+                       <TableCell className="whitespace-nowrap">
+                        {user.country}
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant={user.accountStatus === 'Active' ? 'default' : 'secondary'}
@@ -252,7 +257,7 @@ export default function AdminPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center">
                       No user accounts found.
                     </TableCell>
                   </TableRow>
