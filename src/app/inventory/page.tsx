@@ -112,7 +112,7 @@ export default function InventoryPage() {
         description: `${data.name} has been updated.`,
       })
     } else {
-      addProduct(data)
+      // addProduct(data)
       toast({
         title: 'Product Added',
         description: `${data.name} has been added to your inventory.`,

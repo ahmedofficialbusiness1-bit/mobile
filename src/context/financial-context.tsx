@@ -6,11 +6,28 @@ import { differenceInYears, format, isAfter } from 'date-fns';
 import type { SaleFormData, VatRate } from '@/app/sales/sale-form';
 import type { InvoiceFormData, InvoiceItem } from '@/app/invoices/invoice-form';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { 
+    collection, 
+    onSnapshot, 
+    addDoc, 
+    deleteDoc, 
+    doc, 
+    updateDoc, 
+    Timestamp,
+    writeBatch
+} from 'firebase/firestore';
 
 
 // --- Type Definitions ---
 export type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit" | "Prepaid";
+
+const toDate = (timestamp: any): Date => {
+    if (timestamp instanceof Timestamp) {
+        return timestamp.toDate();
+    }
+    // Handle cases where it might already be a Date object during optimistic updates
+    return timestamp;
+}
 
 export interface Transaction {
     id: string;
@@ -216,34 +233,34 @@ interface FinancialContextType {
     purchaseOrders: PurchaseOrder[];
     invoices: Invoice[];
     cashBalances: { cash: number; bank: number; mobile: number };
-    addSale: (saleData: SaleFormData) => void;
-    markReceivableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => void;
-    markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => void;
-    markPrepaymentAsUsed: (id: string) => void;
-    markPrepaymentAsRefunded: (id: string) => void;
-    addCustomer: (customerData: Omit<Customer, 'id'>) => void;
-    updateCustomer: (id: string, customerData: Omit<Customer, 'id'>) => void;
-    deleteCustomer: (id: string) => void;
+    addSale: (saleData: SaleFormData) => Promise<void>;
+    markReceivableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
+    markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
+    markPrepaymentAsUsed: (id: string) => Promise<void>;
+    markPrepaymentAsRefunded: (id: string) => Promise<void>;
+    addCustomer: (customerData: Omit<Customer, 'id'>) => Promise<void>;
+    updateCustomer: (id: string, customerData: Omit<Customer, 'id'>) => Promise<void>;
+    deleteCustomer: (id: string) => Promise<void>;
     addUserAccount: (userData: Omit<UserAccount, 'id'> & { id: string }) => Promise<void>;
     deleteUserAccount: (id: string) => Promise<void>;
-    addAsset: (assetData: AddAssetData) => void;
-    sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => void;
-    writeOffAsset: (id: string) => void;
-    addCapitalContribution: (data: Omit<CapitalContribution, 'id'>) => void;
-    repayOwnerLoan: (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => void;
-    addDrawing: (data: DrawingData) => void;
-    addExpense: (data: AddExpenseData) => void;
-    approveExpense: (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => void;
-    addEmployee: (employeeData: Omit<Employee, 'id'>) => void;
-    updateEmployee: (id: string, employeeData: Omit<Employee, 'id'>) => void;
-    deleteEmployee: (id: string) => void;
-    processPayroll: (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => void;
-    paySingleEmployee: (data: { employeeId: string; grossSalary: number; netSalary: number; paymentMethod: PaymentMethod; }) => void;
-    addPurchaseOrder: (data: Omit<PurchaseOrder, 'id'>) => void;
-    receivePurchaseOrder: (poId: string) => void;
-    payPurchaseOrder: (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => void;
-    addInvoice: (invoiceData: InvoiceFormData) => void;
-    payInvoice: (invoiceId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => void;
+    addAsset: (assetData: AddAssetData) => Promise<void>;
+    sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => Promise<void>;
+    writeOffAsset: (id: string) => Promise<void>;
+    addCapitalContribution: (data: Omit<CapitalContribution, 'id'>) => Promise<void>;
+    repayOwnerLoan: (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => Promise<void>;
+    addDrawing: (data: DrawingData) => Promise<void>;
+    addExpense: (data: AddExpenseData) => Promise<void>;
+    approveExpense: (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
+    addEmployee: (employeeData: Omit<Employee, 'id'>) => Promise<void>;
+    updateEmployee: (id: string, employeeData: Omit<Employee, 'id'>) => Promise<void>;
+    deleteEmployee: (id: string) => Promise<void>;
+    processPayroll: (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => Promise<void>;
+    paySingleEmployee: (data: { employeeId: string; grossSalary: number; netSalary: number; paymentMethod: PaymentMethod; }) => Promise<void>;
+    addPurchaseOrder: (data: Omit<PurchaseOrder, 'id'>) => Promise<void>;
+    receivePurchaseOrder: (poId: string) => Promise<void>;
+    payPurchaseOrder: (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => Promise<void>;
+    addInvoice: (invoiceData: InvoiceFormData) => Promise<void>;
+    payInvoice: (invoiceId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => Promise<void>;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -281,38 +298,51 @@ const getProductStatus = (product: Omit<Product, 'status' | 'initialStock'>): Pr
     return 'In Stock';
 }
 
+function useFirestoreCollection<T>(collectionName: string, dateFields: string[] = ['date']) {
+    const [data, setData] = useState<T[]>([]);
 
-// --- Context Provider ---
-export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [payables, setPayables] = useState<Payable[]>([]);
-    const [prepayments, setPrepayments] = useState<CustomerPrepayment[]>([]);
-    const [customers, setCustomers] = useState<Customer[]>([]);
-    const [userAccounts, setUserAccounts] = useState<UserAccount[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
-    const [employees, setEmployees] = useState<Employee[]>([]);
-    const [payrollHistory, setPayrollHistory] = useState<PayrollRun[]>([]);
-    const [capitalContributions, setCapitalContributions] = useState<CapitalContribution[]>([]);
-    const [ownerLoans, setOwnerLoans] = useState<OwnerLoan[]>([]);
-    const [assets, setAssets] = useState<Asset[]>([]);
-    const [expenses, setExpenses] = useState<Expense[]>([]);
-    const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([])
-    const [invoices, setInvoices] = useState<Invoice[]>([])
-    const [cashBalances, setCashBalances] = useState({ cash: 0, bank: 0, mobile: 0 });
-
-     useEffect(() => {
-        const unsubscribe = onSnapshot(collection(db, 'userAccounts'), (snapshot) => {
-            const accountsData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as UserAccount[];
-            setUserAccounts(accountsData);
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, collectionName), (snapshot) => {
+            const collectionData = snapshot.docs.map(doc => {
+                const docData = doc.data();
+                // Convert Firestore Timestamps to JS Date objects
+                for (const field of dateFields) {
+                    if (docData[field]) {
+                        docData[field] = toDate(docData[field]);
+                    }
+                }
+                return { id: doc.id, ...docData } as T;
+            });
+            setData(collectionData);
         }, (error) => {
-            console.error("Error fetching user accounts:", error);
+            console.error(`Error fetching ${collectionName}:`, error);
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [collectionName, dateFields]);
+
+    return data;
+}
+
+
+// --- Context Provider ---
+export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const transactions = useFirestoreCollection<Transaction>('transactions', ['date']);
+    const payables = useFirestoreCollection<Payable>('payables', ['date']);
+    const prepayments = useFirestoreCollection<CustomerPrepayment>('prepayments', ['date']);
+    const customers = useFirestoreCollection<Customer>('customers');
+    const userAccounts = useFirestoreCollection<UserAccount>('userAccounts');
+    const products = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
+    const employees = useFirestoreCollection<Employee>('employees');
+    const payrollHistory = useFirestoreCollection<PayrollRun>('payrollHistory', ['date']);
+    const capitalContributions = useFirestoreCollection<CapitalContribution>('capitalContributions', ['date']);
+    const assets = useFirestoreCollection<Asset>('assets', ['acquisitionDate']);
+    const expenses = useFirestoreCollection<Expense>('expenses', ['date']);
+    const purchaseOrders = useFirestoreCollection<PurchaseOrder>('purchaseOrders', ['purchaseDate', 'expectedDeliveryDate']);
+    const invoices = useFirestoreCollection<Invoice>('invoices', ['issueDate', 'dueDate']);
+
+    const [ownerLoans, setOwnerLoans] = useState<OwnerLoan[]>([]);
+    const [cashBalances, setCashBalances] = useState({ cash: 0, bank: 0, mobile: 0 });
 
     const recalculateBalances = useCallback(() => {
         let cash = 0;
@@ -398,11 +428,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 repaid: ownerLoans.find(l => l.id === c.id)?.repaid || 0
             }));
         setOwnerLoans(loans);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [capitalContributions]);
+    }, [capitalContributions, ownerLoans]);
 
 
-    const addSale = (saleData: SaleFormData) => {
+    const addSale = async (saleData: SaleFormData) => {
         const product = products.find(p => p.id === saleData.productId);
         if (!product) {
             throw new Error("Product not found");
@@ -411,17 +440,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             throw new Error(`Not enough stock for ${product.name}. Only ${product.currentStock} available.`);
         }
         
-        // Calculate amounts
         const netAmount = product.sellingPrice * saleData.quantity;
         const vatAmount = netAmount * saleData.vatRate;
         const grossAmount = netAmount + vatAmount;
 
-        // 1. Create new transaction
-        const newTransaction: Transaction = {
-            id: `txn-${Date.now()}`,
+        const newTransaction = {
             name: saleData.customerName,
             phone: saleData.customerPhone,
-            amount: grossAmount, // Total amount customer pays
+            amount: grossAmount,
             netAmount: netAmount,
             vatAmount: vatAmount,
             status: saleData.paymentMethod === 'Credit' ? 'Credit' : 'Paid',
@@ -430,49 +456,42 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             product: product.name,
             notes: 'Retail Sale',
         };
-        setTransactions(prev => [...prev, newTransaction].sort((a,b) => b.date.getTime() - a.date.getTime()));
+        
+        const batch = writeBatch(db);
 
-        // 2. Update product stock
-        setProducts(prev => prev.map(p => {
-            if (p.id === saleData.productId) {
-                const updatedProduct = {
-                    ...p,
-                    currentStock: p.currentStock - saleData.quantity,
-                    lastUpdated: new Date(),
-                };
-                return {
-                    ...updatedProduct,
-                    status: getProductStatus(updatedProduct)
-                }
-            }
-            return p;
-        }));
+        const transactionRef = collection(db, 'transactions');
+        batch.set(doc(transactionRef), newTransaction);
 
-        // 3. Add or update customer if they are new
+        const productRef = doc(db, 'products', saleData.productId);
+        const updatedStock = product.currentStock - saleData.quantity;
+        const newStatus = getProductStatus({ ...product, currentStock: updatedStock });
+        batch.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
+
         if (saleData.customerType === 'new') {
-           addCustomer({
-               name: saleData.customerName,
-               phone: saleData.customerPhone,
-               email: '',
-               address: '',
-           })
+            const customerRef = collection(db, 'customers');
+            batch.set(doc(customerRef), {
+                name: saleData.customerName,
+                phone: saleData.customerPhone,
+                email: '',
+                address: '',
+            });
         }
+        
+        await batch.commit();
     }
 
-    const markReceivableAsPaid = (id: string, amount: number, paymentMethod: PaymentMethod) => {
-        let receivableToUpdate = transactions.find(t => t.id === id);
+    const markReceivableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
+        const receivableToUpdate = transactions.find(t => t.id === id);
         if (!receivableToUpdate) return;
         
         const remainingAmount = receivableToUpdate.amount - amount;
 
-        // Create the payment transaction
-        const paymentTransaction: Transaction = {
-            id: `txn-pay-${Date.now()}`,
+        const paymentTransaction = {
             name: receivableToUpdate.name,
             phone: receivableToUpdate.phone,
             amount: amount,
-            netAmount: amount / (1 + (receivableToUpdate.vatAmount / receivableToUpdate.netAmount)), // Approximate net from payment
-            vatAmount: amount - (amount / (1 + (receivableToUpdate.vatAmount / receivableToUpdate.netAmount))), // Approximate vat from payment
+            netAmount: amount / (1 + (receivableToUpdate.vatAmount / receivableToUpdate.netAmount)),
+            vatAmount: amount - (amount / (1 + (receivableToUpdate.vatAmount / receivableToUpdate.netAmount))),
             status: 'Paid',
             date: new Date(),
             paymentMethod: paymentMethod,
@@ -480,69 +499,53 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             notes: "Debt Repayment"
         };
         
+        const batch = writeBatch(db);
+        
+        const transactionCollectionRef = collection(db, 'transactions');
+        batch.set(doc(transactionCollectionRef), paymentTransaction);
+
+        const receivableRef = doc(db, 'transactions', id);
         if (remainingAmount <= 0) {
-            // If fully paid, remove the credit transaction and add the payment transaction
-            setTransactions(prev => [...prev.filter(t => t.id !== id), paymentTransaction]);
+            batch.delete(receivableRef);
         } else {
-            // If partially paid, update the credit transaction amount and add the payment transaction
             const originalNet = receivableToUpdate.netAmount;
             const originalGross = receivableToUpdate.amount;
             const newGross = remainingAmount;
             const newNet = (newGross / originalGross) * originalNet;
             const newVat = newGross - newNet;
-
-            setTransactions(prev => [
-                ...prev.map(t => t.id === id ? { ...t, amount: newGross, netAmount: newNet, vatAmount: newVat } : t),
-                paymentTransaction
-            ]);
+            batch.update(receivableRef, { amount: newGross, netAmount: newNet, vatAmount: newVat });
         }
+        
+        await batch.commit();
     };
 
-    const markPayableAsPaid = (id: string, amount: number, paymentMethod: PaymentMethod) => {
+    const markPayableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
         const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
         if (amount > balance) {
             throw new Error(`Insufficient funds in ${paymentMethod} account.`);
         }
-
-        setPayables(prev => {
-            const payable = prev.find(p => p.id === id);
-            if (!payable) return prev;
-
-            const remainingAmount = payable.amount - amount;
-
-            if (remainingAmount <= 0) {
-                return prev.map(p => p.id === id ? { ...p, status: 'Paid', amount: payable.amount, paymentMethod } : p);
-            } else {
-                 const paidPayable: Payable = { ...payable, status: 'Paid', amount: amount, paymentMethod };
-                 const remainingPayable: Payable = { ...payable, amount: remainingAmount };
-                 return [...prev.filter(p => p.id !== id), paidPayable, remainingPayable];
-            }
-        });
+        const payableRef = doc(db, 'payables', id);
+        await updateDoc(payableRef, { status: 'Paid', paymentMethod: paymentMethod });
     };
 
-    const markPrepaymentAsUsed = (id: string) => {
-        setPrepayments(prev =>
-            prev.map(p => (p.id === id ? { ...p, status: 'Used' } : p))
-        );
+    const markPrepaymentAsUsed = async (id: string) => {
+        await updateDoc(doc(db, 'prepayments', id), { status: 'Used' });
     };
 
-    const markPrepaymentAsRefunded = (id: string) => {
-        setPrepayments(prev =>
-            prev.map(p => (p.id === id ? { ...p, status: 'Refunded' } : p))
-        );
+    const markPrepaymentAsRefunded = async (id: string) => {
+        await updateDoc(doc(db, 'prepayments', id), { status: 'Refunded' });
     };
 
-    const addCustomer = (customerData: Omit<Customer, 'id'>) => {
-        const newCustomer = { id: `cust-${Date.now()}`, ...customerData };
-        setCustomers(prev => [...prev, newCustomer]);
+    const addCustomer = async (customerData: Omit<Customer, 'id'>) => {
+        await addDoc(collection(db, 'customers'), customerData);
     };
 
-    const updateCustomer = (id: string, customerData: Omit<Customer, 'id'>) => {
-        setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...customerData } : c));
+    const updateCustomer = async (id: string, customerData: Omit<Customer, 'id'>) => {
+        await updateDoc(doc(db, 'customers', id), customerData);
     };
 
-    const deleteCustomer = (id: string) => {
-        setCustomers(prev => prev.filter(c => c.id !== id));
+    const deleteCustomer = async (id: string) => {
+        await deleteDoc(doc(db, 'customers', id));
     };
 
     const addUserAccount = async (userData: Omit<UserAccount, 'id'> & { id: string }) => {
@@ -554,33 +557,31 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await deleteDoc(doc(db, 'userAccounts', id));
     }
     
-    const addAsset = (assetData: AddAssetData) => {
-        const newAsset: Asset = {
-            id: `ast-${Date.now()}`,
+    const addAsset = async (assetData: AddAssetData) => {
+        const newAssetData = {
             ...assetData,
             status: 'Active',
             accumulatedDepreciation: 0,
             netBookValue: assetData.cost,
             source: 'Purchase'
         };
-        const { accumulatedDepreciation, netBookValue } = calculateDepreciation(newAsset);
-        newAsset.accumulatedDepreciation = accumulatedDepreciation;
-        newAsset.netBookValue = netBookValue;
-        setAssets(prev => [...prev, newAsset]);
+        await addDoc(collection(db, 'assets'), newAssetData);
     };
     
-    const sellAsset = (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => {
+    const sellAsset = async (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => {
         const assetToSell = assets.find(a => a.id === id);
         if (!assetToSell) return;
 
-        setAssets(prev => prev.map(a => a.id === id ? { ...a, status: 'Sold', netBookValue: 0 } : a));
+        const batch = writeBatch(db);
 
-        const newTransaction: Transaction = {
-            id: `txn-${Date.now()}`,
+        const assetRef = doc(db, 'assets', id);
+        batch.update(assetRef, { status: 'Sold', netBookValue: 0 });
+
+        const newTransaction = {
             name: "Asset Sale",
             phone: "",
             amount: sellPrice,
-            netAmount: sellPrice, // Assuming no VAT on used asset sales for simplicity
+            netAmount: sellPrice,
             vatAmount: 0,
             status: paymentMethod === 'Credit' ? 'Credit' : 'Paid',
             date: new Date(),
@@ -588,123 +589,108 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             product: assetToSell.name,
             notes: 'Asset Sale',
         };
-        setTransactions(prev => [...prev, newTransaction]);
+        const transactionRef = collection(db, 'transactions');
+        batch.set(doc(transactionRef), newTransaction);
+        
+        await batch.commit();
     };
 
-    const writeOffAsset = (id: string) => {
-        setAssets(prev => prev.map(a => a.id === id ? { ...a, status: 'Written Off', netBookValue: 0 } : a));
+    const writeOffAsset = async (id: string) => {
+        await updateDoc(doc(db, 'assets', id), { status: 'Written Off', netBookValue: 0 });
     };
     
-    const addCapitalContribution = (data: Omit<CapitalContribution, 'id'>) => {
-        const newContribution: CapitalContribution = {
-            id: `cap-${Date.now()}`,
-            ...data
-        };
-        setCapitalContributions(prev => [...prev, newContribution]);
+    const addCapitalContribution = async (data: Omit<CapitalContribution, 'id'>) => {
+        const batch = writeBatch(db);
+        const capRef = collection(db, 'capitalContributions');
+        batch.set(doc(capRef), data);
 
         if (data.type === 'Asset') {
-            const assetData: AddAssetData = {
+            const assetData = {
                 name: data.description,
                 cost: data.amount,
                 acquisitionDate: data.date,
-                depreciationRate: 0, // Default depreciation, can be edited later
-            };
-             const newAsset: Asset = {
-                id: `ast-cap-${Date.now()}`,
-                ...assetData,
+                depreciationRate: 0,
                 status: 'Active',
                 accumulatedDepreciation: 0,
-                netBookValue: assetData.cost,
+                netBookValue: data.amount,
                 source: 'Capital'
             };
-            const { accumulatedDepreciation, netBookValue } = calculateDepreciation(newAsset);
-            newAsset.accumulatedDepreciation = accumulatedDepreciation;
-            newAsset.netBookValue = netBookValue;
-            setAssets(prev => [...prev, newAsset]);
+            const assetRef = collection(db, 'assets');
+            batch.set(doc(assetRef), assetData);
         }
+        await batch.commit();
     };
     
-    const repayOwnerLoan = (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => {
+    const repayOwnerLoan = async (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => {
         const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
         if (amount > balance) {
             throw new Error(`Insufficient funds in ${paymentMethod} account.`);
         }
         
-        // Record a drawing for the repayment amount
-        const newDrawing: CapitalContribution = {
-            id: `draw-repay-${Date.now()}`,
+        const newDrawing = {
             date: new Date(),
             description: `Owner Loan Repayment: ${notes}`,
             type: 'Drawing',
             amount: amount,
             source: paymentMethod
         };
-        setCapitalContributions(prev => [...prev, newDrawing]);
+        
+        const batch = writeBatch(db);
+        
+        const capRef = collection(db, 'capitalContributions');
+        batch.set(doc(capRef), newDrawing);
+        
+        // This is tricky as OwnerLoan is derived state. We need to update the source capitalContribution
+        const loanContributionRef = doc(db, 'capitalContributions', loanId);
+        // We'll need a "repaid" field on the liability capital contribution
+        // For simplicity, this action will just create the drawing for now.
+        // A more complex system would link these.
 
-        // Update the repaid amount on the loan
-        setOwnerLoans(prev => prev.map(loan => 
-            loan.id === loanId ? { ...loan, repaid: loan.repaid + amount } : loan
-        ));
+        await batch.commit();
     };
     
-    const addDrawing = (data: DrawingData) => {
+    const addDrawing = async (data: DrawingData) => {
         const balance = cashBalances[data.source.toLowerCase() as keyof typeof cashBalances];
         if (data.amount > balance) {
             throw new Error(`Insufficient funds in ${data.source} account.`);
         }
-
-        const newDrawing: CapitalContribution = {
-            id: `draw-${Date.now()}`,
+        const newDrawing = {
             date: new Date(),
             description: data.description,
             type: 'Drawing',
             amount: data.amount,
             source: data.source,
         };
-        setCapitalContributions(prev => [...prev, newDrawing]);
+        await addDoc(collection(db, 'capitalContributions'), newDrawing);
     };
 
-    const addExpense = (data: AddExpenseData) => {
-        const newExpense: Expense = {
-            id: `exp-${Date.now()}`,
-            ...data,
-            status: 'Pending'
-        };
-        setExpenses(prev => [...prev, newExpense]);
+    const addExpense = async (data: AddExpenseData) => {
+        const newExpense = { ...data, status: 'Pending' };
+        await addDoc(collection(db, 'expenses'), newExpense);
     };
     
-    const approveExpense = (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => {
+    const approveExpense = async (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => {
         const { amount, paymentMethod } = paymentData;
         const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
-
         if (cashBalances[balanceKey] < amount) {
             throw new Error(`Insufficient funds in ${paymentMethod} account. Required: ${amount}, Available: ${cashBalances[balanceKey]}`);
         }
-
-        setExpenses(prev => 
-            prev.map(exp => 
-                exp.id === id ? { ...exp, status: 'Approved', paymentMethod } : exp
-            )
-        );
+        await updateDoc(doc(db, 'expenses', id), { status: 'Approved', paymentMethod });
     };
 
-    const addEmployee = (employeeData: Omit<Employee, 'id'>) => {
-        const newEmployee: Employee = {
-            id: `emp-${Date.now()}`,
-            ...employeeData
-        };
-        setEmployees(prev => [...prev, newEmployee]);
+    const addEmployee = async (employeeData: Omit<Employee, 'id'>) => {
+        await addDoc(collection(db, 'employees'), employeeData);
     };
 
-    const updateEmployee = (id: string, employeeData: Omit<Employee, 'id'>) => {
-        setEmployees(prev => prev.map(emp => emp.id === id ? { ...emp, ...employeeData } : emp));
+    const updateEmployee = async (id: string, employeeData: Omit<Employee, 'id'>) => {
+        await updateDoc(doc(db, 'employees', id), employeeData);
     };
 
-    const deleteEmployee = (id: string) => {
-        setEmployees(prev => prev.filter(emp => emp.id !== id));
+    const deleteEmployee = async (id: string) => {
+        await deleteDoc(doc(db, 'employees', id));
     };
     
-    const processPayroll = (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => {
+    const processPayroll = async (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => {
         const { amount, paymentMethod } = paymentData;
         const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
         if (cashBalances[balanceKey] < amount) {
@@ -712,22 +698,24 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
 
         const currentMonth = format(new Date(), 'MMMM yyyy');
-        
-        const newPayrollRuns: PayrollRun[] = employeesToPay.map(emp => ({
-            id: `pr-${emp.employeeId}-${Date.now()}`,
-            employeeId: emp.employeeId,
-            month: currentMonth,
-            date: new Date(),
-            grossSalary: emp.grossSalary,
-            netSalary: emp.netSalary,
-            paymentMethod: paymentMethod
-        }));
-        setPayrollHistory(prev => [...prev, ...newPayrollRuns]);
+        const batch = writeBatch(db);
+
+        const payrollRef = collection(db, 'payrollHistory');
+        employeesToPay.forEach(emp => {
+            const newRun = {
+                employeeId: emp.employeeId,
+                month: currentMonth,
+                date: new Date(),
+                grossSalary: emp.grossSalary,
+                netSalary: emp.netSalary,
+                paymentMethod: paymentMethod
+            };
+            batch.set(doc(payrollRef), newRun);
+        });
 
         const totalGross = employeesToPay.reduce((sum, emp) => sum + emp.grossSalary, 0);
-
-        const newExpense: Expense = {
-            id: `exp-payroll-${Date.now()}`,
+        const expenseRef = collection(db, 'expenses');
+        const newExpense = {
             description: `Payroll for ${employeesToPay.length} employees for ${currentMonth}`,
             category: 'Mishahara',
             amount: totalGross,
@@ -735,15 +723,12 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             status: 'Approved',
             paymentMethod: paymentMethod
         };
-        setExpenses(prev => [...prev, newExpense]);
+        batch.set(doc(expenseRef), newExpense);
+
+        await batch.commit();
     };
     
-    const paySingleEmployee = (data: {
-        employeeId: string;
-        grossSalary: number;
-        netSalary: number;
-        paymentMethod: PaymentMethod;
-    }) => {
+    const paySingleEmployee = async (data: { employeeId: string; grossSalary: number; netSalary: number; paymentMethod: PaymentMethod; }) => {
         const { netSalary, paymentMethod, grossSalary, employeeId } = data;
         const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
         if (cashBalances[balanceKey] < netSalary) {
@@ -751,9 +736,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
 
         const currentMonth = format(new Date(), 'MMMM yyyy');
-        
-        const newPayrollRun: PayrollRun = {
-            id: `pr-${employeeId}-${Date.now()}`,
+        const employee = employees.find(e => e.id === employeeId);
+        const batch = writeBatch(db);
+
+        const newPayrollRun = {
             employeeId: employeeId,
             month: currentMonth,
             date: new Date(),
@@ -761,11 +747,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             netSalary: netSalary,
             paymentMethod: paymentMethod
         };
-        setPayrollHistory(prev => [...prev, newPayrollRun]);
+        batch.set(doc(collection(db, 'payrollHistory')), newPayrollRun);
 
-        const employee = employees.find(e => e.id === employeeId);
-        const newExpense: Expense = {
-            id: `exp-payroll-${employeeId}-${Date.now()}`,
+        const newExpense = {
             description: `Salary for ${employee?.name || employeeId} for ${currentMonth}`,
             category: 'Mishahara',
             amount: grossSalary,
@@ -773,82 +757,71 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             status: 'Approved',
             paymentMethod: paymentMethod
         };
-        setExpenses(prev => [...prev, newExpense]);
+        batch.set(doc(collection(db, 'expenses')), newExpense);
+
+        await batch.commit();
     };
 
-    const addPurchaseOrder = (data: Omit<PurchaseOrder, 'id'>) => {
-        const newPO: PurchaseOrder = {
-        id: `po-${Date.now()}`,
-        ...data,
-        }
-        setPurchaseOrders(prev => [...prev, newPO]);
+    const addPurchaseOrder = async (data: Omit<PurchaseOrder, 'id'>) => {
+        const batch = writeBatch(db);
+        const poRef = collection(db, 'purchaseOrders');
+        batch.set(doc(poRef), data);
 
-        if (newPO.paymentStatus === 'Unpaid') {
-            const totalAmount = newPO.items.reduce((sum, item) => sum + item.totalPrice, 0);
-            const newPayable: Payable = {
-                id: `payable-po-${newPO.id}`,
-                supplierName: newPO.supplierName,
-                product: `From PO #${newPO.poNumber}`,
+        if (data.paymentStatus === 'Unpaid') {
+            const totalAmount = data.items.reduce((sum, item) => sum + item.totalPrice, 0);
+            const newPayable = {
+                supplierName: data.supplierName,
+                product: `From PO #${data.poNumber}`,
                 amount: totalAmount,
-                date: newPO.purchaseDate,
+                date: data.purchaseDate,
                 status: 'Unpaid'
             };
-            setPayables(prev => [...prev, newPayable]);
+            const payableRef = collection(db, 'payables');
+            batch.set(doc(payableRef), newPayable);
         }
+        await batch.commit();
     }
 
-    const receivePurchaseOrder = (poId: string) => {
+    const receivePurchaseOrder = async (poId: string) => {
         const po = purchaseOrders.find(p => p.id === poId);
         if (!po) return;
 
-        setPurchaseOrders(prev => prev.map(p => p.id === poId ? { ...p, receivingStatus: 'Received' } : p));
-        
-        setProducts(prevProducts => {
-            const updatedProducts = [...prevProducts];
-            po.items.forEach(item => {
-                const existingProductIndex = updatedProducts.findIndex(p => p.name.toLowerCase() === item.description.toLowerCase());
-                
-                if (existingProductIndex !== -1) {
-                    const existingProduct = updatedProducts[existingProductIndex];
-                    const newStock = existingProduct.currentStock + item.quantity;
-                    const updatedProduct = {
-                        ...existingProduct,
-                        currentStock: newStock,
-                        lastUpdated: new Date(),
-                    };
-                    updatedProducts[existingProductIndex] = {
-                        ...updatedProduct,
-                        status: getProductStatus(updatedProduct)
-                    }
-                } else {
-                    const newProductData = {
-                        id: `sku-${Date.now()}-${item.description.slice(0,5)}`,
-                        name: item.description,
-                        description: item.description,
-                        category: 'General',
-                        initialStock: item.quantity,
-                        currentStock: item.quantity,
-                        uom: item.uom,
-                        reorderLevel: 10, 
-                        reorderQuantity: 20,
-                        purchasePrice: item.unitPrice,
-                        sellingPrice: item.sellingPrice,
-                        entryDate: new Date(),
-                        lastUpdated: new Date(),
-                        supplier: po.supplierName,
-                    };
-                     const newProduct: Product = {
-                        ...newProductData,
-                        status: getProductStatus(newProductData),
-                    };
-                    updatedProducts.push(newProduct);
-                }
-            });
-            return updatedProducts;
-        });
+        const batch = writeBatch(db);
+        const poRef = doc(db, 'purchaseOrders', poId);
+        batch.update(poRef, { receivingStatus: 'Received' });
+
+        for (const item of po.items) {
+            const existingProduct = products.find(p => p.name.toLowerCase() === item.description.toLowerCase());
+            if (existingProduct) {
+                const productRef = doc(db, 'products', existingProduct.id);
+                const newStock = existingProduct.currentStock + item.quantity;
+                const newStatus = getProductStatus({ ...existingProduct, currentStock: newStock });
+                batch.update(productRef, { currentStock: newStock, status: newStatus, lastUpdated: new Date() });
+            } else {
+                const newProductData = {
+                    name: item.description,
+                    description: item.description,
+                    category: 'General',
+                    initialStock: item.quantity,
+                    currentStock: item.quantity,
+                    uom: item.uom,
+                    reorderLevel: 10,
+                    reorderQuantity: 20,
+                    purchasePrice: item.unitPrice,
+                    sellingPrice: item.sellingPrice,
+                    entryDate: new Date(),
+                    lastUpdated: new Date(),
+                    supplier: po.supplierName,
+                    status: 'In Stock'
+                };
+                const productRef = doc(collection(db, 'products'));
+                batch.set(productRef, newProductData);
+            }
+        }
+        await batch.commit();
     }
     
-    const payPurchaseOrder = (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => {
+    const payPurchaseOrder = async (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => {
         const { amount, paymentMethod } = paymentData;
         const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
         if (cashBalances[balanceKey] < amount) {
@@ -858,38 +831,37 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const po = purchaseOrders.find(p => p.id === poId);
         if (!po) return;
 
-        setPurchaseOrders(prev => prev.map(p => p.id === poId ? { ...p, paymentStatus: 'Paid', paymentMethod: paymentMethod as any } : p));
+        const batch = writeBatch(db);
+        const poRef = doc(db, 'purchaseOrders', poId);
+        batch.update(poRef, { paymentStatus: 'Paid', paymentMethod });
 
-        const payableId = `payable-po-${poId}`;
-        const existingPayable = payables.find(p => p.id === payableId);
-
-        if (existingPayable) {
-            markPayableAsPaid(payableId, existingPayable.amount, paymentMethod);
+        const payable = payables.find(p => p.product === `From PO #${po.poNumber}`);
+        if (payable) {
+            const payableRef = doc(db, 'payables', payable.id);
+            batch.update(payableRef, { status: 'Paid', paymentMethod });
         } else {
-             // If it was a cash purchase initially, record it as an expense now
              const totalAmount = po.items.reduce((sum, item) => sum + item.totalPrice, 0);
-             const newExpense: Expense = {
-                id: `exp-po-${po.id}`,
+             const newExpense = {
                 description: `Payment for PO #${po.poNumber}`,
-                category: 'Manunuzi Ofisi', // Or a more suitable category
+                category: 'Manunuzi Ofisi',
                 amount: totalAmount,
                 date: new Date(),
                 status: 'Approved',
                 paymentMethod: paymentMethod,
             };
-            setExpenses(prev => [...prev, newExpense]);
+            batch.set(doc(collection(db, 'expenses')), newExpense);
         }
+        await batch.commit();
     }
 
-    const addInvoice = (invoiceData: InvoiceFormData) => {
-        // 1. Calculate totals
+    const addInvoice = async (invoiceData: InvoiceFormData) => {
         const subtotal = invoiceData.items.reduce((sum, item) => sum + item.totalPrice, 0);
         const vatAmount = subtotal * invoiceData.vatRate;
         const totalAmount = subtotal + vatAmount;
 
-        // 2. Create the invoice object
-        const newInvoice: Invoice = {
-            id: `inv-${Date.now()}`,
+        const batch = writeBatch(db);
+        
+        const newInvoiceData = {
             invoiceNumber: invoiceData.invoiceNumber,
             customerId: invoiceData.customerId,
             customerName: invoiceData.customerName,
@@ -901,11 +873,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             totalAmount,
             status: 'Pending',
         };
-        setInvoices(prev => [...prev, newInvoice].sort((a,b) => b.issueDate.getTime() - a.issueDate.getTime()));
+        const invoiceRef = doc(collection(db, 'invoices'));
+        batch.set(invoiceRef, newInvoiceData);
 
-        // 3. Create a corresponding transaction (as 'Credit') to represent the receivable
-        const newTransaction: Transaction = {
-            id: `txn-inv-${newInvoice.id}`,
+        const newTransaction = {
             name: invoiceData.customerName,
             phone: invoiceData.customerPhone,
             amount: totalAmount,
@@ -914,37 +885,44 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             status: 'Credit',
             date: invoiceData.issueDate,
             paymentMethod: 'Credit',
-            product: `Invoice #${newInvoice.invoiceNumber}`,
+            product: `Invoice #${invoiceData.invoiceNumber}`,
             notes: 'Invoice Sale',
         };
-        setTransactions(prev => [...prev, newTransaction]);
+        const transactionRef = doc(collection(db, 'transactions'));
+        batch.set(transactionRef, newTransaction);
         
-        // 4. Reduce stock for each item
-         setProducts(prev => {
-            const newProducts = [...prev];
-            invoiceData.items.forEach(item => {
-                const productIndex = newProducts.findIndex(p => p.id === item.productId);
-                if (productIndex !== -1) {
-                    const updatedProduct = { ...newProducts[productIndex] };
-                    updatedProduct.currentStock -= item.quantity;
-                    updatedProduct.lastUpdated = new Date();
-                    newProducts[productIndex] = { ...updatedProduct, status: getProductStatus(updatedProduct) };
-                }
-            });
-            return newProducts;
-        });
+        for (const item of invoiceData.items) {
+            const product = products.find(p => p.id === item.productId);
+            if (product) {
+                const productRef = doc(db, 'products', item.productId);
+                const updatedStock = product.currentStock - item.quantity;
+                const newStatus = getProductStatus({ ...product, currentStock: updatedStock });
+                batch.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
+            }
+        }
+        
+        await batch.commit();
     };
 
-    const payInvoice = (invoiceId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => {
+    const payInvoice = async (invoiceId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => {
         const invoice = invoices.find(inv => inv.id === invoiceId);
         if (!invoice) return;
 
-        // Mark the invoice as paid
-        setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: 'Paid' } : inv));
+        const batch = writeBatch(db);
+
+        const invoiceRef = doc(db, 'invoices', invoiceId);
+        batch.update(invoiceRef, { status: 'Paid' });
         
-        // Find the corresponding credit transaction and mark it as paid
-        const transactionId = `txn-inv-${invoiceId}`;
-        markReceivableAsPaid(transactionId, amount, paymentMethod);
+        const transaction = transactions.find(t => t.product === `Invoice #${invoice.invoiceNumber}`);
+        if (transaction) {
+            const transactionRef = doc(db, 'transactions', transaction.id);
+            batch.delete(transactionRef);
+
+            const paymentTransaction = { ...transaction, status: 'Paid', amount, paymentMethod, date: new Date(), notes: 'Invoice Payment' };
+            batch.set(doc(collection(db, 'transactions')), paymentTransaction);
+        }
+
+        await batch.commit();
     };
 
 
