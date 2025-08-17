@@ -32,7 +32,9 @@ interface CapitalFormProps {
 
 const formSchema = z.object({
   description: z.string().min(3, { message: "Description must be at least 3 characters." }),
-  type: z.enum(['Cash', 'Bank', 'Asset', 'Liability']),
+  type: z.enum(['Cash', 'Bank', 'Asset', 'Liability'], {
+    required_error: "Please select the type of capital.",
+  }),
   amount: z.coerce.number().min(1, { message: "Amount must be greater than zero." }),
   date: z.date({
     required_error: "A date is required.",
