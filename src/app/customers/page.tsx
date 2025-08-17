@@ -2,7 +2,7 @@
 'use client'
 
 import * as React from 'react'
-import { PlusCircle, MoreHorizontal, Search } from 'lucide-react'
+import { PlusCircle, MoreHorizontal, Search, Trash2 } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -24,14 +24,17 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { useFinancials, type Customer } from '@/context/financial-context'
 import { CustomerForm } from './customer-form'
 import { useToast } from '@/hooks/use-toast'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+
 
 export default function CustomersPage() {
-  const { customers, addCustomer, updateCustomer } = useFinancials()
+  const { customers, addCustomer, updateCustomer, deleteCustomer } = useFinancials()
   const { toast } = useToast()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null)
@@ -63,6 +66,15 @@ export default function CustomersPage() {
   const handleEdit = (customer: Customer) => {
     setSelectedCustomer(customer)
     setIsFormOpen(true)
+  }
+  
+  const handleDelete = (id: string, name: string) => {
+      deleteCustomer(id);
+      toast({
+        variant: 'destructive',
+        title: 'Customer Deleted',
+        description: `${name} has been removed from your list.`,
+      })
   }
 
   const filteredCustomers = customers.filter(customer =>
@@ -127,8 +139,29 @@ export default function CustomersPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                              <DropdownMenuItem>View History</DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleEdit(customer)}>Edit Details</DropdownMenuItem>
+                               <DropdownMenuSeparator />
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                               This action will permanently delete the customer {customer.name}. This cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDelete(customer.id, customer.name)} className="bg-destructive hover:bg-destructive/90">
+                                                Delete
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>

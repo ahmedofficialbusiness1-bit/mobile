@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input'
 import { InventorySummaryCards } from './inventory-summary-cards'
 import { InventoryDataTable } from './inventory-data-table'
 import { differenceInDays, startOfMonth, isWithinInterval } from 'date-fns'
-import { AddProductForm, type AddProductFormData } from './add-product-form'
+import { AddProductForm } from './add-product-form'
 import { useToast } from '@/hooks/use-toast'
 
 interface AgingData {
@@ -40,7 +40,7 @@ interface MonthlyStockData {
 }
 
 export default function InventoryPage() {
-  const { products, transactions, purchaseOrders, addProduct, updateProduct } = useFinancials()
+  const { products, transactions, purchaseOrders, addProduct, updateProduct, deleteProduct } = useFinancials()
   const { toast } = useToast()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
@@ -104,7 +104,7 @@ export default function InventoryPage() {
 
   }, [products, transactions, purchaseOrders]);
 
-  const handleSaveProduct = (data: AddProductFormData) => {
+  const handleSaveProduct = (data: Omit<Product, 'id' | 'status'>) => {
     if (selectedProduct) {
       updateProduct(selectedProduct.id, data)
       toast({
@@ -112,7 +112,7 @@ export default function InventoryPage() {
         description: `${data.name} has been updated.`,
       })
     } else {
-      // addProduct(data)
+      addProduct(data)
       toast({
         title: 'Product Added',
         description: `${data.name} has been added to your inventory.`,
@@ -130,6 +130,15 @@ export default function InventoryPage() {
   const handleEditClick = (product: Product) => {
     setSelectedProduct(product)
     setIsFormOpen(true)
+  }
+
+  const handleDeleteClick = (product: Product) => {
+    deleteProduct(product.id)
+    toast({
+        title: 'Product Deleted',
+        description: `${product.name} has been deleted from inventory.`,
+        variant: 'destructive',
+    })
   }
 
 
@@ -254,7 +263,7 @@ export default function InventoryPage() {
               </div>
             </div>
             <TabsContent value={statusFilter}>
-                <InventoryDataTable products={filteredProducts} onEdit={handleEditClick} />
+                <InventoryDataTable products={filteredProducts} onEdit={handleEditClick} onDelete={handleDeleteClick} />
             </TabsContent>
           </Tabs>
         </CardContent>

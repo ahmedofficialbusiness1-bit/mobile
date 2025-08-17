@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
@@ -41,6 +40,8 @@ export interface Transaction {
     date: Date;
     paymentMethod: PaymentMethod;
     product: string;
+    productId: string; // Keep track of product ID for stock reversal
+    quantity: number; // Keep track of quantity for stock reversal
     notes?: string;
 }
 
@@ -83,7 +84,7 @@ export interface UserAccount {
 
 
 export interface Product {
-  id: string; // SKU
+  id: string;
   name: string;
   category: string;
   description?: string;
@@ -125,7 +126,6 @@ export interface CapitalContribution {
   description: string;
   type: 'Cash' | 'Bank' | 'Asset' | 'Liability' | 'Drawing';
   amount: number;
-  source?: 'Cash' | 'Bank' | 'Mobile';
 }
 
 export interface OwnerLoan {
@@ -134,12 +134,6 @@ export interface OwnerLoan {
     description: string;
     amount: number;
     repaid: number;
-}
-
-export interface DrawingData {
-  amount: number;
-  source: 'Cash' | 'Bank' | 'Mobile';
-  description: string;
 }
 
 export interface Employee {
@@ -235,6 +229,7 @@ interface FinancialContextType {
     invoices: Invoice[];
     cashBalances: { cash: number; bank: number; mobile: number };
     addSale: (saleData: SaleFormData) => Promise<void>;
+    deleteSale: (saleId: string) => Promise<void>;
     markReceivableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
     markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
     markPrepaymentAsUsed: (id: string) => Promise<void>;
@@ -244,20 +239,24 @@ interface FinancialContextType {
     deleteCustomer: (id: string) => Promise<void>;
     addUserAccount: (userData: Omit<UserAccount, 'id'> & { id: string }) => Promise<void>;
     deleteUserAccount: (id: string) => Promise<void>;
+    addProduct: (productData: Omit<Product, 'id' | 'status'>) => Promise<void>;
+    updateProduct: (id: string, productData: Omit<Product, 'id' | 'status'>) => Promise<void>;
+    deleteProduct: (id: string) => Promise<void>;
     addAsset: (assetData: AddAssetData) => Promise<void>;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => Promise<void>;
     writeOffAsset: (id: string) => Promise<void>;
     addCapitalContribution: (data: Omit<CapitalContribution, 'id'>) => Promise<void>;
     repayOwnerLoan: (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => Promise<void>;
-    addDrawing: (data: DrawingData) => Promise<void>;
     addExpense: (data: AddExpenseData) => Promise<void>;
     approveExpense: (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
+    deleteExpense: (id: string, paymentInfo?: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
     addEmployee: (employeeData: Omit<Employee, 'id'>) => Promise<void>;
     updateEmployee: (id: string, employeeData: Omit<Employee, 'id'>) => Promise<void>;
     deleteEmployee: (id: string) => Promise<void>;
     processPayroll: (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => Promise<void>;
     paySingleEmployee: (data: { employeeId: string; grossSalary: number; netSalary: number; paymentMethod: PaymentMethod; }) => Promise<void>;
     addPurchaseOrder: (data: Omit<PurchaseOrder, 'id'>) => Promise<void>;
+    deletePurchaseOrder: (poId: string) => Promise<void>;
     receivePurchaseOrder: (poId: string) => Promise<void>;
     payPurchaseOrder: (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => Promise<void>;
     addInvoice: (invoiceData: InvoiceFormData) => Promise<void>;
@@ -285,9 +284,9 @@ const calculateDepreciation = (asset: Asset): { accumulatedDepreciation: number;
     return { accumulatedDepreciation, netBookValue };
 };
 
-const getProductStatus = (product: Omit<Product, 'status' | 'initialStock'>): Product['status'] => {
+const getProductStatus = (product: Omit<Product, 'status'>): Product['status'] => {
     const now = new Date();
-    if (product.expiryDate && isAfter(now, product.expiryDate)) {
+    if (product.expiryDate && isAfter(now, toDate(product.expiryDate))) {
         return 'Expired';
     }
     if (product.currentStock <= 0) {
@@ -334,14 +333,32 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const prepayments = useFirestoreCollection<CustomerPrepayment>('prepayments', ['date']);
     const customers = useFirestoreCollection<Customer>('customers');
     const userAccounts = useFirestoreCollection<UserAccount>('userAccounts');
-    const products = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
+    const initialProducts = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
     const employees = useFirestoreCollection<Employee>('employees');
     const payrollHistory = useFirestoreCollection<PayrollRun>('payrollHistory', ['date']);
     const capitalContributions = useFirestoreCollection<CapitalContribution>('capitalContributions', ['date']);
-    const assets = useFirestoreCollection<Asset>('assets', ['acquisitionDate']);
+    const initialAssets = useFirestoreCollection<Asset>('assets', ['acquisitionDate']);
     const expenses = useFirestoreCollection<Expense>('expenses', ['date']);
     const purchaseOrders = useFirestoreCollection<PurchaseOrder>('purchaseOrders', ['purchaseDate', 'expectedDeliveryDate']);
     const invoices = useFirestoreCollection<Invoice>('invoices', ['issueDate', 'dueDate']);
+
+    const assets = useMemo(() => {
+        return initialAssets.map(asset => {
+            if (asset.status === 'Active') {
+                const { accumulatedDepreciation, netBookValue } = calculateDepreciation(asset);
+                return { ...asset, accumulatedDepreciation, netBookValue };
+            }
+            return asset;
+        })
+    }, [initialAssets]);
+
+    const products = useMemo(() => {
+        return initialProducts.map(product => ({
+            ...product,
+            status: getProductStatus(product)
+        }))
+    }, [initialProducts]);
+
 
     const [ownerLoans, setOwnerLoans] = useState<OwnerLoan[]>([]);
     const [cashBalances, setCashBalances] = useState({ cash: 0, bank: 0, mobile: 0 });
@@ -359,13 +376,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
               // Assume loans are given in cash unless specified
               cash += c.amount;
             }
-        });
-
-        // Outflows from Drawings
-        capitalContributions.filter(c => c.type === 'Drawing').forEach(d => {
-            if (d.source === 'Cash') cash -= d.amount;
-            if (d.source === 'Bank') bank -= d.amount;
-            if (d.source === 'Mobile') mobile -= d.amount;
         });
 
         // Inflows from Sales
@@ -386,23 +396,15 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
         });
 
-        // Outflows from paying suppliers
-        payables.forEach(p => {
-            if (p.status === 'Paid') {
-                if (p.paymentMethod === 'Cash') cash -= p.amount;
-                if (p.paymentMethod === 'Bank') bank -= p.amount;
-                if (p.paymentMethod === 'Mobile') mobile -= p.amount;
-            }
+        // Outflows from paying suppliers/POs
+        purchaseOrders.forEach(p => {
+             if (p.paymentStatus === 'Paid' && p.paymentMethod !== 'Credit') {
+                 const total = p.items.reduce((sum, i) => sum + i.totalPrice, 0);
+                 if (p.paymentMethod === 'Cash') cash -= total;
+                 if (p.paymentMethod === 'Bank Transfer') bank -= total;
+                 if (p.paymentMethod === 'Mpesa') mobile -= total;
+             }
         });
-        
-        // Asset Sales
-        transactions
-            .filter(t => t.notes === 'Asset Sale')
-            .forEach(t => {
-                if (t.paymentMethod === 'Cash') cash += t.amount;
-                if (t.paymentMethod === 'Bank') bank += t.amount;
-                if (t.paymentMethod === 'Mobile') mobile += t.amount;
-            });
         
         // Payroll Payments
         payrollHistory.forEach(run => {
@@ -413,14 +415,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         setCashBalances({ cash, bank, mobile });
 
-    }, [transactions, capitalContributions, expenses, payables, payrollHistory]);
+    }, [transactions, capitalContributions, expenses, payrollHistory, purchaseOrders]);
 
     useEffect(() => {
         recalculateBalances();
     }, [recalculateBalances]);
 
     useEffect(() => {
-        setOwnerLoans(prevOwnerLoans => {
+       setOwnerLoans(prevOwnerLoans => {
             return capitalContributions
                 .filter(c => c.type === 'Liability')
                 .map(c => {
@@ -460,7 +462,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             date: new Date(),
             paymentMethod: saleData.paymentMethod,
             product: product.name,
-            notes: 'Retail Sale',
+            productId: product.id,
+            quantity: saleData.quantity,
         };
         
         const batch = writeBatch(db);
@@ -485,6 +488,31 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         
         await batch.commit();
     }
+    
+    const deleteSale = async (saleId: string) => {
+        const saleToDelete = transactions.find(t => t.id === saleId);
+        if (!saleToDelete) {
+            throw new Error("Sale not found.");
+        }
+
+        const batch = writeBatch(db);
+
+        // Delete the sale transaction
+        const saleRef = doc(db, 'transactions', saleId);
+        batch.delete(saleRef);
+
+        // Reverse the stock
+        const product = products.find(p => p.id === saleToDelete.productId);
+        if (product) {
+            const productRef = doc(db, 'products', product.id);
+            const updatedStock = product.currentStock + saleToDelete.quantity;
+            const newStatus = getProductStatus({ ...product, currentStock: updatedStock });
+            batch.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
+        }
+
+        await batch.commit();
+    };
+
 
     const markReceivableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
         const receivableToUpdate = transactions.find(t => t.id === id);
@@ -502,7 +530,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             date: new Date(),
             paymentMethod: paymentMethod,
             product: `Payment for ${receivableToUpdate.product}`,
-            notes: "Debt Repayment"
+            notes: "Debt Repayment",
+            productId: '',
+            quantity: 0,
         };
         
         const batch = writeBatch(db);
@@ -563,6 +593,30 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await deleteDoc(doc(db, 'userAccounts', id));
     }
     
+    const addProduct = async (productData: Omit<Product, 'id' | 'status'>) => {
+        const newProduct = {
+            ...productData,
+            status: getProductStatus(productData),
+            initialStock: productData.currentStock,
+            entryDate: new Date(),
+            lastUpdated: new Date(),
+        };
+        await addDoc(collection(db, 'products'), newProduct);
+    };
+    
+    const updateProduct = async (id: string, productData: Omit<Product, 'id' | 'status'>) => {
+        const updatedProduct = {
+            ...productData,
+            status: getProductStatus(productData),
+            lastUpdated: new Date(),
+        };
+        await updateDoc(doc(db, 'products', id), updatedProduct);
+    };
+
+    const deleteProduct = async (id: string) => {
+        await deleteDoc(doc(db, 'products', id));
+    };
+
     const addAsset = async (assetData: AddAssetData) => {
         const newAssetData = {
             ...assetData,
@@ -594,6 +648,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             paymentMethod: paymentMethod,
             product: assetToSell.name,
             notes: 'Asset Sale',
+            productId: '',
+            quantity: 0
         };
         const transactionRef = collection(db, 'transactions');
         batch.set(doc(transactionRef), newTransaction);
@@ -632,40 +688,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (amount > balance) {
             throw new Error(`Insufficient funds in ${paymentMethod} account.`);
         }
-        
-        const newDrawing = {
-            date: new Date(),
-            description: `Owner Loan Repayment: ${notes}`,
-            type: 'Drawing',
-            amount: amount,
-            source: paymentMethod
-        };
-        
-        const batch = writeBatch(db);
-        
-        const capRef = collection(db, 'capitalContributions');
-        batch.set(doc(capRef), newDrawing);
-        
-        // This is tricky as OwnerLoan is derived state. We need to update the source capitalContribution
-        // For simplicity, this action will just create the drawing for now.
-        // A more complex system would link these.
-
-        await batch.commit();
-    };
-    
-    const addDrawing = async (data: DrawingData) => {
-        const balance = cashBalances[data.source.toLowerCase() as keyof typeof cashBalances];
-        if (data.amount > balance) {
-            throw new Error(`Insufficient funds in ${data.source} account.`);
-        }
-        const newDrawing = {
-            date: new Date(),
-            description: data.description,
-            type: 'Drawing',
-            amount: data.amount,
-            source: data.source,
-        };
-        await addDoc(collection(db, 'capitalContributions'), newDrawing);
     };
 
     const addExpense = async (data: AddExpenseData) => {
@@ -680,6 +702,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             throw new Error(`Insufficient funds in ${paymentMethod} account. Required: ${amount}, Available: ${cashBalances[balanceKey]}`);
         }
         await updateDoc(doc(db, 'expenses', id), { status: 'Approved', paymentMethod });
+    };
+
+    const deleteExpense = async (id: string, paymentInfo?: { amount: number, paymentMethod: PaymentMethod }) => {
+        await deleteDoc(doc(db, 'expenses', id));
     };
 
     const addEmployee = async (employeeData: Omit<Employee, 'id'>) => {
@@ -784,6 +810,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             batch.set(doc(payableRef), newPayable);
         }
         await batch.commit();
+    }
+    
+    const deletePurchaseOrder = async (poId: string) => {
+        await deleteDoc(doc(db, 'purchaseOrders', poId));
     }
 
     const receivePurchaseOrder = async (poId: string) => {
@@ -891,6 +921,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             paymentMethod: 'Credit',
             product: `Invoice #${invoiceData.invoiceNumber}`,
             notes: 'Invoice Sale',
+            productId: 'invoice',
+            quantity: 1
         };
         const transactionRef = doc(collection(db, 'transactions'));
         batch.set(transactionRef, newTransaction);
@@ -947,6 +979,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         purchaseOrders,
         invoices,
         addSale,
+        deleteSale,
         markReceivableAsPaid,
         markPayableAsPaid,
         markPrepaymentAsUsed,
@@ -956,20 +989,24 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         deleteCustomer,
         addUserAccount,
         deleteUserAccount,
+        addProduct,
+        updateProduct,
+        deleteProduct,
         addAsset,
         sellAsset,
         writeOffAsset,
         addCapitalContribution,
         repayOwnerLoan,
-        addDrawing,
         addExpense,
         approveExpense,
+        deleteExpense,
         addEmployee,
         updateEmployee,
         deleteEmployee,
         processPayroll,
         paySingleEmployee,
         addPurchaseOrder,
+        deletePurchaseOrder,
         receivePurchaseOrder,
         payPurchaseOrder,
         addInvoice,
@@ -990,4 +1027,3 @@ export const useFinancials = (): FinancialContextType => {
     }
     return context;
 };
-

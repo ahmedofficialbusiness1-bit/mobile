@@ -4,14 +4,13 @@
 import * as React from 'react'
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
-import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon } from 'lucide-react'
+import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, Trash2 } from 'lucide-react'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,6 +28,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
@@ -37,11 +37,12 @@ import { cn } from '@/lib/utils'
 import { useFinancials, type PurchaseOrder } from '@/context/financial-context'
 import { PurchaseOrderForm } from './purchase-order-form'
 import { useToast } from '@/hooks/use-toast'
-import { PurchasePaymentDialog } from './payment-dialog'
 import { PaymentDialog } from '@/components/payment-dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+
 
 export default function PurchasesPage() {
-  const { purchaseOrders, addPurchaseOrder, receivePurchaseOrder, payPurchaseOrder } = useFinancials()
+  const { purchaseOrders, addPurchaseOrder, receivePurchaseOrder, payPurchaseOrder, deletePurchaseOrder } = useFinancials()
   const { toast } = useToast()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false)
@@ -80,6 +81,15 @@ export default function PurchasesPage() {
     toast({
         title: 'Goods Received',
         description: 'Inventory has been updated with items from the purchase order.',
+    })
+  }
+  
+  const handleDelete = (po: PurchaseOrder) => {
+    deletePurchaseOrder(po.id)
+    toast({
+        variant: 'destructive',
+        title: 'Purchase Order Deleted',
+        description: `PO #${po.poNumber} has been deleted.`,
     })
   }
 
@@ -256,6 +266,28 @@ export default function PurchasesPage() {
                                     {po.receivingStatus !== 'Received' && (
                                         <DropdownMenuItem onClick={() => handleReceive(po.id)}>Mark as Received</DropdownMenuItem>
                                     )}
+                                    <DropdownMenuSeparator />
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action will permanently delete PO #{po.poNumber}. This cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDelete(po)} className="bg-destructive hover:bg-destructive/90">
+                                                    Delete
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </TableCell>

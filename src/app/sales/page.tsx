@@ -2,14 +2,13 @@
 'use client'
 
 import * as React from 'react'
-import { PlusCircle, MoreHorizontal, DollarSign, Users, CreditCard, Calendar as CalendarIcon } from 'lucide-react'
+import { PlusCircle, MoreHorizontal, DollarSign, Users, CreditCard, Calendar as CalendarIcon, Trash2 } from 'lucide-react'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,6 +26,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { useFinancials, type Transaction } from '@/context/financial-context'
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns'
@@ -37,9 +37,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+
 
 export default function SalesPage() {
-  const { transactions, products, addSale, customers } = useFinancials()
+  const { transactions, products, addSale, customers, deleteSale } = useFinancials()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const { toast } = useToast()
   
@@ -65,6 +67,23 @@ export default function SalesPage() {
         toast({
             variant: 'destructive',
             title: 'Error Recording Sale',
+            description: error.message,
+        })
+    }
+  }
+
+  const handleDeleteSale = (sale: Transaction) => {
+    try {
+        deleteSale(sale.id);
+        toast({
+            variant: 'destructive',
+            title: 'Sale Deleted',
+            description: 'The sale has been successfully deleted and stock reversed.',
+        });
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error Deleting Sale',
             description: error.message,
         })
     }
@@ -229,8 +248,29 @@ export default function SalesPage() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                    <DropdownMenuItem>View Details</DropdownMenuItem>
                                     <DropdownMenuItem>Generate Receipt</DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete Sale
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action will permanently delete this sale and reverse the stock movement. This cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteSale(sale)} className="bg-destructive hover:bg-destructive/90">
+                                                    Delete
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </TableCell>

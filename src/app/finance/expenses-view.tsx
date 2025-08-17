@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, CheckCircle2, MoreHorizontal, Search } from 'lucide-react';
+import { PlusCircle, CheckCircle2, Search, Trash2 } from 'lucide-react';
 import { ExpenseForm } from './expense-form';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -16,13 +16,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { PaymentDialog } from '@/components/payment-dialog';
 import { useFinancials, type PaymentMethod, type Expense, type AddExpenseData } from '@/context/financial-context';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 export default function ExpensesView() {
-  const { expenses, addExpense, approveExpense, cashBalances } = useFinancials();
+  const { expenses, addExpense, approveExpense, deleteExpense } = useFinancials();
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [selectedExpense, setSelectedExpense] = React.useState<Expense | null>(null);
@@ -62,6 +65,15 @@ export default function ExpensesView() {
         });
     }
   };
+  
+  const handleDeleteExpense = (expense: Expense) => {
+    deleteExpense(expense.id, expense.status === 'Approved' ? { amount: expense.amount, paymentMethod: expense.paymentMethod! } : undefined);
+    toast({
+        title: 'Expense Deleted',
+        description: 'The expense has been successfully deleted.',
+        variant: 'destructive'
+    })
+  }
   
   const filteredExpenses = expenses.filter(expense => 
     expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -134,7 +146,7 @@ export default function ExpensesView() {
                        <TableCell>{expense.paymentMethod || '---'}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">TSh {expense.amount.toLocaleString()}</TableCell>
                       <TableCell className="text-center">
-                        {expense.status === 'Pending' && (
+                        {expense.status === 'Pending' ? (
                           <Button
                             variant="outline"
                             size="sm"
@@ -143,6 +155,28 @@ export default function ExpensesView() {
                             <CheckCircle2 className="mr-2 h-4 w-4" />
                             Thibitisha
                           </Button>
+                        ) : (
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="text-destructive">
+                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action will permanently delete this expense and reverse the transaction. This cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteExpense(expense)} className="bg-destructive hover:bg-destructive/90">
+                                            Delete
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         )}
                       </TableCell>
                     </TableRow>
