@@ -21,7 +21,7 @@ interface ReportProps {
 }
 
 export default function CashFlowStatement({ dateRange }: ReportProps) {
-    const { cashBalances } = useFinancials();
+    const { cashBalances, companyName } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
@@ -36,7 +36,8 @@ export default function CashFlowStatement({ dateRange }: ReportProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Cash Flow Statement</CardTitle>
+                <CardTitle>{companyName}</CardTitle>
+                <CardDescription>Cash Flow Statement</CardDescription>
                 <CardDescription>For the period ending {currentDate} (Simplified)</CardDescription>
             </CardHeader>
             <CardContent>

@@ -39,13 +39,13 @@ import type { VatRate } from '@/app/sales/sale-form'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Textarea } from '@/components/ui/textarea'
 
 export interface InvoiceItem {
-  productId: string
-  productName: string
-  quantity: number
-  unitPrice: number
-  totalPrice: number
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
 }
 
 export interface InvoiceFormData {
@@ -60,9 +60,9 @@ export interface InvoiceFormData {
 }
 
 const itemSchema = z.object({
-  productId: z.string().min(1, 'Please select a product.'),
+  description: z.string().min(3, 'Please describe the service.'),
   quantity: z.coerce.number().min(0.1, 'Quantity must be positive.'),
-  unitPrice: z.coerce.number(), // Will be populated from product
+  unitPrice: z.coerce.number().min(0, 'Unit price must be positive.'),
   totalPrice: z.coerce.number(), // Calculated
 })
 
@@ -76,11 +76,10 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-export function InvoiceForm({ isOpen, onClose, onSave, products, customers }: {
+export function InvoiceForm({ isOpen, onClose, onSave, customers }: {
   isOpen: boolean
   onClose: () => void
   onSave: (data: InvoiceFormData) => void
-  products: Product[]
   customers: Customer[]
 }) {
   const form = useForm<FormValues>({
@@ -88,7 +87,7 @@ export function InvoiceForm({ isOpen, onClose, onSave, products, customers }: {
     defaultValues: {
       issueDate: new Date(),
       dueDate: addDays(new Date(), 30),
-      items: [{ productId: '', quantity: 1, unitPrice: 0, totalPrice: 0 }],
+      items: [{ description: '', quantity: 1, unitPrice: 0, totalPrice: 0 }],
       vatRate: 0.18,
     },
   })
@@ -102,32 +101,33 @@ export function InvoiceForm({ isOpen, onClose, onSave, products, customers }: {
 
   const calculateTotals = React.useCallback(() => {
     const subtotal = watchedItems.reduce((acc, item) => {
-        const product = products.find(p => p.id === item.productId);
-        const price = product ? product.sellingPrice : 0;
-        return acc + (item.quantity * price);
+        const total = (item.quantity || 0) * (item.unitPrice || 0);
+        return acc + total;
     }, 0);
     const vatRate = form.getValues('vatRate');
     const vatAmount = subtotal * vatRate;
     const totalAmount = subtotal + vatAmount;
     return { subtotal, vatAmount, totalAmount };
-  }, [watchedItems, products, form]);
+  }, [watchedItems, form]);
+
+  React.useEffect(() => {
+    const subscription = form.watch((value, { name, type }) => {
+      if (name?.startsWith('items') && (name.endsWith('quantity') || name.endsWith('unitPrice'))) {
+        const items = form.getValues('items');
+        items.forEach((item, index) => {
+          const total = (item.quantity || 0) * (item.unitPrice || 0);
+          form.setValue(`items.${index}.totalPrice`, total);
+        });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   const { subtotal, vatAmount, totalAmount } = calculateTotals();
   
   const onSubmit = (values: FormValues) => {
     const customer = customers.find(c => c.id === values.customerId)
     if (!customer) return
-
-    const finalItems: InvoiceItem[] = values.items.map(item => {
-        const product = products.find(p => p.id === item.productId)!;
-        return {
-            productId: product.id,
-            productName: product.name,
-            quantity: item.quantity,
-            unitPrice: product.sellingPrice,
-            totalPrice: item.quantity * product.sellingPrice,
-        }
-    })
 
     const saleData: InvoiceFormData = {
       invoiceNumber: `INV-${Date.now()}`,
@@ -136,14 +136,14 @@ export function InvoiceForm({ isOpen, onClose, onSave, products, customers }: {
       customerPhone: customer.phone,
       issueDate: values.issueDate,
       dueDate: values.dueDate,
-      items: finalItems,
+      items: values.items,
       vatRate: values.vatRate as VatRate,
     }
     onSave(saleData)
     form.reset({
       issueDate: new Date(),
       dueDate: addDays(new Date(), 30),
-      items: [{ productId: '', quantity: 1, unitPrice: 0, totalPrice: 0 }],
+      items: [{ description: '', quantity: 1, unitPrice: 0, totalPrice: 0 }],
       vatRate: 0.18,
     })
     onClose()
@@ -247,59 +247,64 @@ export function InvoiceForm({ isOpen, onClose, onSave, products, customers }: {
                   <h3 className="text-lg font-medium">Invoice Items</h3>
                   <div className="space-y-4 mt-2">
                     {fields.map((item, index) => (
-                      <div key={item.id} className="flex items-end gap-2 p-3 border rounded-md">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.productId`}
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              {index === 0 && <FormLabel>Product</FormLabel>}
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <div key={item.id} className="p-3 border rounded-md">
+                        <div className="grid grid-cols-1 gap-2">
+                            <FormField
+                            control={form.control}
+                            name={`items.${index}.description`}
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Service Description</FormLabel>
                                 <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select product" />
-                                  </SelectTrigger>
+                                    <Textarea placeholder="e.g. Website design and development" {...field} />
                                 </FormControl>
-                                <SelectContent>
-                                  {products.map(p => (
-                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.quantity`}
-                          render={({ field }) => (
-                            <FormItem className="w-24">
-                              {index === 0 && <FormLabel>Qty</FormLabel>}
-                              <Input type="number" {...field} />
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className="w-40">
-                             {index === 0 && <FormLabel>Total Price</FormLabel>}
-                            <Input
-                                readOnly
-                                value={( (products.find(p => p.id === watchedItems[index]?.productId)?.sellingPrice || 0) * (watchedItems[index]?.quantity || 0) ).toLocaleString()}
-                                className="font-semibold bg-muted"
+                                <FormMessage />
+                                </FormItem>
+                            )}
                             />
+                            <div className="flex items-end gap-2">
+                                <FormField
+                                control={form.control}
+                                name={`items.${index}.quantity`}
+                                render={({ field }) => (
+                                    <FormItem className="w-24">
+                                    <FormLabel>Qty</FormLabel>
+                                    <Input type="number" {...field} />
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                                 <FormField
+                                control={form.control}
+                                name={`items.${index}.unitPrice`}
+                                render={({ field }) => (
+                                    <FormItem className="flex-1">
+                                    <FormLabel>Unit Price</FormLabel>
+                                    <Input type="number" placeholder="e.g. 1,500,000" {...field} />
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                                <div className="w-40">
+                                    <FormLabel>Total Price</FormLabel>
+                                    <Input
+                                        readOnly
+                                        value={(watchedItems[index]?.totalPrice || 0).toLocaleString()}
+                                        className="font-semibold bg-muted"
+                                    />
+                                </div>
+                                <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
+                                <Trash2 className="h-4 w-4" />
+                                </Button>
+                           </div>
                         </div>
-
-                        <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     ))}
                      <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => append({ productId: '', quantity: 1, unitPrice: 0, totalPrice: 0 })}
+                        onClick={() => append({ description: '', quantity: 1, unitPrice: 0, totalPrice: 0 })}
                     >
                       <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                     </Button>

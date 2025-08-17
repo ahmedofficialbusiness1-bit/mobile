@@ -14,7 +14,7 @@ interface ReportProps {
 }
 
 export default function ExpensesReport({ dateRange }: ReportProps) {
-    const { expenses } = useFinancials();
+    const { expenses, companyName } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
@@ -37,7 +37,8 @@ export default function ExpensesReport({ dateRange }: ReportProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Expenses Report</CardTitle>
+                <CardTitle>{companyName}</CardTitle>
+                <CardDescription>Expenses Report</CardDescription>
                 <CardDescription>Breakdown of expenses by category for the selected period</CardDescription>
             </CardHeader>
             <CardContent>

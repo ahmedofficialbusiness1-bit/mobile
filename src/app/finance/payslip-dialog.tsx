@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/components/logo';
+import { useFinancials } from '@/context/financial-context';
 
 export interface PayrollData {
   id: string;
@@ -36,6 +37,7 @@ function PayslipRow({ label, value }: { label: string; value: string }) {
 
 export function PayslipDialog({ isOpen, onClose, payrollData }: PayslipDialogProps) {
   const payslipContentRef = React.useRef<HTMLDivElement>(null);
+  const { companyName } = useFinancials();
 
   const handlePrint = () => {
     const content = payslipContentRef.current;
@@ -88,7 +90,7 @@ export function PayslipDialog({ isOpen, onClose, payrollData }: PayslipDialogPro
             <div className="space-y-4">
                 <div className="flex justify-between items-start pt-2">
                     <div>
-                        <h3 className="font-bold text-sm">MaliMax Inc.</h3>
+                        <h3 className="font-bold text-sm">{companyName}</h3>
                         <p className="text-xs text-muted-foreground">123 Business Rd, Dar es Salaam</p>
                     </div>
                     <Logo />

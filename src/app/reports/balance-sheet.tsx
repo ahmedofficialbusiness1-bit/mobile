@@ -23,7 +23,7 @@ interface ReportProps {
 
 
 export default function BalanceSheet({ dateRange }: ReportProps) {
-    const { assets, products, transactions, payables, cashBalances, capitalContributions, ownerLoans } = useFinancials();
+    const { assets, products, transactions, payables, cashBalances, capitalContributions, ownerLoans, companyName } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
@@ -78,8 +78,9 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Statement of Financial Position (Balance Sheet)</CardTitle>
-                <CardDescription>As at {currentDate}</CardDescription>
+                <CardTitle>{companyName}</CardTitle>
+                <CardDescription>Statement of Financial Position (Balance Sheet)</CardDescription>
+                 <CardDescription>As at {currentDate}</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -108,4 +109,3 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
         </Card>
     );
 }
-

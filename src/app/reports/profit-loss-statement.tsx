@@ -22,7 +22,7 @@ interface ReportProps {
 }
 
 export default function ProfitLossStatement({ dateRange }: ReportProps) {
-    const { transactions, expenses, products, purchaseOrders } = useFinancials();
+    const { transactions, expenses, products, purchaseOrders, companyName } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
@@ -71,7 +71,8 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Profit and Loss Statement</CardTitle>
+                <CardTitle>{companyName}</CardTitle>
+                <CardDescription>Profit and Loss Statement</CardDescription>
                 <CardDescription>For the period ending {currentDate}</CardDescription>
             </CardHeader>
             <CardContent>

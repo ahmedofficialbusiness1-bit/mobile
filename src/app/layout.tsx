@@ -32,15 +32,15 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <FinancialProvider>
-            <AuthProvider>
-                <SecurityProvider>
-                    <AppContent>
-                    {children}
-                    </AppContent>
-                </SecurityProvider>
-            </AuthProvider>
-        </FinancialProvider>
+        <AuthProvider>
+          <FinancialProvider>
+            <SecurityProvider>
+              <AppContent>
+                {children}
+              </AppContent>
+            </SecurityProvider>
+          </FinancialProvider>
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

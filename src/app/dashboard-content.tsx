@@ -19,6 +19,8 @@ import {
   TrendingUp,
   WalletCards,
   Search,
+  Building,
+  MapPin,
 } from 'lucide-react'
 import {
   Card,
@@ -65,6 +67,7 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { Progress } from '@/components/ui/progress'
 import { useFinancials, Transaction, Payable, CustomerPrepayment, Product, PaymentMethod } from '@/context/financial-context'
+import { useAuth } from '@/context/auth-context'
 
 
 interface SlowMovingProduct {
@@ -110,7 +113,20 @@ interface DashboardData {
 }
 
 export default function DashboardPageContent() {
-    const { transactions: allTransactions, payables: allPayables, prepayments: allPrepayments, products: allProducts } = useFinancials();
+    const { 
+        transactions: allTransactions, 
+        payables: allPayables, 
+        prepayments: allPrepayments, 
+        products: allProducts,
+        userAccounts
+    } = useFinancials();
+    const { user } = useAuth();
+    
+    const currentUserAccount = React.useMemo(() => {
+        if (!user || !userAccounts) return null;
+        return userAccounts.find(acc => acc.id === user.uid);
+    }, [user, userAccounts]);
+
 
     const [date, setDate] = React.useState<DateRange | undefined>({
       from: startOfMonth(new Date()),
@@ -286,57 +302,71 @@ export default function DashboardPageContent() {
 
     return (
         <div className="flex flex-col gap-8">
-           <div className="flex items-center gap-2">
-             <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  id="date"
-                  variant={"outline"}
-                  className={cn(
-                    "w-[300px] justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date?.from ? (
-                    date.to ? (
-                      <>
-                        {format(date.from, "LLL dd, y")} -{" "}
-                        {format(date.to, "LLL dd, y")}
-                      </>
-                    ) : (
-                      format(date.from, "LLL dd, y")
-                    )
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={date?.from}
-                  selected={date}
-                  onSelect={setDate}
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
-             <Select value={selectedPreset} onValueChange={handlePresetChange}>
-                <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select a preset" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="last7">Last 7 Days</SelectItem>
-                    <SelectItem value="month">This Month</SelectItem>
-                    <SelectItem value="lastMonth">Last Month</SelectItem>
-                    <SelectItem value="year">This Year</SelectItem>
-                    <SelectItem value="all">All Time</SelectItem>
-                </SelectContent>
-            </Select>
-          </div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                {currentUserAccount && (
+                    <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-2 font-semibold">
+                            <Building className="h-5 w-5 text-primary" />
+                            <span>{currentUserAccount.companyName}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                            <MapPin className="h-5 w-5" />
+                            <span>{currentUserAccount.country}</span>
+                        </div>
+                    </div>
+                )}
+                <div className="flex items-center gap-2">
+                    <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                        id="date"
+                        variant={"outline"}
+                        className={cn(
+                            "w-full sm:w-[300px] justify-start text-left font-normal",
+                            !date && "text-muted-foreground"
+                        )}
+                        >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date?.from ? (
+                            date.to ? (
+                            <>
+                                {format(date.from, "LLL dd, y")} -{" "}
+                                {format(date.to, "LLL dd, y")}
+                            </>
+                            ) : (
+                            format(date.from, "LLL dd, y")
+                            )
+                        ) : (
+                            <span>Pick a date</span>
+                        )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={date?.from}
+                        selected={date}
+                        onSelect={setDate}
+                        numberOfMonths={2}
+                        />
+                    </PopoverContent>
+                    </Popover>
+                    <Select value={selectedPreset} onValueChange={handlePresetChange}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select a preset" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="today">Today</SelectItem>
+                            <SelectItem value="last7">Last 7 Days</SelectItem>
+                            <SelectItem value="month">This Month</SelectItem>
+                            <SelectItem value="lastMonth">Last Month</SelectItem>
+                            <SelectItem value="year">This Year</SelectItem>
+                            <SelectItem value="all">All Time</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+           </div>
           <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

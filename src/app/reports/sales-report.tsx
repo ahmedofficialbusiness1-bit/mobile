@@ -13,7 +13,7 @@ interface ReportProps {
 }
 
 export default function SalesReport({ dateRange }: ReportProps) {
-    const { transactions, products } = useFinancials();
+    const { transactions, products, companyName } = useFinancials();
     
     const filteredTransactions = transactions.filter(t => 
         dateRange?.from && dateRange?.to && isWithinInterval(t.date, { start: dateRange.from, end: dateRange.to })
@@ -34,7 +34,8 @@ export default function SalesReport({ dateRange }: ReportProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Sales Report</CardTitle>
+                <CardTitle>{companyName}</CardTitle>
+                <CardDescription>Sales Report</CardDescription>
                 <CardDescription>Breakdown of sales by product for the selected period</CardDescription>
             </CardHeader>
             <CardContent>
