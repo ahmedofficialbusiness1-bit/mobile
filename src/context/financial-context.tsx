@@ -565,6 +565,27 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             ...data
         };
         setCapitalContributions(prev => [...prev, newContribution]);
+
+        if (data.type === 'Asset') {
+            const assetData: AddAssetData = {
+                name: data.description,
+                cost: data.amount,
+                acquisitionDate: data.date,
+                depreciationRate: 0, // Default depreciation, can be edited later
+            };
+             const newAsset: Asset = {
+                id: `ast-cap-${Date.now()}`,
+                ...assetData,
+                status: 'Active',
+                accumulatedDepreciation: 0,
+                netBookValue: assetData.cost,
+                source: 'Capital'
+            };
+            const { accumulatedDepreciation, netBookValue } = calculateDepreciation(newAsset);
+            newAsset.accumulatedDepreciation = accumulatedDepreciation;
+            newAsset.netBookValue = netBookValue;
+            setAssets(prev => [...prev, newAsset]);
+        }
     };
     
     const repayOwnerLoan = (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => {
@@ -725,7 +746,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
         setPurchaseOrders(prev => [...prev, newPO]);
 
-        if (newPO.paymentStatus === 'Unpaid' && newPO.paymentTerms.startsWith('Credit')) {
+        if (newPO.paymentStatus === 'Unpaid' && (newPO.paymentTerms.startsWith('Credit') || newPO.paymentMethod === 'Credit')) {
             const totalAmount = newPO.items.reduce((sum, item) => sum + item.totalPrice, 0);
             const newPayable: Payable = {
                 id: `payable-po-${newPO.id}`,
