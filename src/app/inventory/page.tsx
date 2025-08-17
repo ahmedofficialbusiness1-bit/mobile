@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/input'
 import { InventorySummaryCards } from './inventory-summary-cards'
 import { InventoryDataTable } from './inventory-data-table'
 import { differenceInDays, startOfMonth, isWithinInterval } from 'date-fns'
+import { AddProductForm, type AddProductFormData } from './add-product-form'
+import { useToast } from '@/hooks/use-toast'
 
 interface AgingData {
   new: number;
@@ -38,7 +40,10 @@ interface MonthlyStockData {
 }
 
 export default function InventoryPage() {
-  const { products, transactions, purchaseOrders } = useFinancials()
+  const { products, transactions, purchaseOrders, addProduct, updateProduct } = useFinancials()
+  const { toast } = useToast()
+  const [isFormOpen, setIsFormOpen] = React.useState(false)
+  const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
   const [searchTerm, setSearchTerm] = React.useState('')
   const [statusFilter, setStatusFilter] = React.useState('All')
   const [agingData, setAgingData] = React.useState<AgingData>({ new: 0, threeMonths: 0, sixMonths: 0, overYear: 0 });
@@ -99,8 +104,37 @@ export default function InventoryPage() {
 
   }, [products, transactions, purchaseOrders]);
 
+  const handleSaveProduct = (data: AddProductFormData) => {
+    if (selectedProduct) {
+      updateProduct(selectedProduct.id, data)
+      toast({
+        title: 'Product Updated',
+        description: `${data.name} has been updated.`,
+      })
+    } else {
+      addProduct(data)
+      toast({
+        title: 'Product Added',
+        description: `${data.name} has been added to your inventory.`,
+      })
+    }
+    setIsFormOpen(false)
+    setSelectedProduct(null)
+  }
+
+  const handleAddClick = () => {
+    setSelectedProduct(null)
+    setIsFormOpen(true)
+  }
+
+  const handleEditClick = (product: Product) => {
+    setSelectedProduct(product)
+    setIsFormOpen(true)
+  }
+
 
   return (
+    <>
     <div className="flex flex-col gap-8">
       <div className="text-left">
         <h1 className="text-3xl font-bold font-headline">
@@ -213,18 +247,25 @@ export default function InventoryPage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <Button>
+                <Button onClick={handleAddClick}>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Add Product
                 </Button>
               </div>
             </div>
             <TabsContent value={statusFilter}>
-                <InventoryDataTable products={filteredProducts} />
+                <InventoryDataTable products={filteredProducts} onEdit={handleEditClick} />
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
     </div>
+    <AddProductForm 
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSave={handleSaveProduct}
+        product={selectedProduct}
+    />
+    </>
   )
 }

@@ -23,9 +23,10 @@ import { MoreHorizontal } from 'lucide-react'
 
 interface InventoryDataTableProps {
   products: Product[]
+  onEdit: (product: Product) => void
 }
 
-export function InventoryDataTable({ products }: InventoryDataTableProps) {
+export function InventoryDataTable({ products, onEdit }: InventoryDataTableProps) {
   const getStatusVariant = (status: Product['status']) => {
     switch (status) {
       case 'In Stock':
@@ -100,7 +101,7 @@ export function InventoryDataTable({ products }: InventoryDataTableProps) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                             <DropdownMenuItem>View Details</DropdownMenuItem>
-                            <DropdownMenuItem>Edit</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onEdit(product)}>Edit</DropdownMenuItem>
                             <DropdownMenuItem>Adjust Stock</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

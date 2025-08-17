@@ -1,3 +1,4 @@
+
 import {
   Tabs,
   TabsContent,
@@ -14,10 +15,10 @@ export default function CoPilotPage() {
     <div className="w-full max-w-4xl mx-auto">
       <Tabs defaultValue="translate" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
-          <TabsTrigger value="translate">Translate Terms</TabsTrigger>
-          <TabsTrigger value="report">Generate Report</TabsTrigger>
-          <TabsTrigger value="discrepancy">Explain Discrepancy</TabsTrigger>
-          <TabsTrigger value="analysis">Root Cause Analysis</TabsTrigger>
+          <TabsTrigger value="translate" className="whitespace-nowrap">Translate Terms</TabsTrigger>
+          <TabsTrigger value="report" className="whitespace-nowrap">Generate Report</TabsTrigger>
+          <TabsTrigger value="discrepancy" className="whitespace-nowrap">Explain Discrepancy</TabsTrigger>
+          <TabsTrigger value="analysis" className="whitespace-nowrap">Root Cause Analysis</TabsTrigger>
         </TabsList>
         <TabsContent value="translate">
           <TranslateForm />
