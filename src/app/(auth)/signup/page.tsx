@@ -68,7 +68,9 @@ export default function SignupPage() {
           name: values.companyName,
           phone: values.phone,
           email: values.email,
-          address: values.address
+          address: values.address || '',
+          contactPerson: '',
+          location: '',
       });
 
       toast({
@@ -108,6 +110,19 @@ export default function SignupPage() {
                     <FormLabel>Company Name</FormLabel>
                     <FormControl>
                       <Input placeholder="Your Company Ltd" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Mbezi Beach, Dar es Salaam" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

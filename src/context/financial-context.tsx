@@ -208,9 +208,9 @@ interface FinancialContextType {
     markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => void;
     markPrepaymentAsUsed: (id: string) => void;
     markPrepaymentAsRefunded: (id: string) => void;
-    addCustomer: (customerData: Omit<Customer, 'id' | 'contactPerson' | 'location'>) => Promise<void>;
-    updateCustomer: (id: string, customerData: Omit<Customer, 'id'>) => Promise<void>;
-    deleteCustomer: (id: string) => Promise<void>;
+    addCustomer: (customerData: Omit<Customer, 'id'>) => void;
+    updateCustomer: (id: string, customerData: Omit<Customer, 'id'>) => void;
+    deleteCustomer: (id: string) => void;
     addAsset: (assetData: AddAssetData) => void;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => void;
     writeOffAsset: (id: string) => void;
@@ -282,14 +282,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([])
     const [invoices, setInvoices] = useState<Invoice[]>([])
     const [cashBalances, setCashBalances] = useState({ cash: 0, bank: 0, mobile: 0 });
-
-    useEffect(() => {
-        const unsubscribe = onSnapshot(collection(db, "customers"), (snapshot) => {
-            const customersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
-            setCustomers(customersData);
-        });
-        return () => unsubscribe();
-    }, []);
 
     const recalculateBalances = useCallback(() => {
         let cash = 0;
@@ -507,26 +499,20 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         );
     };
 
-    const addCustomer = async (customerData: Omit<Customer, 'id' | 'contactPerson' | 'location'>) => {
-        try {
-            await addDoc(collection(db, "customers"), {
-                name: customerData.name,
-                phone: customerData.phone,
-                email: customerData.email,
-                address: customerData.address,
-            });
-        } catch (e) {
-            console.error("Error adding document: ", e);
-        }
+    const addCustomer = (customerData: Omit<Customer, 'id'>) => {
+        const newCustomer: Customer = {
+            id: `cust-${Date.now()}`,
+            ...customerData,
+        };
+        setCustomers(prev => [...prev, newCustomer]);
     };
 
-    const updateCustomer = async (id: string, customerData: Omit<Customer, 'id'>) => {
-        const customerDoc = doc(db, "customers", id);
-        await updateDoc(customerDoc, customerData);
+    const updateCustomer = (id: string, customerData: Omit<Customer, 'id'>) => {
+        setCustomers(prev => prev.map(c => c.id === id ? { id, ...customerData } : c));
     };
 
-    const deleteCustomer = async (id: string) => {
-        await deleteDoc(doc(db, "customers", id));
+    const deleteCustomer = (id: string) => {
+        setCustomers(prev => prev.filter(c => c.id !== id));
     };
     
     const addAsset = (assetData: AddAssetData) => {
