@@ -44,6 +44,7 @@ export function CapitalForm({ isOpen, onClose, onSave }: CapitalFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       description: '',
+      type: 'Cash',
       amount: 0,
       date: new Date(),
     },
