@@ -3,8 +3,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { differenceInYears, format, isAfter } from 'date-fns';
-import { collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc } from "firebase/firestore";
-import { db } from '@/lib/firebase';
 import type { SaleFormData, VatRate } from '@/app/sales/sale-form';
 import type { InvoiceFormData, InvoiceItem } from '@/app/invoices/invoice-form';
 
@@ -482,7 +480,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             if (remainingAmount <= 0) {
                 return prev.map(p => p.id === id ? { ...p, status: 'Paid', amount: payable.amount, paymentMethod } : p);
             } else {
-                return prev.map(p => p.id === id ? { ...p, amount: remainingAmount } : p);
+                 const paidPayable: Payable = { ...payable, status: 'Paid', amount: amount, paymentMethod };
+                 const remainingPayable: Payable = { ...payable, amount: remainingAmount };
+                 return [...prev.filter(p => p.id !== id), paidPayable, remainingPayable];
             }
         });
     };
@@ -680,7 +680,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
         setPurchaseOrders(prev => [...prev, newPO]);
 
-        if (newPO.paymentTerms.startsWith('Credit')) {
+        if (newPO.paymentStatus === 'Unpaid') {
             const totalAmount = newPO.items.reduce((sum, item) => sum + item.totalPrice, 0);
             const newPayable: Payable = {
                 id: `payable-po-${newPO.id}`,
