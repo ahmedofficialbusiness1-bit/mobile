@@ -419,17 +419,21 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [recalculateBalances]);
 
     useEffect(() => {
-        const loans = capitalContributions
-            .filter(c => c.type === 'Liability')
-            .map(c => ({
-                id: c.id,
-                date: c.date,
-                description: c.description,
-                amount: c.amount,
-                repaid: ownerLoans.find(l => l.id === c.id)?.repaid || 0
-            }));
-        setOwnerLoans(loans);
-    }, [capitalContributions, ownerLoans]);
+        setOwnerLoans(prevOwnerLoans => {
+            return capitalContributions
+                .filter(c => c.type === 'Liability')
+                .map(c => {
+                    const existingLoan = prevOwnerLoans.find(l => l.id === c.id);
+                    return {
+                        id: c.id,
+                        date: c.date,
+                        description: c.description,
+                        amount: c.amount,
+                        repaid: existingLoan?.repaid || 0
+                    };
+                });
+        });
+    }, [capitalContributions]);
 
 
     const addSale = async (saleData: Omit<SaleFormData, 'notes'>) => {
