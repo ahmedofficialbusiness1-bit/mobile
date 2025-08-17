@@ -38,6 +38,7 @@ import { useFinancials, type PurchaseOrder } from '@/context/financial-context'
 import { PurchaseOrderForm } from './purchase-order-form'
 import { useToast } from '@/hooks/use-toast'
 import { PurchasePaymentDialog } from './payment-dialog'
+import { PaymentDialog } from '@/components/payment-dialog'
 
 export default function PurchasesPage() {
   const { purchaseOrders, addPurchaseOrder, receivePurchaseOrder, payPurchaseOrder } = useFinancials()
@@ -87,14 +88,23 @@ export default function PurchasesPage() {
     setIsPaymentDialogOpen(true);
   }
 
-  const handlePayment = (poId: string, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => {
-    payPurchaseOrder(poId, paymentMethod)
-    toast({
-        title: 'Payment Successful',
-        description: `Purchase order has been marked as paid via ${paymentMethod}.`,
-    })
-    setIsPaymentDialogOpen(false)
-    setSelectedPO(null)
+  const handlePayment = (paymentData: {amount: number; paymentMethod: 'Cash' | 'Bank' | 'Mobile'}) => {
+    if (!selectedPO) return;
+    try {
+        payPurchaseOrder(selectedPO.id, paymentData)
+        toast({
+            title: 'Payment Successful',
+            description: `Purchase order has been marked as paid via ${paymentData.paymentMethod}.`,
+        })
+        setIsPaymentDialogOpen(false)
+        setSelectedPO(null)
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Payment Failed',
+            description: error.message,
+        })
+    }
   }
 
   const filteredPurchaseOrders = React.useMemo(() => {
@@ -277,11 +287,13 @@ export default function PurchasesPage() {
         onSave={handleSavePO}
         purchaseOrder={selectedPO}
       />
-       <PurchasePaymentDialog
+       <PaymentDialog
         isOpen={isPaymentDialogOpen}
         onClose={() => setIsPaymentDialogOpen(false)}
         onSubmit={handlePayment}
-        purchaseOrder={selectedPO}
+        title={`Pay Purchase Order #${selectedPO?.poNumber}`}
+        description={`Total amount is TSh ${selectedPO?.items.reduce((sum, item) => sum + item.totalPrice, 0).toLocaleString()}.`}
+        totalAmount={selectedPO?.items.reduce((sum, item) => sum + item.totalPrice, 0)}
       />
     </>
   )

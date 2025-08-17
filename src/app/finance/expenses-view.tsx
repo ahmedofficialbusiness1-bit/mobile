@@ -43,27 +43,24 @@ export default function ExpensesView() {
     setIsPaymentDialogOpen(true);
   }
 
-  const handleApproveExpense = (paymentMethod: PaymentMethod) => {
+  const handleApproveExpense = (paymentData: { amount: number, paymentMethod: PaymentMethod }) => {
     if (!selectedExpense) return;
-
-    const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
-    if (selectedExpense.amount > balance) {
+    try {
+        approveExpense(selectedExpense.id, paymentData);
+        toast({
+          title: "Tarakilishi Limethibitishwa",
+          description: `Tarakilishi limelipwa kwa ${paymentData.paymentMethod} na litahesabiwa kwenye vitabu vya fedha.`,
+          variant: 'default',
+        });
+        setIsPaymentDialogOpen(false);
+        setSelectedExpense(null);
+    } catch (error: any) {
         toast({
             variant: "destructive",
-            title: "Insufficient Funds",
-            description: `You do not have enough money in your ${paymentMethod} account to approve this expense.`,
+            title: "Error Approving Expense",
+            description: error.message,
         });
-        return;
     }
-
-    approveExpense(selectedExpense.id, paymentMethod);
-    toast({
-      title: "Tarakilishi Limethibitishwa",
-      description: `Tarakilishi limelipwa kwa ${paymentMethod} na litahesabiwa kwenye vitabu vya fedha.`,
-      variant: 'default',
-    });
-    setIsPaymentDialogOpen(false);
-    setSelectedExpense(null);
   };
   
   const filteredExpenses = expenses.filter(expense => 
@@ -187,6 +184,7 @@ export default function ExpensesView() {
         onSubmit={handleApproveExpense}
         title="Thibitisha Matumizi"
         description="Chagua njia ya malipo iliyotumika kwa matumizi haya."
+        totalAmount={selectedExpense?.amount}
       />
     </>
   );

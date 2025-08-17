@@ -97,26 +97,22 @@ export default function PayrollView() {
       net: payrollData.reduce((acc, emp) => acc + emp.netSalary, 0),
     }
 
-  const handlePayAll = (paymentMethod: PaymentMethod) => {
-    const totalNet = totals.net;
-    const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
-
-    if (totalNet > balance) {
+  const handlePayAll = (paymentData: { amount: number, paymentMethod: PaymentMethod }) => {
+    try {
+        processPayroll(paymentData, totals.gross);
+        toast({
+            title: "Payroll Processed Successfully",
+            description: `Paid TSh ${totals.net.toLocaleString()} to ${employees.length} employees for ${currentMonth} via ${paymentData.paymentMethod}.`,
+            variant: "default",
+        })
+        setIsPaymentDialogOpen(false);
+    } catch (error: any) {
         toast({
             variant: "destructive",
-            title: "Insufficient Funds",
-            description: `You need TSh ${totalNet.toLocaleString()} but only have TSh ${balance.toLocaleString()} in your ${paymentMethod} account.`,
+            title: "Error Processing Payroll",
+            description: error.message,
         });
-        return;
     }
-
-    processPayroll(paymentMethod, totals.gross, totalNet);
-    toast({
-        title: "Payroll Processed Successfully",
-        description: `Paid TSh ${totalNet.toLocaleString()} to ${employees.length} employees for ${currentMonth} via ${paymentMethod}.`,
-        variant: "default",
-    })
-    setIsPaymentDialogOpen(false);
   }
 
   const handleSaveEmployee = (employeeData: Omit<Employee, 'id'>) => {
@@ -263,6 +259,7 @@ export default function PayrollView() {
         onSubmit={handlePayAll}
         title={`Confirm Payroll for ${currentMonth}`}
         description={`You are about to pay a total of TSh ${totals.net.toLocaleString()} to ${employees.length} employees. Please select the payment method.`}
+        totalAmount={totals.net}
       />
     </>
   );

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle, CreditCard, Undo } from 'lucide-react'
 import { useFinancials, PaymentMethod } from '@/context/financial-context'
 import { PaymentDialog } from '@/components/payment-dialog'
+import { useToast } from '@/hooks/use-toast'
     
 export default function AccountsView() {
     const { 
@@ -28,6 +29,7 @@ export default function AccountsView() {
         markPrepaymentAsUsed,
         markPrepaymentAsRefunded 
     } = useFinancials();
+    const { toast } = useToast();
 
     const [dialogOpen, setDialogOpen] = React.useState(false);
     const [selectedItem, setSelectedItem] = React.useState<{ id: string; type: 'receivable' | 'payable', amount: number } | null>(null);
@@ -47,14 +49,26 @@ export default function AccountsView() {
 
     const handlePaymentSubmit = (paymentData: { amount: number, paymentMethod: PaymentMethod }) => {
       if (selectedItem) {
-        if (selectedItem.type === 'receivable') {
-          markReceivableAsPaid(selectedItem.id, paymentData.amount, paymentData.paymentMethod);
-        } else if (selectedItem.type === 'payable') {
-          markPayableAsPaid(selectedItem.id, paymentData.amount, paymentData.paymentMethod);
+          try {
+            if (selectedItem.type === 'receivable') {
+              markReceivableAsPaid(selectedItem.id, paymentData.amount, paymentData.paymentMethod);
+            } else if (selectedItem.type === 'payable') {
+              markPayableAsPaid(selectedItem.id, paymentData.amount, paymentData.paymentMethod);
+            }
+             toast({
+                title: 'Payment Successful',
+                description: `TSh ${paymentData.amount.toLocaleString()} paid via ${paymentData.paymentMethod}.`,
+            });
+            setDialogOpen(false);
+            setSelectedItem(null);
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Payment Failed',
+                description: error.message,
+            });
         }
       }
-      setDialogOpen(false);
-      setSelectedItem(null);
     };
     
     return (
