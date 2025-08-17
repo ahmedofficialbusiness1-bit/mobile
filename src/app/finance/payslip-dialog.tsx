@@ -88,7 +88,7 @@ export function PayslipDialog({ isOpen, onClose, payrollData }: PayslipDialogPro
             <div className="space-y-4">
                 <div className="flex justify-between items-start pt-2">
                     <div>
-                        <h3 className="font-bold text-sm">DiraBiz Inc.</h3>
+                        <h3 className="font-bold text-sm">MaliMax Inc.</h3>
                         <p className="text-xs text-muted-foreground">123 Business Rd, Dar es Salaam</p>
                     </div>
                     <Logo />

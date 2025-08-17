@@ -18,7 +18,7 @@ export default function IntegrationsPage() {
           Integrations
         </h1>
         <p className="text-muted-foreground mt-2 max-w-2xl">
-          Connect DiraBiz with the tools and services you already use.
+          Connect MaliMax with the tools and services you already use.
         </p>
       </div>
 

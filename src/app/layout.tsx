@@ -8,7 +8,7 @@ import { AuthProvider } from '@/context/auth-context'
 import { SecurityProvider } from '@/context/security-context'
 
 export const metadata: Metadata = {
-  title: 'DiraBiz',
+  title: 'MaliMax',
   description: 'Mfumo wa usimamizi wa biashara unaolenga Afrika Mashariki.',
 }
 

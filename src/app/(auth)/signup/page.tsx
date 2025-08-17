@@ -105,7 +105,7 @@ export default function SignupPage() {
                 <Logo />
             </div>
           <CardTitle>Create an Account</CardTitle>
-          <CardDescription>Start managing your business with DiraBiz today.</CardDescription>
+          <CardDescription>Start managing your business with MaliMax today.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

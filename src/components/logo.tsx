@@ -18,7 +18,7 @@ export function Logo({
       <div className="bg-primary-foreground/20 rounded-lg p-1.5">
         <Compass className="h-5 w-5 text-primary-foreground" />
       </div>
-      {!isCollapsed && <span className="font-headline">DiraBiz</span>}
+      {!isCollapsed && <span className="font-headline">MaliMax</span>}
     </div>
   )
 }
