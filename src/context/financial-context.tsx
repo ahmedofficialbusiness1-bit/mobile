@@ -308,14 +308,16 @@ const getProductStatus = (product: Omit<Product, 'status'>): Product['status'] =
 }
 
 function useFirestoreCollection<T>(collectionName: string, dateFields: string[] = ['date']) {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const [data, setData] = useState<T[]>([]);
 
     const stableDateFields = useMemo(() => dateFields, [JSON.stringify(dateFields)]);
 
     useEffect(() => {
+        if (authLoading) return; // Wait for auth to resolve
+        
         if (!user) {
-            setData([]);
+            setData([]); // Clear data if user logs out
             return;
         };
 
@@ -337,7 +339,7 @@ function useFirestoreCollection<T>(collectionName: string, dateFields: string[] 
         });
 
         return () => unsubscribe();
-    }, [collectionName, stableDateFields, user]);
+    }, [collectionName, stableDateFields, user, authLoading]);
 
     return data;
 }
@@ -1097,14 +1099,13 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     if (authLoading) {
-      return (
-        <FinancialContext.Provider value={contextValue}>
+        return (
             <div className="flex items-center justify-center h-screen">
                 <div className="text-xl font-semibold">Loading Financial Data...</div>
             </div>
-        </FinancialContext.Provider>
-      );
+        );
     }
+    
 
     return (
         <FinancialContext.Provider value={contextValue}>
@@ -1120,3 +1121,5 @@ export const useFinancials = (): FinancialContextType => {
     }
     return context;
 };
+
+    
