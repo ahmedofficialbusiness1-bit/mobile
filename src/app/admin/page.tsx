@@ -50,23 +50,25 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
-import { useFinancials } from '@/context/financial-context'
+import { useFinancials, type Customer } from '@/context/financial-context'
+
+interface DisplayCustomer extends Customer {
+    joinedDate: Date;
+    accountStatus: 'Active' | 'Suspended';
+    paymentStatus: 'Paid' | 'Unpaid';
+}
 
 export default function AdminPage() {
   const { toast } = useToast()
-  const { customers } = useFinancials() // Use customers from context
+  const { customers, deleteCustomer } = useFinancials()
   const [searchTerm, setSearchTerm] = React.useState('')
-
-  // Admin actions will now be handled by functions in the context if they need to be persistent.
-  // For this example, we will simulate the changes locally, but ideally, these would be context functions.
-  // Note: The context does not yet support status or payment status updates, so this remains local simulation for now.
-  const [localCustomers, setLocalCustomers] = React.useState(customers);
+  const [displayCustomers, setDisplayCustomers] = React.useState<DisplayCustomer[]>([]);
 
   React.useEffect(() => {
-     // This syncs the local state if the context state changes (e.g. new user signs up)
-    setLocalCustomers(customers.map(c => ({
+     // This syncs the local display state when the context (from Firestore) changes
+    setDisplayCustomers(customers.map(c => ({
         ...c,
-        joinedDate: new Date(), // Add dummy data for display
+        joinedDate: new Date(), // Dummy data for display
         accountStatus: 'Active', // Default status
         paymentStatus: 'Unpaid' // Default status
     })));
@@ -74,7 +76,8 @@ export default function AdminPage() {
 
 
   const handleStatusChange = (id: string, newStatus: 'Active' | 'Suspended') => {
-    setLocalCustomers(localCustomers.map(c => c.id === id ? { ...c, accountStatus: newStatus } : c))
+    // In a real app, you would also update this in Firestore
+    setDisplayCustomers(displayCustomers.map(c => c.id === id ? { ...c, accountStatus: newStatus } : c))
     toast({
       title: 'Account Status Updated',
       description: `The customer's account has been set to ${newStatus}.`,
@@ -82,7 +85,8 @@ export default function AdminPage() {
   }
   
   const handlePaymentMark = (id: string) => {
-    setLocalCustomers(localCustomers.map(c => c.id === id ? { ...c, paymentStatus: 'Paid' } : c))
+    // In a real app, you would also update this in Firestore
+    setDisplayCustomers(displayCustomers.map(c => c.id === id ? { ...c, paymentStatus: 'Paid' } : c))
      toast({
       title: 'Payment Marked as Paid',
       description: `The customer has been marked as paid for the current cycle.`,
@@ -90,16 +94,15 @@ export default function AdminPage() {
   }
 
   const handleDelete = (id: string) => {
-    // Ideally, you would call a function from the context like `deleteCustomer(id)`
-    setLocalCustomers(localCustomers.filter(c => c.id !== id))
+    deleteCustomer(id);
      toast({
       title: 'Customer Account Deleted',
-      description: 'The customer account has been permanently deleted.',
+      description: 'The customer account has been permanently deleted from the database.',
       variant: 'destructive',
     })
   }
 
-  const filteredCustomers = localCustomers.filter(
+  const filteredCustomers = displayCustomers.filter(
     (customer) =>
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.phone.includes(searchTerm)
@@ -216,7 +219,7 @@ export default function AdminPage() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            This action is permanent and cannot be undone. This will permanently delete the customer's account and all their data.
+                                            This action is permanent and cannot be undone. This will permanently delete the customer's account and all their data from the database.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
@@ -235,7 +238,7 @@ export default function AdminPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">
-                      No customers found. Try signing up a new user.
+                      No customers found in the database.
                     </TableCell>
                   </TableRow>
                 )}

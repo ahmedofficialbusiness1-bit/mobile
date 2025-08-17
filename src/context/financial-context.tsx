@@ -3,6 +3,8 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { differenceInYears, format, isAfter } from 'date-fns';
+import { collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc } from "firebase/firestore";
+import { db } from '@/lib/firebase';
 import type { SaleFormData, VatRate } from '@/app/sales/sale-form';
 import type { InvoiceFormData, InvoiceItem } from '@/app/invoices/invoice-form';
 
@@ -206,8 +208,9 @@ interface FinancialContextType {
     markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => void;
     markPrepaymentAsUsed: (id: string) => void;
     markPrepaymentAsRefunded: (id: string) => void;
-    addCustomer: (customerData: Omit<Customer, 'id'>) => void;
-    updateCustomer: (id: string, customerData: Omit<Customer, 'id'>) => void;
+    addCustomer: (customerData: Omit<Customer, 'id' | 'contactPerson' | 'location'>) => Promise<void>;
+    updateCustomer: (id: string, customerData: Omit<Customer, 'id'>) => Promise<void>;
+    deleteCustomer: (id: string) => Promise<void>;
     addAsset: (assetData: AddAssetData) => void;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => void;
     writeOffAsset: (id: string) => void;
@@ -279,6 +282,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([])
     const [invoices, setInvoices] = useState<Invoice[]>([])
     const [cashBalances, setCashBalances] = useState({ cash: 0, bank: 0, mobile: 0 });
+
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, "customers"), (snapshot) => {
+            const customersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+            setCustomers(customersData);
+        });
+        return () => unsubscribe();
+    }, []);
 
     const recalculateBalances = useCallback(() => {
         let cash = 0;
@@ -416,18 +427,12 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         // 3. Add or update customer if they are new
         if (saleData.customerType === 'new') {
-            setCustomers(prev => {
-                const existingCustomer = prev.find(c => c.phone === saleData.customerPhone);
-                if (existingCustomer) {
-                    return prev; // Customer already exists
-                }
-                const newCustomer: Customer = {
-                    id: `cust-${Date.now()}`,
-                    name: saleData.customerName,
-                    phone: saleData.customerPhone,
-                };
-                return [...prev, newCustomer];
-            });
+           addCustomer({
+               name: saleData.customerName,
+               phone: saleData.customerPhone,
+               email: '',
+               address: '',
+           })
         }
     }
 
@@ -497,18 +502,26 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         );
     };
 
-    const addCustomer = (customerData: Omit<Customer, 'id'>) => {
-        const newCustomer: Customer = {
-            id: `cust-${Date.now()}`,
-            ...customerData,
-        };
-        setCustomers(prev => [...prev, newCustomer]);
+    const addCustomer = async (customerData: Omit<Customer, 'id' | 'contactPerson' | 'location'>) => {
+        try {
+            await addDoc(collection(db, "customers"), {
+                name: customerData.name,
+                phone: customerData.phone,
+                email: customerData.email,
+                address: customerData.address,
+            });
+        } catch (e) {
+            console.error("Error adding document: ", e);
+        }
     };
 
-    const updateCustomer = (id: string, customerData: Omit<Customer, 'id'>) => {
-        setCustomers(prev =>
-            prev.map(c => (c.id === id ? { id, ...customerData } : c))
-        );
+    const updateCustomer = async (id: string, customerData: Omit<Customer, 'id'>) => {
+        const customerDoc = doc(db, "customers", id);
+        await updateDoc(customerDoc, customerData);
+    };
+
+    const deleteCustomer = async (id: string) => {
+        await deleteDoc(doc(db, "customers", id));
     };
     
     const addAsset = (assetData: AddAssetData) => {
@@ -835,6 +848,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         markPrepaymentAsRefunded,
         addCustomer,
         updateCustomer,
+        deleteCustomer,
         addAsset,
         sellAsset,
         writeOffAsset,
