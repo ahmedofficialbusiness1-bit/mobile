@@ -301,14 +301,12 @@ const getProductStatus = (product: Omit<Product, 'status' | 'initialStock'>): Pr
 function useFirestoreCollection<T>(collectionName: string, dateFields: string[] = ['date']) {
     const [data, setData] = useState<T[]>([]);
 
-    // Memoize the dateFields array to prevent re-renders
     const stableDateFields = useMemo(() => dateFields, [JSON.stringify(dateFields)]);
 
     useEffect(() => {
         const unsubscribe = onSnapshot(collection(db, collectionName), (snapshot) => {
             const collectionData = snapshot.docs.map(doc => {
                 const docData = doc.data();
-                // Convert Firestore Timestamps to JS Date objects
                 for (const field of stableDateFields) {
                     if (docData[field]) {
                         docData[field] = toDate(docData[field]);

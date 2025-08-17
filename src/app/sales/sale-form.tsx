@@ -47,7 +47,6 @@ export interface SaleFormData {
   quantity: number
   paymentMethod: PaymentMethod
   vatRate: VatRate
-  notes?: string
 }
 
 interface SaleFormProps {
@@ -67,7 +66,6 @@ const formSchema = z.object({
   quantity: z.coerce.number().min(1, { message: 'Quantity must be at least 1.' }),
   paymentMethod: z.enum(['Cash', 'Mobile', 'Bank', 'Credit', 'Prepaid']),
   vatRate: z.coerce.number().min(0).max(0.18),
-  notes: z.string().optional(),
 }).superRefine((data, ctx) => {
     if (data.customerType === 'existing' && !data.customerId) {
         ctx.addIssue({
@@ -103,7 +101,6 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
       quantity: 1,
       paymentMethod: 'Cash',
       vatRate: 0.18,
-      notes: '',
     },
   })
 
@@ -145,7 +142,6 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
       quantity: 1,
       paymentMethod: 'Cash',
       vatRate: 0.18,
-      notes: '',
     })
     onClose()
   }
@@ -347,22 +343,6 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
                   <FormMessage />
                 </FormItem>
               )}
-            />
-             <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Notes (Optional)</FormLabel>
-                    <FormControl>
-                    <Textarea
-                        placeholder="Add any notes for this sale..."
-                        {...field}
-                    />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
             />
             
             <DialogFooter>
