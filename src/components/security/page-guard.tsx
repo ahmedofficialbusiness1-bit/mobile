@@ -4,6 +4,7 @@
 import * as React from 'react'
 import { useSecurity } from '@/context/security-context'
 import { PasswordPromptDialog } from './password-prompt-dialog'
+import { useRouter } from 'next/navigation'
 
 interface PageGuardProps {
   tabId: string
@@ -14,6 +15,7 @@ export function PageGuard({ tabId, children }: PageGuardProps) {
   const { isTabLocked, unlockTab, verifyPassword } = useSecurity()
   const [isLocked, setIsLocked] = React.useState(isTabLocked(tabId));
   const [showPrompt, setShowPrompt] = React.useState(isTabLocked(tabId));
+  const router = useRouter();
 
   React.useEffect(() => {
       const locked = isTabLocked(tabId);
@@ -31,12 +33,16 @@ export function PageGuard({ tabId, children }: PageGuardProps) {
       alert('Incorrect password');
     }
   }
+  
+  const handleCancel = () => {
+      router.push('/'); // Go to a safe page like dashboard
+  }
 
   if (isLocked) {
     return (
       <PasswordPromptDialog
         isOpen={showPrompt}
-        onClose={() => {}} // Don't allow closing
+        onClose={handleCancel} // Allow closing, which triggers cancel
         onSubmit={handlePasswordSubmit}
         tabName={tabId.charAt(0).toUpperCase() + tabId.slice(1)}
       />

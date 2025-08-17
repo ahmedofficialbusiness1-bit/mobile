@@ -34,7 +34,7 @@ export function PasswordPromptDialog({ isOpen, onClose, onSubmit, tabName }: Pas
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader className="text-center">
             <div className="mx-auto bg-primary/10 text-primary p-3 rounded-full mb-4">
@@ -61,6 +61,7 @@ export function PasswordPromptDialog({ isOpen, onClose, onSubmit, tabName }: Pas
               )}
             />
             <DialogFooter>
+              <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
               <Button type="submit" className="w-full">Unlock</Button>
             </DialogFooter>
           </form>
