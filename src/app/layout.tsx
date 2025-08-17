@@ -4,6 +4,8 @@ import './globals.css'
 import { AppContent } from '@/components/layout/app-content'
 import { Toaster } from '@/components/ui/toaster'
 import { AuthProvider } from '@/context/auth-context'
+import { FinancialProvider } from '@/context/financial-context'
+import { SecurityProvider } from '@/context/security-context'
 
 
 export const metadata: Metadata = {
@@ -32,9 +34,13 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-            <AppContent>
-                {children}
-            </AppContent>
+          <FinancialProvider>
+            <SecurityProvider>
+              <AppContent>
+                  {children}
+              </AppContent>
+            </SecurityProvider>
+          </FinancialProvider>
         </AuthProvider>
         <Toaster />
       </body>

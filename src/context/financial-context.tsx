@@ -30,7 +30,11 @@ const toDate = (timestamp: any): Date => {
         return timestamp.toDate();
     }
     // Handle cases where it might already be a Date object during optimistic updates
-    return timestamp;
+    if (timestamp instanceof Date) {
+        return timestamp;
+    }
+    // Fallback for unexpected types
+    return new Date();
 }
 
 export interface Transaction {
@@ -361,7 +365,7 @@ function useFirestoreUserAccounts() {
 
 // --- Context Provider ---
 export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const transactions = useFirestoreCollection<Transaction>('transactions', ['date']);
     const payables = useFirestoreCollection<Payable>('payables', ['date']);
     const prepayments = useFirestoreCollection<CustomerPrepayment>('prepayments', ['date']);
@@ -1091,6 +1095,16 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         addInvoice,
         payInvoice
     };
+
+    if (authLoading) {
+      return (
+        <FinancialContext.Provider value={contextValue}>
+            <div className="flex items-center justify-center h-screen">
+                <div className="text-xl font-semibold">Loading Financial Data...</div>
+            </div>
+        </FinancialContext.Provider>
+      );
+    }
 
     return (
         <FinancialContext.Provider value={contextValue}>
