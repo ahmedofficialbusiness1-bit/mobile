@@ -690,6 +690,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (!user) throw new Error("User not authenticated.");
         const batch = writeBatch(db);
         const capRef = collection(db, 'capitalContributions');
+        // The object passed to addDoc/setDoc should include the 'type' field from the 'data' object.
         batch.set(doc(capRef), { ...data, userId: user.uid });
 
         if (data.type === 'Asset') {
