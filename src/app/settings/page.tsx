@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Separator } from '@/components/ui/separator'
 
 const tabs = [
+  { id: 'dashboard', label: 'Dashboard' },
   { id: 'sales', label: 'Sales' },
   { id: 'customers', label: 'Customers' },
   { id: 'invoices', label: 'Invoices' },
@@ -44,6 +45,10 @@ function TabSecurityForm({ tabId, tabLabel }: TabSecurityFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: { password: '' },
   })
+
+  React.useEffect(() => {
+    setIsEnabled(lockedTabs.hasOwnProperty(tabId));
+  }, [lockedTabs, tabId]);
   
   const handleToggle = (checked: boolean) => {
     setIsEnabled(checked)
@@ -65,12 +70,16 @@ function TabSecurityForm({ tabId, tabLabel }: TabSecurityFormProps) {
       <div className="space-y-0.5">
         <h3 className="font-medium">{tabLabel}</h3>
         <p className="text-sm text-muted-foreground">
-          {isEnabled ? 'Security is enabled.' : 'Security is disabled.'}
+          {isLocked
+            ? 'Security is enabled and password is set.'
+            : isEnabled
+            ? 'Security is enabled. Set a password.'
+            : 'Security is disabled.'}
         </p>
       </div>
       <div className="w-full sm:w-auto flex flex-col items-end gap-4">
         <Switch checked={isEnabled} onCheckedChange={handleToggle} />
-        {isEnabled && (
+        {isEnabled && !isLocked && (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-2">
               <FormField
@@ -80,13 +89,13 @@ function TabSecurityForm({ tabId, tabLabel }: TabSecurityFormProps) {
                   <FormItem>
                     <FormLabel className="sr-only">Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Enter new password" {...field} />
+                      <Input type="password" placeholder="Enter password" {...field} />
                     </FormControl>
                     <FormMessage className="text-xs" />
                   </FormItem>
                 )}
               />
-              <Button type="submit">Set</Button>
+              <Button type="submit">Set Password</Button>
             </form>
           </Form>
         )}
@@ -112,7 +121,7 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Tab Security</CardTitle>
           <CardDescription>
-            Set a password to restrict access to specific tabs. The password is stored locally on your device.
+            Set a password to restrict access to specific tabs. Once set, a password cannot be changed, only removed by disabling security for that tab.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
