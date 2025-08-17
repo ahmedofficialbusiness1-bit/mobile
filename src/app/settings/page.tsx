@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/hooks/use-toast'
 import { Separator } from '@/components/ui/separator'
+import { PageGuard } from '@/components/security/page-guard'
 
 const tabs = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -24,6 +25,7 @@ const tabs = [
   { id: 'finance', label: 'Finance' },
   { id: 'reports', label: 'Reports' },
   { id: 'admin', label: 'Admin Panel' },
+  { id: 'settings', label: 'Settings' },
 ]
 
 const formSchema = z.object({
@@ -105,31 +107,39 @@ function TabSecurityForm({ tabId, tabLabel }: TabSecurityFormProps) {
 }
 
 
-export default function SettingsPage() {
-  return (
-    <div className="flex flex-col gap-8">
-       <div className="text-left">
-        <h1 className="text-3xl font-bold font-headline">
-          Settings
-        </h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl">
-          Manage your application settings and security preferences.
-        </p>
-      </div>
+function SettingsPageContent() {
+    return (
+        <div className="flex flex-col gap-8">
+            <div className="text-left">
+                <h1 className="text-3xl font-bold font-headline">
+                Settings
+                </h1>
+                <p className="text-muted-foreground mt-2 max-w-2xl">
+                Manage your application settings and security preferences.
+                </p>
+            </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Tab Security</CardTitle>
-          <CardDescription>
-            Set a password to restrict access to specific tabs. Once set, a password cannot be changed, only removed by disabling security for that tab.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-            {tabs.map(tab => (
-                <TabSecurityForm key={tab.id} tabId={tab.id} tabLabel={tab.label} />
-            ))}
-        </CardContent>
-      </Card>
-    </div>
-  )
+            <Card>
+                <CardHeader>
+                <CardTitle>Tab Security</CardTitle>
+                <CardDescription>
+                    Set a password to restrict access to specific tabs. Once set, a password cannot be changed, only removed by disabling security for that tab.
+                </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {tabs.map(tab => (
+                        <TabSecurityForm key={tab.id} tabId={tab.id} tabLabel={tab.label} />
+                    ))}
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+export default function SettingsPage() {
+    return (
+        <PageGuard tabId="settings">
+            <SettingsPageContent />
+        </PageGuard>
+    )
 }
