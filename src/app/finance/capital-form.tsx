@@ -20,14 +20,14 @@ export interface CapitalContribution {
   id: string;
   date: Date;
   description: string;
-  type: 'Cash' | 'Bank' | 'Asset' | 'Liability';
+  type: 'Cash' | 'Bank' | 'Asset' | 'Liability' | 'Drawing';
   amount: number;
 }
 
 interface CapitalFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Omit<CapitalContribution, 'id'>) => void;
+  onSave: (data: Omit<CapitalContribution, 'id' | 'type'> & { type: 'Cash' | 'Bank' | 'Asset' | 'Liability' }) => void;
 }
 
 const formSchema = z.object({
