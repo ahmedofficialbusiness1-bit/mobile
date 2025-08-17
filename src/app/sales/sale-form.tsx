@@ -159,7 +159,7 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Record New Sale</DialogTitle>
           <DialogDescription>
