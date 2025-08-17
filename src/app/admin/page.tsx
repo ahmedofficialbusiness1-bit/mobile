@@ -123,7 +123,7 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
              <Button variant="outline" asChild>
-                <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer">
+                <a href="https://console.firebase.google.com/project/dirabiz/authentication/users" target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="mr-2 h-4 w-4"/>
                     Open Firebase Console
                 </a>
@@ -194,6 +194,13 @@ export default function AdminPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
+                            <DropdownMenuItem asChild>
+                                <a href={`https://console.firebase.google.com/project/dirabiz/authentication/users/${user.id}`} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    View in Firebase
+                                </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator/>
                             <DropdownMenuItem
                                 disabled={user.paymentStatus === 'Paid'}
                                 onClick={() => handlePaymentMark(user.id)}
