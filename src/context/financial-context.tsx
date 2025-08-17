@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { differenceInYears, format, isAfter } from 'date-fns';
 import type { SaleFormData, VatRate } from '@/app/sales/sale-form';
+import type { InvoiceFormData, InvoiceItem } from '@/app/invoices/invoice-form';
 
 // --- Type Definitions ---
 export type PaymentMethod = "Cash" | "Mobile" | "Bank" | "Credit" | "Prepaid";
@@ -169,6 +170,21 @@ export interface PurchaseOrder {
   otherCharges: number
 }
 
+export interface Invoice {
+    id: string;
+    invoiceNumber: string;
+    customerId: string;
+    customerName: string;
+    issueDate: Date;
+    dueDate: Date;
+    items: InvoiceItem[];
+    subtotal: number;
+    vatAmount: number;
+    totalAmount: number;
+    status: 'Draft' | 'Pending' | 'Paid' | 'Overdue' | 'Void';
+}
+
+
 // --- Context Definition ---
 interface FinancialContextType {
     transactions: Transaction[];
@@ -183,6 +199,7 @@ interface FinancialContextType {
     employees: Employee[];
     payrollHistory: PayrollRun[];
     purchaseOrders: PurchaseOrder[];
+    invoices: Invoice[];
     cashBalances: { cash: number; bank: number; mobile: number };
     addSale: (saleData: SaleFormData) => void;
     markReceivableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => void;
@@ -206,6 +223,8 @@ interface FinancialContextType {
     addPurchaseOrder: (data: Omit<PurchaseOrder, 'id'>) => void;
     receivePurchaseOrder: (poId: string) => void;
     payPurchaseOrder: (poId: string, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => void;
+    addInvoice: (invoiceData: InvoiceFormData) => void;
+    payInvoice: (invoiceId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => void;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -258,6 +277,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [assets, setAssets] = useState<Asset[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([])
+    const [invoices, setInvoices] = useState<Invoice[]>([])
     const [cashBalances, setCashBalances] = useState({ cash: 0, bank: 0, mobile: 0 });
 
     const recalculateBalances = useCallback(() => {
@@ -726,6 +746,72 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
     }
 
+    const addInvoice = (invoiceData: InvoiceFormData) => {
+        // 1. Calculate totals
+        const subtotal = invoiceData.items.reduce((sum, item) => sum + item.totalPrice, 0);
+        const vatAmount = subtotal * invoiceData.vatRate;
+        const totalAmount = subtotal + vatAmount;
+
+        // 2. Create the invoice object
+        const newInvoice: Invoice = {
+            id: `inv-${Date.now()}`,
+            invoiceNumber: invoiceData.invoiceNumber,
+            customerId: invoiceData.customerId,
+            customerName: invoiceData.customerName,
+            issueDate: invoiceData.issueDate,
+            dueDate: invoiceData.dueDate,
+            items: invoiceData.items,
+            subtotal,
+            vatAmount,
+            totalAmount,
+            status: 'Pending',
+        };
+        setInvoices(prev => [...prev, newInvoice].sort((a,b) => b.issueDate.getTime() - a.issueDate.getTime()));
+
+        // 3. Create a corresponding transaction (as 'Credit') to represent the receivable
+        const newTransaction: Transaction = {
+            id: `txn-inv-${newInvoice.id}`,
+            name: invoiceData.customerName,
+            phone: invoiceData.customerPhone,
+            amount: totalAmount,
+            netAmount: subtotal,
+            vatAmount: vatAmount,
+            status: 'Credit',
+            date: invoiceData.issueDate,
+            paymentMethod: 'Credit',
+            product: `Invoice #${newInvoice.invoiceNumber}`,
+            notes: 'Invoice Sale',
+        };
+        setTransactions(prev => [...prev, newTransaction]);
+        
+        // 4. Reduce stock for each item
+         setProducts(prev => {
+            const newProducts = [...prev];
+            invoiceData.items.forEach(item => {
+                const productIndex = newProducts.findIndex(p => p.id === item.productId);
+                if (productIndex !== -1) {
+                    const updatedProduct = { ...newProducts[productIndex] };
+                    updatedProduct.currentStock -= item.quantity;
+                    updatedProduct.lastUpdated = new Date();
+                    newProducts[productIndex] = { ...updatedProduct, status: getProductStatus(updatedProduct) };
+                }
+            });
+            return newProducts;
+        });
+    };
+
+    const payInvoice = (invoiceId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => {
+        const invoice = invoices.find(inv => inv.id === invoiceId);
+        if (!invoice) return;
+
+        // Mark the invoice as paid
+        setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: 'Paid' } : inv));
+        
+        // Find the corresponding credit transaction and mark it as paid
+        const transactionId = `txn-inv-${invoiceId}`;
+        markReceivableAsPaid(transactionId, amount, paymentMethod);
+    };
+
 
     const contextValue: FinancialContextType = {
         transactions,
@@ -741,6 +827,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         payrollHistory,
         cashBalances,
         purchaseOrders,
+        invoices,
         addSale,
         markReceivableAsPaid,
         markPayableAsPaid,
@@ -762,7 +849,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         processPayroll,
         addPurchaseOrder,
         receivePurchaseOrder,
-        payPurchaseOrder
+        payPurchaseOrder,
+        addInvoice,
+        payInvoice
     };
 
     return (
@@ -779,5 +868,3 @@ export const useFinancials = (): FinancialContextType => {
     }
     return context;
 };
-
-    
