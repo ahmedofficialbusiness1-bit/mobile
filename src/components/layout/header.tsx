@@ -13,6 +13,7 @@ import {
   Banknote,
   BarChart2,
   Users,
+  Shield,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -27,7 +28,7 @@ const navItems = [
   { href: '/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/finance', label: 'Finance', icon: Banknote },
   { href: '/reports', label: 'Reports', icon: BarChart2 },
-  { href: '/receipts', label: 'Digital Receipts', icon: FileText },
+  { href: '/admin', label: 'Admin Panel', icon: Shield },
 ]
 
 const getPageTitle = (path: string) => {
