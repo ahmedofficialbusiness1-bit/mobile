@@ -18,7 +18,8 @@ import {
     writeBatch,
     query,
     where,
-    getDocs
+    getDocs,
+    setDoc
 } from 'firebase/firestore';
 
 
@@ -314,10 +315,9 @@ function useFirestoreCollection<T>(collectionName: string, dateFields: string[] 
     const stableDateFields = useMemo(() => dateFields, [JSON.stringify(dateFields)]);
 
     useEffect(() => {
-        if (authLoading) return; // Wait for auth to resolve
-        
-        if (!user) {
-            setData([]); // Clear data if user logs out
+        if (authLoading || !user) {
+            // Clear data if user logs out or auth is still loading
+            if (data.length > 0) setData([]); 
             return;
         };
 
@@ -408,21 +408,34 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [initialProducts]);
 
 
-    const [ownerLoans, setOwnerLoans] = useState<OwnerLoan[]>([]);
-    const [cashBalances, setCashBalances] = useState({ cash: 0, bank: 0, mobile: 0 });
+    const ownerLoans = useMemo(() => {
+        return capitalContributions
+            .filter(c => c.type === 'Liability')
+            .map(c => {
+                // This logic is simplified. A real app would need to track repayments separately.
+                return {
+                    id: c.id,
+                    date: c.date,
+                    description: c.description,
+                    amount: c.amount,
+                    repaid: 0 // Placeholder
+                };
+            });
+    }, [capitalContributions]);
 
-    const recalculateBalances = useCallback(() => {
+    const cashBalances = useMemo(() => {
         let cash = 0;
         let bank = 0;
         let mobile = 0;
 
-        // Inflows from Capital (Cash/Bank only)
         capitalContributions.forEach(c => {
             if (c.type === 'Cash') cash += c.amount;
             if (c.type === 'Bank') bank += c.amount;
+            if (c.type === 'Drawing') { // Simplified: assume all drawings from cash
+                cash -= c.amount;
+            }
         });
 
-        // Inflows from Sales
         transactions.forEach(t => {
             if (t.status === 'Paid') {
                 if (t.paymentMethod === 'Cash') cash += t.amount;
@@ -431,7 +444,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
         });
         
-        // Outflows from Expenses
         expenses.forEach(e => {
             if (e.status === 'Approved') {
                 if (e.paymentMethod === 'Cash') cash -= e.amount;
@@ -439,73 +451,18 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 if (e.paymentMethod === 'Mobile') mobile -= e.amount;
             }
         });
-
-        // Outflows for Asset Purchases
-        assets.forEach(a => {
-            if (a.source === 'Purchase') {
-                // This is simplified. Assumes cash purchase. A real system needs payment method.
-                cash -= a.cost;
-            }
-        });
-
-        // Outflows from paying suppliers/POs
-        purchaseOrders.forEach(p => {
-             if (p.paymentStatus === 'Paid' && p.paymentMethod !== 'Credit') {
-                 const total = p.items.reduce((sum, i) => sum + i.totalPrice, 0);
-                 if (p.paymentMethod === 'Cash') cash -= total;
-                 if (p.paymentMethod === 'Bank Transfer') bank -= total;
-                 if (p.paymentMethod === 'Mpesa') mobile -= total;
-             }
-        });
         
-        // Payroll Payments
-        payrollHistory.forEach(run => {
-            if (run.paymentMethod === 'Cash') cash -= run.netSalary;
-            if (run.paymentMethod === 'Bank') bank -= run.netSalary;
-            if (run.paymentMethod === 'Mobile') mobile -= run.netSalary;
-        });
-        
-        // Owner Drawings
-        capitalContributions.forEach(c => {
-            if (c.type === 'Drawing') {
-                // Simplified: Assume drawings are from cash. A real system needs a source.
-                 cash -= c.amount;
-            }
-        })
-
-
-        setCashBalances({ cash, bank, mobile });
-
-    }, [transactions, capitalContributions, expenses, payrollHistory, purchaseOrders, assets]);
-
-    useEffect(() => {
-        recalculateBalances();
-    }, [recalculateBalances]);
-
-    useEffect(() => {
-       setOwnerLoans(prevOwnerLoans => {
-            return capitalContributions
-                .filter(c => c.type === 'Liability')
-                .map(c => {
-                    const existingLoan = prevOwnerLoans.find(l => l.id === c.id);
-                    return {
-                        id: c.id,
-                        date: c.date,
-                        description: c.description,
-                        amount: c.amount,
-                        repaid: existingLoan?.repaid || 0
-                    };
-                });
-        });
-    }, [capitalContributions]);
-
+        return { cash, bank, mobile };
+    }, [transactions, capitalContributions, expenses]);
 
     const addSale = async (saleData: SaleFormData) => {
         if (!user) throw new Error("User not authenticated.");
-        const product = products.find(p => p.id === saleData.productId);
-        if (!product) {
-            throw new Error("Product not found");
-        }
+        const productRef = doc(db, 'products', saleData.productId);
+        const productSnap = await getDocs(query(collection(db, 'products'), where('__name__', '==', saleData.productId)));
+        if (productSnap.empty) throw new Error("Product not found");
+        
+        const product = {id: productSnap.docs[0].id, ...productSnap.docs[0].data()} as Product;
+
         if (product.currentStock < saleData.quantity) {
             throw new Error(`Not enough stock for ${product.name}. Only ${product.currentStock} available.`);
         }
@@ -530,24 +487,22 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         };
         
         const batch = writeBatch(db);
+        batch.set(doc(collection(db, 'transactions')), newTransaction);
 
-        const transactionRef = collection(db, 'transactions');
-        batch.set(doc(transactionRef), newTransaction);
-
-        const productRef = doc(db, 'products', saleData.productId);
         const updatedStock = product.currentStock - saleData.quantity;
         const newStatus = getProductStatus({ ...product, currentStock: updatedStock });
         batch.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
 
         if (saleData.customerType === 'new') {
-            const customerRef = collection(db, 'customers');
-            batch.set(doc(customerRef), {
-                userId: user.uid,
-                name: saleData.customerName,
-                phone: saleData.customerPhone,
-                email: '',
-                address: '',
-            });
+            const customerQuery = query(collection(db, 'customers'), where('phone', '==', saleData.customerPhone), where('userId', '==', user.uid));
+            const existingCustomer = await getDocs(customerQuery);
+            if (existingCustomer.empty) {
+                 batch.set(doc(collection(db, 'customers')), {
+                    userId: user.uid,
+                    name: saleData.customerName,
+                    phone: saleData.customerPhone,
+                });
+            }
         }
         
         await batch.commit();
@@ -560,23 +515,20 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
 
         const batch = writeBatch(db);
-
-        // Delete the sale transaction
         const saleRef = doc(db, 'transactions', saleId);
         batch.delete(saleRef);
 
-        // Reverse the stock
-        const product = products.find(p => p.id === saleToDelete.productId);
-        if (product) {
-            const productRef = doc(db, 'products', product.id);
-            const updatedStock = product.currentStock + saleToDelete.quantity;
-            const newStatus = getProductStatus({ ...product, currentStock: updatedStock });
-            batch.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
+        const productRef = doc(db, 'products', saleToDelete.productId);
+        const productSnap = await getDocs(query(collection(db, 'products'), where('__name__', '==', saleToDelete.productId)));
+        if (!productSnap.empty) {
+             const product = {id: productSnap.docs[0].id, ...productSnap.docs[0].data()} as Product;
+             const updatedStock = product.currentStock + saleToDelete.quantity;
+             const newStatus = getProductStatus({ ...product, currentStock: updatedStock });
+             batch.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
         }
 
         await batch.commit();
     };
-
 
     const markReceivableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
         if (!user) throw new Error("User not authenticated.");
@@ -653,8 +605,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const addUserAccount = async (userData: Omit<UserAccount, 'id'> & { id: string }) => {
         const { id, ...data } = userData;
-        const userAccountRef = doc(db, "userAccounts", id);
-        await addDoc(collection(db, 'userAccounts'), data);
+        await setDoc(doc(db, "userAccounts", id), data);
     }
 
     const deleteUserAccount = async (id: string) => {
@@ -1121,5 +1072,3 @@ export const useFinancials = (): FinancialContextType => {
     }
     return context;
 };
-
-    
