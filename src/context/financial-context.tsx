@@ -273,14 +273,14 @@ interface FinancialContextType {
     repayOwnerLoan: (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => Promise<void>;
     addExpense: (data: AddExpenseData) => Promise<void>;
     approveExpense: (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
-    deleteExpense: (id: string) => Promise<void>;
+    deleteExpense: (id: string, expense: Expense) => Promise<void>;
     addEmployee: (employeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
     updateEmployee: (id: string, employeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
     deleteEmployee: (id: string) => Promise<void>;
     processPayroll: (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => Promise<void>;
     paySingleEmployee: (data: { employeeId: string; grossSalary: number; netSalary: number; paymentMethod: PaymentMethod; }) => Promise<void>;
     addPurchaseOrder: (data: Omit<PurchaseOrder, 'id' | 'userId'>) => Promise<void>;
-    deletePurchaseOrder: (poId: string) => Promise<void>;
+    deletePurchaseOrder: (po: PurchaseOrder) => Promise<void>;
     receivePurchaseOrder: (poId: string) => Promise<void>;
     payPurchaseOrder: (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => Promise<void>;
     addInvoice: (invoiceData: InvoiceFormData) => Promise<void>;
@@ -482,9 +482,17 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 if (e.paymentMethod === 'Mobile') mobile -= e.amount;
             }
         });
+
+        payables.forEach(p => {
+             if (p.status === 'Paid') {
+                if (p.paymentMethod === 'Cash') cash -= p.amount;
+                if (p.paymentMethod === 'Bank') bank -= p.amount;
+                if (p.paymentMethod === 'Mobile') mobile -= p.amount;
+            }
+        });
         
         return { cash, bank, mobile };
-    }, [transactions, capitalContributions, expenses]);
+    }, [transactions, capitalContributions, expenses, payables]);
 
     const addSale = async (saleData: SaleFormData) => {
         if (!user) throw new Error("User not authenticated.");
@@ -549,6 +557,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             
             const saleToDelete = saleDoc.data() as Transaction;
             
+            // Reverse stock
             if (saleToDelete.productId) {
                 const productRef = doc(db, 'products', saleToDelete.productId);
                 const productDoc = await transaction.get(productRef);
@@ -559,6 +568,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     transaction.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
                 }
             }
+
+            // The effect on cash balance will be reversed automatically by the cashBalances memoization
+            // when the transaction is deleted.
+
             transaction.delete(saleRef);
         });
     };
@@ -608,10 +621,13 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const markPayableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
         if (!user) throw new Error("User not authenticated.");
-        const balance = cashBalances[paymentMethod.toLowerCase() as keyof typeof cashBalances];
-        if (amount > balance) {
-            throw new Error(`Insufficient funds in ${paymentMethod} account.`);
+        if (paymentMethod === 'Credit' || paymentMethod === 'Prepaid') throw new Error("Invalid payment method for payables.");
+        
+        const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
+        if (cashBalances[balanceKey] < amount) {
+            throw new Error(`Insufficient funds in ${paymentMethod}. Required: ${amount}, Available: ${cashBalances[balanceKey].toLocaleString()}`);
         }
+        
         const payableRef = doc(db, 'payables', id);
         await updateDoc(payableRef, { status: 'Paid', paymentMethod: paymentMethod });
     };
@@ -790,10 +806,11 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await updateDoc(doc(db, 'expenses', id), { status: 'Approved', paymentMethod });
     };
 
-    const deleteExpense = async (id: string) => {
+    const deleteExpense = async (id: string, expense: Expense) => {
         if (!user) throw new Error("User not authenticated.");
         const expenseRef = doc(db, 'expenses', id);
         await deleteDoc(expenseRef);
+        // Cash balance will be restored via memoization
     };
 
     const addEmployee = async (employeeData: Omit<Employee, 'id' | 'userId'>) => {
@@ -911,8 +928,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await batch.commit();
     }
     
-    const deletePurchaseOrder = async (poId: string) => {
+    const deletePurchaseOrder = async (po: PurchaseOrder) => {
         if (!user) throw new Error("User not authenticated.");
+        const poId = po.id;
+
         await runTransaction(db, async (transaction) => {
             const poRef = doc(db, 'purchaseOrders', poId);
             const poDoc = await transaction.get(poRef);
@@ -1182,5 +1201,3 @@ export const useFinancials = (): FinancialContextType => {
     }
     return context;
 };
-
-    
