@@ -318,12 +318,11 @@ function useFirestoreCollection<T>(collectionName: string, dateFields: string[] 
 
     useEffect(() => {
         if (authLoading || !user) {
-            // Clear data if user logs out or auth is still loading
             if (data.length > 0) setData([]); 
             return;
         };
 
-        const q = query(collection(db, collectionName), where("userId", "==", user.uid));
+        const q = collection(db, collectionName);
         
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const collectionData = snapshot.docs.map(doc => {
@@ -346,46 +345,6 @@ function useFirestoreCollection<T>(collectionName: string, dateFields: string[] 
     return data;
 }
 
-function useFirestoreUserAccounts() {
-    const { user, isAdmin, loading: authLoading } = useAuth();
-    const [data, setData] = useState<UserAccount[]>([]);
-
-    useEffect(() => {
-        if (authLoading || !user) {
-            if (data.length > 0) setData([]);
-            return;
-        }
-
-        if (isAdmin) {
-            // Admin fetches all accounts
-            const unsubscribe = onSnapshot(collection(db, 'userAccounts'), (snapshot) => {
-                const collectionData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserAccount));
-                setData(collectionData);
-            }, (error) => {
-                console.error(`Error fetching all userAccounts:`, error);
-            });
-            return () => unsubscribe();
-        } else {
-            // Regular user fetches only their own account
-            const docRef = doc(db, 'userAccounts', user.uid);
-            const unsubscribe = onSnapshot(docRef, (doc) => {
-                if (doc.exists()) {
-                    setData([{ id: doc.id, ...doc.data() } as UserAccount]);
-                } else {
-                    setData([]);
-                }
-            }, (error) => {
-                console.error(`Error fetching userAccount for ${user.uid}:`, error);
-            });
-            return () => unsubscribe();
-        }
-
-    }, [user, isAdmin, authLoading]);
-
-    return data;
-}
-
-
 // --- Context Provider ---
 export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { user, loading: authLoading } = useAuth();
@@ -393,7 +352,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const payables = useFirestoreCollection<Payable>('payables', ['date']);
     const prepayments = useFirestoreCollection<CustomerPrepayment>('prepayments', ['date']);
     const customers = useFirestoreCollection<Customer>('customers');
-    const userAccounts = useFirestoreUserAccounts();
+    const userAccounts = useFirestoreCollection<UserAccount>('userAccounts');
     const initialProducts = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
     const employees = useFirestoreCollection<Employee>('employees');
     const payrollHistory = useFirestoreCollection<PayrollRun>('payrollHistory', ['date']);
@@ -409,7 +368,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         return account;
     }, [user, userAccounts]);
 
-    const companyName = useMemo(() => currentUserAccount?.companyName || "MaliMax Inc.", [currentUserAccount]);
+    const companyName = useMemo(() => currentUserAccount?.companyName || "DiraBiz", [currentUserAccount]);
 
     const assets = useMemo(() => {
         return initialAssets.map(asset => {
@@ -493,7 +452,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const grossAmount = netAmount + vatAmount;
 
         const newTransaction = {
-            userId: user.uid,
             name: saleData.customerName,
             phone: saleData.customerPhone,
             amount: grossAmount,
@@ -515,11 +473,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         batch.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
 
         if (saleData.customerType === 'new') {
-            const customerQuery = query(collection(db, 'customers'), where('phone', '==', saleData.customerPhone), where('userId', '==', user.uid));
+            const customerQuery = query(collection(db, 'customers'), where('phone', '==', saleData.customerPhone));
             const existingCustomer = await getDocs(customerQuery);
             if (existingCustomer.empty) {
                  batch.set(doc(collection(db, 'customers')), {
-                    userId: user.uid,
                     name: saleData.customerName,
                     phone: saleData.customerPhone,
                 });
@@ -559,7 +516,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const remainingAmount = receivableToUpdate.amount - amount;
 
         const paymentTransaction = {
-            userId: user.uid,
             name: receivableToUpdate.name,
             phone: receivableToUpdate.phone,
             amount: amount,
@@ -613,7 +569,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const addCustomer = async (customerData: Omit<Customer, 'id'>) => {
         if (!user) throw new Error("User not authenticated.");
-        await addDoc(collection(db, 'customers'), { ...customerData, userId: user.uid });
+        await addDoc(collection(db, 'customers'), { ...customerData });
     };
 
     const updateCustomer = async (id: string, customerData: Omit<Customer, 'id'>) => {
@@ -637,7 +593,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (!user) throw new Error("User not authenticated.");
         const newProduct = {
             ...productData,
-            userId: user.uid,
             status: getProductStatus(productData),
             initialStock: productData.currentStock,
             entryDate: new Date(),
@@ -663,7 +618,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (!user) throw new Error("User not authenticated.");
         const newAssetData = {
             ...assetData,
-            userId: user.uid,
             status: 'Active',
             accumulatedDepreciation: 0,
             netBookValue: assetData.cost,
@@ -683,7 +637,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         batch.update(assetRef, { status: 'Sold', netBookValue: 0 });
 
         const newTransaction = {
-            userId: user.uid,
             name: "Asset Sale",
             phone: "",
             amount: sellPrice,
@@ -711,12 +664,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (!user) throw new Error("User not authenticated.");
         const batch = writeBatch(db);
         const capRef = collection(db, 'capitalContributions');
-        // The object passed to addDoc/setDoc should include the 'type' field from the 'data' object.
-        batch.set(doc(capRef), { ...data, userId: user.uid });
+        batch.set(doc(capRef), { ...data });
 
         if (data.type === 'Asset') {
             const assetData = {
-                userId: user.uid,
                 name: data.description,
                 cost: data.amount,
                 acquisitionDate: data.date,
@@ -741,7 +692,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const addExpense = async (data: AddExpenseData) => {
         if (!user) throw new Error("User not authenticated.");
-        const newExpense = { ...data, userId: user.uid, status: 'Pending' };
+        const newExpense = { ...data, status: 'Pending' };
         await addDoc(collection(db, 'expenses'), newExpense);
     };
     
@@ -760,7 +711,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const addEmployee = async (employeeData: Omit<Employee, 'id'>) => {
         if (!user) throw new Error("User not authenticated.");
-        await addDoc(collection(db, 'employees'), { ...employeeData, userId: user.uid });
+        await addDoc(collection(db, 'employees'), { ...employeeData });
     };
 
     const updateEmployee = async (id: string, employeeData: Omit<Employee, 'id'>) => {
@@ -785,7 +736,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const payrollRef = collection(db, 'payrollHistory');
         employeesToPay.forEach(emp => {
             const newRun = {
-                userId: user.uid,
                 employeeId: emp.employeeId,
                 month: currentMonth,
                 date: new Date(),
@@ -799,7 +749,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const totalGross = employeesToPay.reduce((sum, emp) => sum + emp.grossSalary, 0);
         const expenseRef = collection(db, 'expenses');
         const newExpense = {
-            userId: user.uid,
             description: `Payroll for ${employeesToPay.length} employees for ${currentMonth}`,
             category: 'Mishahara',
             amount: totalGross,
@@ -825,7 +774,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const batch = writeBatch(db);
 
         const newPayrollRun = {
-            userId: user.uid,
             employeeId: employeeId,
             month: currentMonth,
             date: new Date(),
@@ -836,7 +784,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         batch.set(doc(collection(db, 'payrollHistory')), newPayrollRun);
 
         const newExpense = {
-            userId: user.uid,
             description: `Salary for ${employee?.name || employeeId} for ${currentMonth}`,
             category: 'Mishahara',
             amount: grossSalary,
@@ -853,12 +800,11 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (!user) throw new Error("User not authenticated.");
         const batch = writeBatch(db);
         const poRef = collection(db, 'purchaseOrders');
-        batch.set(doc(poRef), { ...data, userId: user.uid });
+        batch.set(doc(poRef), { ...data });
 
         if (data.paymentStatus === 'Unpaid') {
             const totalAmount = data.items.reduce((sum, item) => sum + item.totalPrice, 0);
             const newPayable = {
-                userId: user.uid,
                 supplierName: data.supplierName,
                 product: `From PO #${data.poNumber}`,
                 amount: totalAmount,
@@ -885,7 +831,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         batch.update(poRef, { receivingStatus: 'Received' });
 
         for (const item of po.items) {
-            const productQuery = query(collection(db, 'products'), where('userId', '==', user.uid), where('name', '==', item.description));
+            const productQuery = query(collection(db, 'products'), where('name', '==', item.description));
             const existingProductSnap = await getDocs(productQuery);
 
             if (!existingProductSnap.empty) {
@@ -897,7 +843,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 batch.update(productRef, { currentStock: newStock, status: newStatus, lastUpdated: new Date() });
             } else {
                 const newProductData = {
-                    userId: user.uid,
                     name: item.description,
                     description: item.description,
                     category: 'General',
@@ -937,7 +882,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         const payableQuery = query(
             collection(db, 'payables'), 
-            where('userId', '==', user.uid), 
             where('product', '==', `From PO #${po.poNumber}`)
         );
         const payableSnap = await getDocs(payableQuery);
@@ -948,7 +892,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         } else {
              const totalAmount = po.items.reduce((sum, item) => sum + item.totalPrice, 0);
              const newExpense = {
-                userId: user.uid,
                 description: `Payment for PO #${po.poNumber}`,
                 category: 'Manunuzi Ofisi',
                 amount: totalAmount,
@@ -970,7 +913,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const batch = writeBatch(db);
         
         const newInvoiceData = {
-            userId: user.uid,
             invoiceNumber: invoiceData.invoiceNumber,
             customerId: invoiceData.customerId,
             customerName: invoiceData.customerName,
@@ -986,7 +928,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         batch.set(invoiceRef, newInvoiceData);
 
         const newTransaction = {
-            userId: user.uid,
             name: invoiceData.customerName,
             phone: invoiceData.customerPhone,
             amount: totalAmount,
@@ -1018,7 +959,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         
         const transactionQuery = query(
             collection(db, 'transactions'),
-            where('userId', '==', user.uid),
             where('product', '==', `Invoice #${invoice.invoiceNumber}`)
         );
         const transactionSnap = await getDocs(transactionQuery);
@@ -1028,7 +968,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             const transactionData = transactionSnap.docs[0].data() as Transaction;
             batch.delete(transactionRef);
 
-            const paymentTransaction = { ...transactionData, userId: user.uid, status: 'Paid', amount, paymentMethod, date: new Date(), notes: 'Invoice Payment' };
+            const paymentTransaction = { ...transactionData, status: 'Paid', amount, paymentMethod, date: new Date(), notes: 'Invoice Payment' };
             batch.set(doc(collection(db, 'transactions')), paymentTransaction);
         }
 
@@ -1111,5 +1051,7 @@ export const useFinancials = (): FinancialContextType => {
     }
     return context;
 };
+
+    
 
     
