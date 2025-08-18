@@ -372,7 +372,7 @@ function useFirestoreUserAccounts() {
         if (isAdmin) {
             q = collection(db, 'userAccounts');
         } else {
-            q = query(collection(db, 'userAccounts'), where('id', '==', user.uid));
+            q = query(collection(db, 'userAccounts'), where('__name__', '==', user.uid));
         }
         
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -407,7 +407,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const invoices = useFirestoreCollection<Invoice>('invoices', ['issueDate', 'dueDate']);
 
     const currentUserAccount = React.useMemo(() => {
-        if (!user || !userAccounts || authLoading) return null;
+        if (!user || userAccounts.length === 0 || authLoading) return null;
         const account = userAccounts.find(acc => acc.id === user.uid);
         return account;
     }, [user, userAccounts, authLoading]);
@@ -474,6 +474,13 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 if (t.paymentMethod === 'Mobile') mobile += t.amount;
             }
         });
+
+        prepayments.forEach(p => {
+            if (p.status === 'Active') {
+                // Assuming all prepayments hit the bank for simplicity
+                bank += p.prepaidAmount;
+            }
+        });
         
         expenses.forEach(e => {
             if (e.status === 'Approved') {
@@ -492,7 +499,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
         
         return { cash, bank, mobile };
-    }, [transactions, capitalContributions, expenses, payables]);
+    }, [transactions, capitalContributions, expenses, payables, prepayments]);
 
     const addSale = async (saleData: SaleFormData) => {
         if (!user) throw new Error("User not authenticated.");
@@ -557,7 +564,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             
             const saleToDelete = saleDoc.data() as Transaction;
             
-            // Reverse stock
             if (saleToDelete.productId) {
                 const productRef = doc(db, 'products', saleToDelete.productId);
                 const productDoc = await transaction.get(productRef);
@@ -568,10 +574,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     transaction.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
                 }
             }
-
-            // The effect on cash balance will be reversed automatically by the cashBalances memoization
-            // when the transaction is deleted.
-
             transaction.delete(saleRef);
         });
     };
@@ -810,7 +812,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (!user) throw new Error("User not authenticated.");
         const expenseRef = doc(db, 'expenses', id);
         await deleteDoc(expenseRef);
-        // Cash balance will be restored via memoization
     };
 
     const addEmployee = async (employeeData: Omit<Employee, 'id' | 'userId'>) => {
@@ -939,14 +940,12 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             
             const poToDelete = poDoc.data() as PurchaseOrder;
 
-            // Delete associated payable if it exists
             const payableQuery = query(collection(db, 'payables'), where('product', '==', `From PO #${poToDelete.poNumber}`), where('userId', '==', user.uid));
             const payablesSnap = await getDocs(payableQuery);
             if (!payablesSnap.empty) {
                 payablesSnap.forEach(doc => transaction.delete(doc.ref));
             }
 
-            // Reverse stock if goods were received
             if (poToDelete.receivingStatus === 'Received') {
                 for (const item of poToDelete.items) {
                     const productQuery = query(collection(db, 'products'), where('name', '==', item.description), where('userId', '==', user.uid));
