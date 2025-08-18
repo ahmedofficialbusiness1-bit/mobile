@@ -178,6 +178,7 @@ export type AddExpenseData = Omit<Expense, 'id' | 'status' | 'paymentMethod'>;
 
 export interface PurchaseOrderItem {
   description: string
+  modelNo?: string
   quantity: number
   unitPrice: number
   sellingPrice: number

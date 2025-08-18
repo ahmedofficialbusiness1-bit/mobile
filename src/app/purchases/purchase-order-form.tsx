@@ -52,6 +52,7 @@ interface PurchaseOrderFormProps {
 
 const itemSchema = z.object({
   description: z.string().min(1, 'Item description is required.'),
+  modelNo: z.string().optional(),
   quantity: z.coerce.number().min(0.1, 'Quantity must be positive.'),
   unitPrice: z.coerce.number().min(0, 'Unit price cannot be negative.'),
   sellingPrice: z.coerce.number().min(0, 'Selling price cannot be negative.'),
@@ -107,6 +108,7 @@ export function PurchaseOrderForm({
           items: [
             {
               description: '',
+              modelNo: '',
               quantity: 1,
               unitPrice: 0,
               sellingPrice: 0,
@@ -268,7 +270,7 @@ export function PurchaseOrderForm({
                     {fields.map((item, index) => (
                       <div key={item.id} className="p-3 border rounded-md relative space-y-3">
                         <div className="flex justify-between items-start">
-                           <div className="flex-1">
+                           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                              <FormField
                                 control={form.control}
                                 name={`items.${index}.description`}
@@ -277,6 +279,19 @@ export function PurchaseOrderForm({
                                     <FormLabel>Item Description</FormLabel>
                                     <FormControl>
                                         <Input placeholder="Item name or description" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name={`items.${index}.modelNo`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Model No. (Optional)</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g. T-45" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                     </FormItem>
@@ -355,7 +370,7 @@ export function PurchaseOrderForm({
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => append({ description: '', quantity: 1, unitPrice: 0, sellingPrice: 0, uom: 'pcs', totalPrice: 0 })}
+                        onClick={() => append({ description: '', modelNo: '', quantity: 1, unitPrice: 0, sellingPrice: 0, uom: 'pcs', totalPrice: 0 })}
                     >
                       <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                     </Button>
