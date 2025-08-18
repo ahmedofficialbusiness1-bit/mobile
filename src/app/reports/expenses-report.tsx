@@ -22,12 +22,13 @@ export default function ExpensesReport({ dateRange }: ReportProps) {
     }, []);
 
     const filteredExpenses = expenses.filter(e =>
+        e.status === 'Approved' && // Ensure only approved expenses are considered
         dateRange?.from && dateRange?.to && isWithinInterval(e.date, { start: dateRange.from, end: dateRange.to })
     );
 
     const expensesByCategory = expenseCategories.map(category => {
         const total = filteredExpenses
-            .filter(e => e.status === 'Approved' && e.category === category)
+            .filter(e => e.category === category)
             .reduce((sum, e) => sum + e.amount, 0);
         return { category, total };
     }).filter(e => e.total > 0);
