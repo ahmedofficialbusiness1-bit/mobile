@@ -263,8 +263,8 @@ interface FinancialContextType {
     deleteCustomer: (id: string) => Promise<void>;
     addUserAccount: (userData: Omit<UserAccount, 'id'> & { id: string }) => Promise<void>;
     deleteUserAccount: (id: string) => Promise<void>;
-    addProduct: (productData: Omit<Product, 'id' | 'status' | 'userId'>) => Promise<void>;
-    updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId'>) => Promise<void>;
+    addProduct: (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate'>) => Promise<void>;
+    updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate'>) => Promise<void>;
     deleteProduct: (id: string) => Promise<void>;
     addAsset: (assetData: AddAssetData) => Promise<void>;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => Promise<void>;
@@ -273,7 +273,7 @@ interface FinancialContextType {
     repayOwnerLoan: (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => Promise<void>;
     addExpense: (data: AddExpenseData) => Promise<void>;
     approveExpense: (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
-    deleteExpense: (id: string, reversalData?: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
+    deleteExpense: (id: string) => Promise<void>;
     addEmployee: (employeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
     updateEmployee: (id: string, employeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
     deleteEmployee: (id: string) => Promise<void>;
@@ -308,7 +308,7 @@ const calculateDepreciation = (asset: Asset): { accumulatedDepreciation: number;
     return { accumulatedDepreciation, netBookValue };
 };
 
-const getProductStatus = (product: Omit<Product, 'status'>): Product['status'] => {
+const getProductStatus = (product: Omit<Product, 'status'|'id'|'userId'>): Product['status'] => {
     const now = new Date();
     if (product.expiryDate && isAfter(now, toDate(product.expiryDate))) {
         return 'Expired';
@@ -323,29 +323,24 @@ const getProductStatus = (product: Omit<Product, 'status'>): Product['status'] =
 }
 
 function useFirestoreCollection<T>(collectionName: string, dateFields: string[] = ['date']) {
-    const { user, loading: authLoading, isAdmin } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const [data, setData] = useState<T[]>([]);
-
-    const stableDateFields = useMemo(() => dateFields, [JSON.stringify(dateFields)]);
+    const stableCollectionName = collectionName;
+    const stableDateFields = JSON.stringify(dateFields);
 
     useEffect(() => {
         if (authLoading || !user) {
-            if (data.length > 0) setData([]); 
+            setData([]);
             return;
-        };
+        }
 
-        const q = (collectionName === 'userAccounts' && !isAdmin)
-            ? query(collection(db, collectionName), where('id', '==', user.uid))
-            : query(collection(db, collectionName), where('userId', '==', user.uid));
-        
-        const qAllUsers = collection(db, 'userAccounts');
+        const q = query(collection(db, stableCollectionName), where('userId', '==', user.uid));
 
-        const finalQuery = collectionName === 'userAccounts' && isAdmin ? qAllUsers : q;
-
-        const unsubscribe = onSnapshot(finalQuery, (snapshot) => {
+        const unsubscribe = onSnapshot(q, (snapshot) => {
             const collectionData = snapshot.docs.map(doc => {
                 const docData = doc.data();
-                for (const field of stableDateFields) {
+                const parsedDateFields = JSON.parse(stableDateFields);
+                for (const field of parsedDateFields) {
                     if (docData[field]) {
                         docData[field] = toDate(docData[field]);
                     }
@@ -354,14 +349,45 @@ function useFirestoreCollection<T>(collectionName: string, dateFields: string[] 
             });
             setData(collectionData);
         }, (error) => {
-            console.error(`Error fetching ${collectionName}:`, error);
+            console.error(`Error fetching ${stableCollectionName}:`, error);
         });
 
         return () => unsubscribe();
-    }, [collectionName, stableDateFields, user, authLoading, isAdmin]);
+    }, [stableCollectionName, stableDateFields, user, authLoading]);
 
     return data;
 }
+
+function useFirestoreUserAccounts() {
+    const { user, loading: authLoading, isAdmin } = useAuth();
+    const [data, setData] = useState<UserAccount[]>([]);
+    
+    useEffect(() => {
+        if (authLoading || !user) {
+            setData([]);
+            return;
+        }
+
+        let q;
+        if (isAdmin) {
+            q = collection(db, 'userAccounts');
+        } else {
+            q = query(collection(db, 'userAccounts'), where('id', '==', user.uid));
+        }
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const accountsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserAccount));
+            setData(accountsData);
+        }, (error) => {
+            console.error('Error fetching userAccounts:', error);
+        });
+
+        return () => unsubscribe();
+    }, [user, authLoading, isAdmin]);
+    
+    return data;
+}
+
 
 // --- Context Provider ---
 export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -370,7 +396,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const payables = useFirestoreCollection<Payable>('payables', ['date']);
     const prepayments = useFirestoreCollection<CustomerPrepayment>('prepayments', ['date']);
     const customers = useFirestoreCollection<Customer>('customers');
-    const userAccounts = useFirestoreCollection<UserAccount>('userAccounts');
+    const userAccounts = useFirestoreUserAccounts();
     const initialProducts = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
     const employees = useFirestoreCollection<Employee>('employees');
     const payrollHistory = useFirestoreCollection<PayrollRun>('payrollHistory', ['date']);
@@ -430,7 +456,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             if (c.type === 'Cash') cash += c.amount;
             if (c.type === 'Bank') bank += c.amount;
             if (c.type === 'Drawing') { 
-                 cash -= c.amount;
+                 const drawingAmount = c.amount;
+                 if (cash >= drawingAmount) {
+                     cash -= drawingAmount;
+                 } else if (bank >= drawingAmount) {
+                     bank -= drawingAmount;
+                 } else {
+                     mobile -= drawingAmount;
+                 }
             }
         });
 
@@ -508,16 +541,16 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     
     const deleteSale = async (saleId: string) => {
         if (!user) throw new Error("User not authenticated.");
-        const saleToDelete = transactions.find(t => t.id === saleId);
-        if (!saleToDelete) {
-            throw new Error("Sale not found.");
-        }
-
         const saleRef = doc(db, 'transactions', saleId);
-        const productRef = doc(db, 'products', saleToDelete.productId);
-
-        try {
-            await runTransaction(db, async (transaction) => {
+        
+        await runTransaction(db, async (transaction) => {
+            const saleDoc = await transaction.get(saleRef);
+            if (!saleDoc.exists()) throw new Error("Sale not found.");
+            
+            const saleToDelete = saleDoc.data() as Transaction;
+            
+            if (saleToDelete.productId) {
+                const productRef = doc(db, 'products', saleToDelete.productId);
                 const productDoc = await transaction.get(productRef);
                 if (productDoc.exists()) {
                     const product = productDoc.data() as Product;
@@ -525,12 +558,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     const newStatus = getProductStatus({ ...product, currentStock: updatedStock });
                     transaction.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
                 }
-                transaction.delete(saleRef);
-            });
-        } catch (error) {
-            console.error("Transaction failed: ", error);
-            throw new Error("Failed to delete sale and reverse stock.");
-        }
+            }
+            transaction.delete(saleRef);
+        });
     };
 
     const markReceivableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
@@ -603,7 +633,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const updateCustomer = async (id: string, customerData: Omit<Customer, 'id' | 'userId'>) => {
         if (!user) throw new Error("User not authenticated.");
-        await updateDoc(doc(db, 'customers', id), customerData);
+        await updateDoc(doc(db, 'customers', id), { ...customerData });
     };
 
     const deleteCustomer = async (id: string) => {
@@ -620,7 +650,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await deleteDoc(doc(db, 'userAccounts', id));
     }
     
-    const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'userId'>) => {
+    const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate'>) => {
         if (!user) throw new Error("User not authenticated.");
         const newProduct = {
             ...productData,
@@ -633,14 +663,19 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await addDoc(collection(db, 'products'), newProduct);
     };
     
-    const updateProduct = async (id: string, productData: Omit<Product, 'id' | 'status' | 'userId'>) => {
+    const updateProduct = async (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate'>) => {
         if (!user) throw new Error("User not authenticated.");
-        const updatedProduct = {
+        const originalProduct = products.find(p => p.id === id);
+        if (!originalProduct) throw new Error("Product not found.");
+        
+        const updatedProductData = {
             ...productData,
+            initialStock: originalProduct.initialStock, // Retain original values
+            entryDate: originalProduct.entryDate,
             status: getProductStatus(productData as Product),
             lastUpdated: new Date(),
         };
-        await updateDoc(doc(db, 'products', id), updatedProduct);
+        await updateDoc(doc(db, 'products', id), updatedProductData);
     };
 
     const deleteProduct = async (id: string) => {
@@ -710,7 +745,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         const batch = writeBatch(db);
         const capRef = collection(db, 'capitalContributions');
-        batch.set(doc(capRef), { ...dataToSave });
+        batch.set(doc(capRef), dataToSave);
 
         if (data.type === 'Asset') {
             const assetData = {
@@ -736,6 +771,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (amount > balance) {
             throw new Error(`Insufficient funds in ${paymentMethod} account.`);
         }
+        // This function needs full implementation if loan repayment tracking is added.
     };
 
     const addExpense = async (data: AddExpenseData) => {
@@ -754,9 +790,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await updateDoc(doc(db, 'expenses', id), { status: 'Approved', paymentMethod });
     };
 
-    const deleteExpense = async (id: string, reversalData?: { amount: number, paymentMethod: PaymentMethod }) => {
+    const deleteExpense = async (id: string) => {
         if (!user) throw new Error("User not authenticated.");
-        await deleteDoc(doc(db, 'expenses', id));
+        const expenseRef = doc(db, 'expenses', id);
+        await deleteDoc(expenseRef);
     };
 
     const addEmployee = async (employeeData: Omit<Employee, 'id' | 'userId'>) => {
@@ -876,37 +913,37 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     
     const deletePurchaseOrder = async (poId: string) => {
         if (!user) throw new Error("User not authenticated.");
-        const poToDelete = purchaseOrders.find(p => p.id === poId);
-        if (!poToDelete) {
-            throw new Error("Purchase Order not found.");
-        }
-        
-        const batch = writeBatch(db);
-        const poRef = doc(db, 'purchaseOrders', poId);
-        batch.delete(poRef);
+        await runTransaction(db, async (transaction) => {
+            const poRef = doc(db, 'purchaseOrders', poId);
+            const poDoc = await transaction.get(poRef);
+            if (!poDoc.exists()) throw new Error("Purchase Order not found.");
+            
+            const poToDelete = poDoc.data() as PurchaseOrder;
 
-        const payableQuery = query(collection(db, 'payables'), where('product', '==', `From PO #${poToDelete.poNumber}`), where('status', '==', 'Unpaid'), where('userId', '==', user.uid));
-        const payablesSnap = await getDocs(payableQuery);
-        if (!payablesSnap.empty) {
-            payablesSnap.forEach(doc => batch.delete(doc.ref));
-        }
+            // Delete associated payable if it exists
+            const payableQuery = query(collection(db, 'payables'), where('product', '==', `From PO #${poToDelete.poNumber}`), where('userId', '==', user.uid));
+            const payablesSnap = await getDocs(payableQuery);
+            if (!payablesSnap.empty) {
+                payablesSnap.forEach(doc => transaction.delete(doc.ref));
+            }
 
-        if (poToDelete.receivingStatus === 'Received') {
-            for (const item of poToDelete.items) {
-                const productQuery = query(collection(db, 'products'), where('name', '==', item.description), where('userId', '==', user.uid));
-                const productSnap = await getDocs(productQuery);
-                if (!productSnap.empty) {
-                    const productDoc = productSnap.docs[0];
-                    const productRef = doc(db, 'products', productDoc.id);
-                    const productData = productDoc.data() as Product;
-                    const newStock = productData.currentStock - item.quantity;
-                    const newStatus = getProductStatus({ ...productData, currentStock: newStock });
-                    batch.update(productRef, { currentStock: newStock, status: newStatus });
+            // Reverse stock if goods were received
+            if (poToDelete.receivingStatus === 'Received') {
+                for (const item of poToDelete.items) {
+                    const productQuery = query(collection(db, 'products'), where('name', '==', item.description), where('userId', '==', user.uid));
+                    const productSnap = await getDocs(productQuery);
+                    if (!productSnap.empty) {
+                        const productDoc = productSnap.docs[0];
+                        const productRef = doc(db, 'products', productDoc.id);
+                        const productData = productDoc.data() as Product;
+                        const newStock = productData.currentStock - item.quantity;
+                        const newStatus = getProductStatus({ ...productData, currentStock: newStock });
+                        transaction.update(productRef, { currentStock: newStock, status: newStatus });
+                    }
                 }
             }
-        }
-
-        await batch.commit();
+            transaction.delete(poRef);
+        });
     }
 
     const receivePurchaseOrder = async (poId: string) => {
@@ -1145,3 +1182,5 @@ export const useFinancials = (): FinancialContextType => {
     }
     return context;
 };
+
+    
