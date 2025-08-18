@@ -19,7 +19,8 @@ import {
     query,
     where,
     getDocs,
-    setDoc
+    setDoc,
+    getDoc
 } from 'firebase/firestore';
 
 
@@ -346,7 +347,7 @@ function useFirestoreCollection<T>(collectionName: string, dateFields: string[] 
 }
 
 function useFirestoreUserAccounts() {
-    const { user, loading: authLoading } = useAuth();
+    const { user, isAdmin, loading: authLoading } = useAuth();
     const [data, setData] = useState<UserAccount[]>([]);
 
     useEffect(() => {
@@ -355,18 +356,31 @@ function useFirestoreUserAccounts() {
             return;
         }
 
-        const unsubscribe = onSnapshot(collection(db, 'userAccounts'), (snapshot) => {
-            const collectionData = snapshot.docs.map(doc => {
-                const docData = doc.data();
-                return { id: doc.id, ...docData } as UserAccount;
+        if (isAdmin) {
+            // Admin fetches all accounts
+            const unsubscribe = onSnapshot(collection(db, 'userAccounts'), (snapshot) => {
+                const collectionData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserAccount));
+                setData(collectionData);
+            }, (error) => {
+                console.error(`Error fetching all userAccounts:`, error);
             });
-            setData(collectionData);
-        }, (error) => {
-            console.error(`Error fetching userAccounts:`, error);
-        });
+            return () => unsubscribe();
+        } else {
+            // Regular user fetches only their own account
+            const docRef = doc(db, 'userAccounts', user.uid);
+            const unsubscribe = onSnapshot(docRef, (doc) => {
+                if (doc.exists()) {
+                    setData([{ id: doc.id, ...doc.data() } as UserAccount]);
+                } else {
+                    setData([]);
+                }
+            }, (error) => {
+                console.error(`Error fetching userAccount for ${user.uid}:`, error);
+            });
+            return () => unsubscribe();
+        }
 
-        return () => unsubscribe();
-    }, [user, authLoading]);
+    }, [user, isAdmin, authLoading]);
 
     return data;
 }
@@ -465,10 +479,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const addSale = async (saleData: SaleFormData) => {
         if (!user) throw new Error("User not authenticated.");
         const productRef = doc(db, 'products', saleData.productId);
-        const productSnap = await getDocs(query(collection(db, 'products'), where('__name__', '==', saleData.productId)));
-        if (productSnap.empty) throw new Error("Product not found");
+        const productSnap = await getDoc(productRef);
+        if (!productSnap.exists()) throw new Error("Product not found");
         
-        const product = {id: productSnap.docs[0].id, ...productSnap.docs[0].data()} as Product;
+        const product = {id: productSnap.id, ...productSnap.data()} as Product;
 
         if (product.currentStock < saleData.quantity) {
             throw new Error(`Not enough stock for ${product.name}. Only ${product.currentStock} available.`);
@@ -526,9 +540,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         batch.delete(saleRef);
 
         const productRef = doc(db, 'products', saleToDelete.productId);
-        const productSnap = await getDocs(query(collection(db, 'products'), where('__name__', '==', saleToDelete.productId)));
-        if (!productSnap.empty) {
-             const product = {id: productSnap.docs[0].id, ...productSnap.docs[0].data()} as Product;
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+             const product = {id: productSnap.id, ...productSnap.data()} as Product;
              const updatedStock = product.currentStock + saleToDelete.quantity;
              const newStatus = getProductStatus({ ...product, currentStock: updatedStock });
              batch.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
@@ -871,8 +885,12 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         batch.update(poRef, { receivingStatus: 'Received' });
 
         for (const item of po.items) {
-            const existingProduct = products.find(p => p.name.toLowerCase() === item.description.toLowerCase());
-            if (existingProduct) {
+            const productQuery = query(collection(db, 'products'), where('userId', '==', user.uid), where('name', '==', item.description));
+            const existingProductSnap = await getDocs(productQuery);
+
+            if (!existingProductSnap.empty) {
+                const existingProductDoc = existingProductSnap.docs[0];
+                const existingProduct = { id: existingProductDoc.id, ...existingProductDoc.data() } as Product;
                 const productRef = doc(db, 'products', existingProduct.id);
                 const newStock = existingProduct.currentStock + item.quantity;
                 const newStatus = getProductStatus({ ...existingProduct, currentStock: newStock });
@@ -917,9 +935,15 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const poRef = doc(db, 'purchaseOrders', poId);
         batch.update(poRef, { paymentStatus: 'Paid', paymentMethod });
 
-        const payable = payables.find(p => p.product === `From PO #${po.poNumber}`);
-        if (payable) {
-            const payableRef = doc(db, 'payables', payable.id);
+        const payableQuery = query(
+            collection(db, 'payables'), 
+            where('userId', '==', user.uid), 
+            where('product', '==', `From PO #${po.poNumber}`)
+        );
+        const payableSnap = await getDocs(payableQuery);
+        
+        if (!payableSnap.empty) {
+            const payableRef = doc(db, 'payables', payableSnap.docs[0].id);
             batch.update(payableRef, { status: 'Paid', paymentMethod });
         } else {
              const totalAmount = po.items.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -992,12 +1016,19 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const invoiceRef = doc(db, 'invoices', invoiceId);
         batch.update(invoiceRef, { status: 'Paid' });
         
-        const transaction = transactions.find(t => t.product === `Invoice #${invoice.invoiceNumber}`);
-        if (transaction) {
-            const transactionRef = doc(db, 'transactions', transaction.id);
+        const transactionQuery = query(
+            collection(db, 'transactions'),
+            where('userId', '==', user.uid),
+            where('product', '==', `Invoice #${invoice.invoiceNumber}`)
+        );
+        const transactionSnap = await getDocs(transactionQuery);
+        
+        if (!transactionSnap.empty) {
+            const transactionRef = doc(db, 'transactions', transactionSnap.docs[0].id);
+            const transactionData = transactionSnap.docs[0].data() as Transaction;
             batch.delete(transactionRef);
 
-            const paymentTransaction = { ...transaction, userId: user.uid, status: 'Paid', amount, paymentMethod, date: new Date(), notes: 'Invoice Payment' };
+            const paymentTransaction = { ...transactionData, userId: user.uid, status: 'Paid', amount, paymentMethod, date: new Date(), notes: 'Invoice Payment' };
             batch.set(doc(collection(db, 'transactions')), paymentTransaction);
         }
 
@@ -1081,4 +1112,4 @@ export const useFinancials = (): FinancialContextType => {
     return context;
 };
 
-  
+    
