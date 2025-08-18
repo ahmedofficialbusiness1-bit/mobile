@@ -363,10 +363,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const invoices = useFirestoreCollection<Invoice>('invoices', ['issueDate', 'dueDate']);
 
     const currentUserAccount = React.useMemo(() => {
-        if (!user || !userAccounts) return null;
+        if (!user || !userAccounts || authLoading) return null;
         const account = userAccounts.find(acc => acc.id === user.uid);
         return account;
-    }, [user, userAccounts]);
+    }, [user, userAccounts, authLoading]);
 
     const companyName = useMemo(() => currentUserAccount?.companyName || "DiraBiz", [currentUserAccount]);
 
@@ -662,9 +662,17 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     
     const addCapitalContribution = async (data: Omit<CapitalContribution, 'id'>) => {
         if (!user) throw new Error("User not authenticated.");
+        
+        const dataToSave = {
+            description: data.description,
+            type: data.type,
+            amount: data.amount,
+            date: data.date,
+        };
+
         const batch = writeBatch(db);
         const capRef = collection(db, 'capitalContributions');
-        batch.set(doc(capRef), { ...data });
+        batch.set(doc(capRef), { ...dataToSave });
 
         if (data.type === 'Asset') {
             const assetData = {
