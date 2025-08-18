@@ -20,7 +20,8 @@ import {
     where,
     getDocs,
     setDoc,
-    getDoc
+    getDoc,
+    runTransaction
 } from 'firebase/firestore';
 
 
@@ -261,7 +262,7 @@ interface FinancialContextType {
     repayOwnerLoan: (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => Promise<void>;
     addExpense: (data: AddExpenseData) => Promise<void>;
     approveExpense: (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
-    deleteExpense: (id: string, paymentInfo?: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
+    deleteExpense: (id: string) => Promise<void>;
     addEmployee: (employeeData: Omit<Employee, 'id'>) => Promise<void>;
     updateEmployee: (id: string, employeeData: Omit<Employee, 'id'>) => Promise<void>;
     deleteEmployee: (id: string) => Promise<void>;
@@ -492,20 +493,32 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             throw new Error("Sale not found.");
         }
 
-        const batch = writeBatch(db);
         const saleRef = doc(db, 'transactions', saleId);
-        batch.delete(saleRef);
-
         const productRef = doc(db, 'products', saleToDelete.productId);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-             const product = {id: productSnap.id, ...productSnap.data()} as Product;
-             const updatedStock = product.currentStock + saleToDelete.quantity;
-             const newStatus = getProductStatus({ ...product, currentStock: updatedStock });
-             batch.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
-        }
 
-        await batch.commit();
+        try {
+            await runTransaction(db, async (transaction) => {
+                const productDoc = await transaction.get(productRef);
+                if (!productDoc.exists()) {
+                    // If product doesn't exist, we can only delete the sale
+                    transaction.delete(saleRef);
+                    return;
+                }
+
+                const product = productDoc.data() as Product;
+                const updatedStock = product.currentStock + saleToDelete.quantity;
+                const newStatus = getProductStatus({ ...product, currentStock: updatedStock });
+                
+                // Reverse stock
+                transaction.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
+                
+                // Delete sale
+                transaction.delete(saleRef);
+            });
+        } catch (error) {
+            console.error("Transaction failed: ", error);
+            throw new Error("Failed to delete sale and reverse stock.");
+        }
     };
 
     const markReceivableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
@@ -713,7 +726,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await updateDoc(doc(db, 'expenses', id), { status: 'Approved', paymentMethod });
     };
 
-    const deleteExpense = async (id: string, paymentInfo?: { amount: number, paymentMethod: PaymentMethod }) => {
+    const deleteExpense = async (id: string) => {
         await deleteDoc(doc(db, 'expenses', id));
     };
 
@@ -826,7 +839,39 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
     
     const deletePurchaseOrder = async (poId: string) => {
-        await deleteDoc(doc(db, 'purchaseOrders', poId));
+        const poToDelete = purchaseOrders.find(p => p.id === poId);
+        if (!poToDelete) {
+            throw new Error("Purchase Order not found.");
+        }
+        
+        const batch = writeBatch(db);
+        const poRef = doc(db, 'purchaseOrders', poId);
+        batch.delete(poRef);
+
+        // Also delete the associated payable if it exists
+        const payableQuery = query(collection(db, 'payables'), where('product', '==', `From PO #${poToDelete.poNumber}`), where('status', '==', 'Unpaid'));
+        const payablesSnap = await getDocs(payableQuery);
+        if (!payablesSnap.empty) {
+            payablesSnap.forEach(doc => batch.delete(doc.ref));
+        }
+
+        // Reverse stock if items were received
+        if (poToDelete.receivingStatus === 'Received') {
+            for (const item of poToDelete.items) {
+                const productQuery = query(collection(db, 'products'), where('name', '==', item.description));
+                const productSnap = await getDocs(productQuery);
+                if (!productSnap.empty) {
+                    const productDoc = productSnap.docs[0];
+                    const productRef = doc(db, 'products', productDoc.id);
+                    const productData = productDoc.data() as Product;
+                    const newStock = productData.currentStock - item.quantity;
+                    const newStatus = getProductStatus({ ...productData, currentStock: newStock });
+                    batch.update(productRef, { currentStock: newStock, status: newStatus });
+                }
+            }
+        }
+
+        await batch.commit();
     }
 
     const receivePurchaseOrder = async (poId: string) => {
@@ -1063,3 +1108,4 @@ export const useFinancials = (): FinancialContextType => {
     
 
     
+
