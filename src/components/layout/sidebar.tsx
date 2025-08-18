@@ -27,6 +27,7 @@ import {
   Shield,
   Settings,
   Lock,
+  FilePlus2,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuth } from '@/context/auth-context'
@@ -40,6 +41,7 @@ const navItems = [
   { href: '/purchases', label: 'Purchases', icon: Truck, id: 'purchases' },
   { href: '/inventory', label: 'Inventory', icon: Warehouse, id: 'inventory' },
   { href: '/finance', label: 'Finance', icon: Banknote, id: 'finance' },
+  { href: '/post-expense', label: 'Post Expense', icon: FilePlus2, id: 'post-expense' },
   { href: '/reports', label: 'Reports', icon: BarChart2, id: 'reports' },
 ]
 

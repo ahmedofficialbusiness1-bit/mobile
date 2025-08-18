@@ -23,6 +23,7 @@ const tabs = [
   { id: 'purchases', label: 'Purchases' },
   { id: 'inventory', label: 'Inventory' },
   { id: 'finance', label: 'Finance' },
+  { id: 'post-expense', label: 'Post Expense' },
   { id: 'reports', label: 'Reports' },
   { id: 'admin', label: 'Admin Panel' },
   { id: 'settings', label: 'Settings' },

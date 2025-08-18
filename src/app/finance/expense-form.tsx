@@ -18,8 +18,10 @@ import type { AddExpenseData } from '@/context/financial-context';
 
 interface ExpenseFormProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   onSave: (expenseData: AddExpenseData) => void;
+  title?: string;
+  description?: string;
 }
 
 const formSchema = z.object({
@@ -33,7 +35,7 @@ const formSchema = z.object({
 
 export const expenseCategories = ['Umeme', 'Maji', 'Usafiri', 'Mawasiliano', 'Kodi', 'Manunuzi Ofisi', 'Matangazo', 'Mishahara', 'Mengineyo'] as const;
 
-export function ExpenseForm({ isOpen, onClose, onSave }: ExpenseFormProps) {
+export function ExpenseForm({ isOpen, onClose, onSave, title, description }: ExpenseFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -46,16 +48,16 @@ export function ExpenseForm({ isOpen, onClose, onSave }: ExpenseFormProps) {
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     onSave(values);
     form.reset();
-    onClose();
+    onClose?.();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Andika Tarakilishi Jipya</DialogTitle>
+          <DialogTitle>{title || 'Register New Expense'}</DialogTitle>
           <DialogDescription>
-            Jaza fomu hapa chini kuandika matumizi mapya ya biashara.
+            {description || 'Fill in the form below to register a new business expense.'}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -65,9 +67,9 @@ export function ExpenseForm({ isOpen, onClose, onSave }: ExpenseFormProps) {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Maelezo ya Tarakilishi</FormLabel>
+                  <FormLabel>Expense Description</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Malipo ya umeme wa LUKU" {...field} />
+                    <Input placeholder="e.g. LUKU electricity payment" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -78,11 +80,11 @@ export function ExpenseForm({ isOpen, onClose, onSave }: ExpenseFormProps) {
               name="category"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Aina ya Tarakilishi</FormLabel>
+                  <FormLabel>Expense Category</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Chagua aina ya matumizi" />
+                            <SelectValue placeholder="Select expense category" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -98,7 +100,7 @@ export function ExpenseForm({ isOpen, onClose, onSave }: ExpenseFormProps) {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Kiasi (TSh)</FormLabel>
+                  <FormLabel>Amount (TSh)</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="e.g. 50000" {...field} />
                   </FormControl>
@@ -111,7 +113,7 @@ export function ExpenseForm({ isOpen, onClose, onSave }: ExpenseFormProps) {
               name="date"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Tarehe</FormLabel>
+                  <FormLabel>Date</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -125,7 +127,7 @@ export function ExpenseForm({ isOpen, onClose, onSave }: ExpenseFormProps) {
                           {field.value ? (
                             format(field.value, "PPP")
                           ) : (
-                            <span>Chagua tarehe</span>
+                            <span>Pick a date</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -148,8 +150,8 @@ export function ExpenseForm({ isOpen, onClose, onSave }: ExpenseFormProps) {
               )}
             />
             <DialogFooter>
-                <Button type="button" variant="ghost" onClick={onClose}>Ghairi</Button>
-                <Button type="submit">Hifadhi Tarakilishi</Button>
+                <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+                <Button type="submit">Save Expense</Button>
             </DialogFooter>
           </form>
         </Form>
