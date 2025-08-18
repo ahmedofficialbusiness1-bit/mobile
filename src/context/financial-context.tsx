@@ -253,7 +253,7 @@ interface FinancialContextType {
     invoices: Invoice[];
     cashBalances: { cash: number; bank: number; mobile: number };
     addSale: (saleData: SaleFormData) => Promise<void>;
-    deleteSale: (saleId: string) => Promise<void>;
+    deleteSale: (sale: Transaction) => Promise<void>;
     markReceivableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
     markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
     markPrepaymentAsUsed: (id: string) => Promise<void>;
@@ -273,7 +273,7 @@ interface FinancialContextType {
     repayOwnerLoan: (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => Promise<void>;
     addExpense: (data: AddExpenseData) => Promise<void>;
     approveExpense: (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
-    deleteExpense: (id: string, expense: Expense) => Promise<void>;
+    deleteExpense: (expense: Expense) => Promise<void>;
     addEmployee: (employeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
     updateEmployee: (id: string, employeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
     deleteEmployee: (id: string) => Promise<void>;
@@ -554,9 +554,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await batch.commit();
     }
     
-    const deleteSale = async (saleId: string) => {
+    const deleteSale = async (sale: Transaction) => {
         if (!user) throw new Error("User not authenticated.");
-        const saleRef = doc(db, 'transactions', saleId);
+        const saleRef = doc(db, 'transactions', sale.id);
         
         await runTransaction(db, async (transaction) => {
             const saleDoc = await transaction.get(saleRef);
@@ -629,10 +629,35 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (cashBalances[balanceKey] < amount) {
             throw new Error(`Insufficient funds in ${paymentMethod}. Required: ${amount}, Available: ${cashBalances[balanceKey].toLocaleString()}`);
         }
-        
+
         const payableRef = doc(db, 'payables', id);
-        await updateDoc(payableRef, { status: 'Paid', paymentMethod: paymentMethod });
+        await runTransaction(db, async (transaction) => {
+            const payableDoc = await transaction.get(payableRef);
+            if (!payableDoc.exists()) throw new Error("Payable not found.");
+
+            const payableData = payableDoc.data() as Payable;
+            const remainingAmount = payableData.amount - amount;
+
+            if (remainingAmount <= 0) {
+                 transaction.update(payableRef, { status: 'Paid', amount: 0 }); // Or delete, depending on business logic
+            } else {
+                 transaction.update(payableRef, { amount: remainingAmount });
+            }
+
+            const newExpense = {
+                userId: user.uid,
+                description: `Payment for ${payableData.product} to ${payableData.supplierName}`,
+                category: 'Manunuzi Ofisi',
+                amount: amount,
+                date: new Date(),
+                status: 'Approved',
+                paymentMethod: paymentMethod,
+            };
+            const expenseRef = doc(collection(db, 'expenses'));
+            transaction.set(expenseRef, newExpense);
+        });
     };
+
 
     const markPrepaymentAsUsed = async (id: string) => {
         if (!user) throw new Error("User not authenticated.");
@@ -651,7 +676,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const updateCustomer = async (id: string, customerData: Omit<Customer, 'id' | 'userId'>) => {
         if (!user) throw new Error("User not authenticated.");
-        await updateDoc(doc(db, 'customers', id), { ...customerData });
+        await updateDoc(doc(db, 'customers', id), { ...customerData, userId: user.uid });
     };
 
     const deleteCustomer = async (id: string) => {
@@ -692,6 +717,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             entryDate: originalProduct.entryDate,
             status: getProductStatus(productData as Product),
             lastUpdated: new Date(),
+             userId: user.uid,
         };
         await updateDoc(doc(db, 'products', id), updatedProductData);
     };
@@ -754,11 +780,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (!user) throw new Error("User not authenticated.");
         
         const dataToSave = {
+            ...data,
             userId: user.uid,
-            description: data.description,
-            type: data.type,
-            amount: data.amount,
-            date: data.date,
         };
 
         const batch = writeBatch(db);
@@ -805,12 +828,12 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (cashBalances[balanceKey] < amount) {
             throw new Error(`Insufficient funds in ${paymentMethod} account. Required: ${amount}, Available: ${cashBalances[balanceKey]}`);
         }
-        await updateDoc(doc(db, 'expenses', id), { status: 'Approved', paymentMethod });
+        await updateDoc(doc(db, 'expenses', id), { status: 'Approved', paymentMethod, userId: user.uid });
     };
 
-    const deleteExpense = async (id: string, expense: Expense) => {
+    const deleteExpense = async (expense: Expense) => {
         if (!user) throw new Error("User not authenticated.");
-        const expenseRef = doc(db, 'expenses', id);
+        const expenseRef = doc(db, 'expenses', expense.id);
         await deleteDoc(expenseRef);
     };
 
@@ -821,7 +844,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const updateEmployee = async (id: string, employeeData: Omit<Employee, 'id' | 'userId'>) => {
         if (!user) throw new Error("User not authenticated.");
-        await updateDoc(doc(db, 'employees', id), employeeData);
+        await updateDoc(doc(db, 'employees', id), { ...employeeData, userId: user.uid });
     };
 
     const deleteEmployee = async (id: string) => {
