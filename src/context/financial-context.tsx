@@ -346,9 +346,15 @@ function useFirestoreCollection<T>(collectionName: string, dateFields: string[] 
 }
 
 function useFirestoreUserAccounts() {
+    const { user, loading: authLoading } = useAuth();
     const [data, setData] = useState<UserAccount[]>([]);
 
     useEffect(() => {
+        if (authLoading || !user) {
+            if (data.length > 0) setData([]);
+            return;
+        }
+
         const unsubscribe = onSnapshot(collection(db, 'userAccounts'), (snapshot) => {
             const collectionData = snapshot.docs.map(doc => {
                 const docData = doc.data();
@@ -360,7 +366,7 @@ function useFirestoreUserAccounts() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [user, authLoading]);
 
     return data;
 }
@@ -1074,3 +1080,5 @@ export const useFinancials = (): FinancialContextType => {
     }
     return context;
 };
+
+  
