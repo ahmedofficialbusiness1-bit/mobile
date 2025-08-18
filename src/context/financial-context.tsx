@@ -281,7 +281,7 @@ interface FinancialContextType {
     repayOwnerLoan: (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => Promise<void>;
     addExpense: (data: AddExpenseData) => Promise<void>;
     approveExpense: (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
-    deleteExpense: (expenseId: string) => Promise<void>;
+    deleteExpense: (expenseId: string, paymentDetails?: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
     addEmployee: (employeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
     updateEmployee: (id: string, employeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
     deleteEmployee: (id: string) => Promise<void>;
@@ -377,9 +377,15 @@ function useFirestoreUserAccounts() {
         }
 
         const fetchAccounts = async () => {
-            let q;
             if (isAdmin) {
-                q = collection(db, 'userAccounts');
+                const q = collection(db, 'userAccounts');
+                 const unsubscribe = onSnapshot(q, (snapshot) => {
+                    const accountsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserAccount));
+                    setData(accountsData);
+                }, (error) => {
+                    console.error('Error fetching userAccounts:', error);
+                });
+                return unsubscribe;
             } else {
                 const userDocRef = doc(db, 'userAccounts', user.uid);
                 const docSnap = await getDoc(userDocRef);
@@ -388,16 +394,8 @@ function useFirestoreUserAccounts() {
                 } else {
                     setData([]);
                 }
-                return;
+                return () => {}; // No real-time listener for single doc, so return empty unsub
             }
-
-            const unsubscribe = onSnapshot(q, (snapshot) => {
-                const accountsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserAccount));
-                setData(accountsData);
-            }, (error) => {
-                console.error('Error fetching userAccounts:', error);
-            });
-            return () => unsubscribe();
         };
 
         const unsubscribePromise = fetchAccounts();
@@ -475,13 +473,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         let mobile = 0;
 
         capitalContributions.forEach(c => {
-            if (c.type === 'Cash') cash += c.amount;
-            else if (c.type === 'Bank') bank += c.amount;
-            else if (c.type === 'Drawing' && c.amount > 0) {
-                 const drawing = expenses.find(e => e.description === c.description && e.amount === c.amount);
-                 if (drawing?.paymentMethod === 'Cash') cash -= c.amount;
-                 else if (drawing?.paymentMethod === 'Bank') bank -= c.amount;
-                 else if (drawing?.paymentMethod === 'Mobile') mobile -= c.amount;
+            // Safeguard: Only process if 'type' exists
+            if (c.type) {
+                if (c.type === 'Cash') cash += c.amount;
+                else if (c.type === 'Bank') bank += c.amount;
             }
         });
 
@@ -495,12 +490,13 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         prepayments.forEach(p => {
             if (p.status === 'Active') {
+                // Assuming prepayments hit the bank
                 bank += p.prepaidAmount;
             }
         });
         
         expenses.forEach(e => {
-            if (e.status === 'Approved') {
+            if (e.status === 'Approved' && e.paymentMethod) {
                 if (e.paymentMethod === 'Cash') cash -= e.amount;
                 else if (e.paymentMethod === 'Bank') bank -= e.amount;
                 else if (e.paymentMethod === 'Mobile') mobile -= e.amount;
@@ -695,6 +691,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const addUserAccount = async (userData: Omit<UserAccount, 'id'> & { id: string }) => {
+        if (!user) return;
         const { id, ...data } = userData;
         await setDoc(doc(db, "userAccounts", id), data);
     }
@@ -841,7 +838,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await updateDoc(doc(db, 'expenses', id), { status: 'Approved', paymentMethod, userId: user.uid });
     };
 
-    const deleteExpense = async (expenseId: string) => {
+    const deleteExpense = async (expenseId: string, paymentDetails?: { amount: number, paymentMethod: PaymentMethod }) => {
         if (!user) throw new Error("User not authenticated.");
         await deleteDoc(doc(db, 'expenses', expenseId));
     };
