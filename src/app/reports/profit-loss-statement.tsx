@@ -34,7 +34,7 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
     );
 
     const filteredExpenses = expenses.filter(e =>
-        dateRange?.from && dateRange?.to && isWithinInterval(e.date, { start: dateRange.from, end: dateRange.to })
+        e.status === 'Approved' && dateRange?.from && dateRange?.to && isWithinInterval(e.date, { start: dateRange.from, end: dateRange.to })
     );
     
     const filteredPurchases = purchaseOrders.filter(po =>
@@ -56,7 +56,6 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
     const grossProfit = revenue - costOfSales;
 
     const operatingExpenses = filteredExpenses
-        .filter(e => e.status === 'Approved')
         .reduce((sum, e) => sum + e.amount, 0);
 
     const operatingProfit = grossProfit - operatingExpenses;

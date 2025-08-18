@@ -473,8 +473,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         let mobile = 0;
 
         capitalContributions.forEach(c => {
-            // Safeguard: Only process if 'type' exists
-            if (c.type) {
+            // Safeguard: Only process if 'type' exists and is not a drawing
+            if (c.type && c.type !== 'Drawing') {
                 if (c.type === 'Cash') cash += c.amount;
                 else if (c.type === 'Bank') bank += c.amount;
             }
@@ -518,9 +518,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             throw new Error(`Not enough stock for ${product.name}. Only ${product.currentStock} available.`);
         }
         
-        const netAmount = product.sellingPrice * saleData.quantity;
-        const vatAmount = netAmount * saleData.vatRate;
-        const grossAmount = netAmount + vatAmount;
+        const grossAmount = product.sellingPrice * saleData.quantity;
+        const netAmount = grossAmount / (1 + saleData.vatRate);
+        const vatAmount = grossAmount - netAmount;
 
         const newTransaction = {
             userId: user.uid,

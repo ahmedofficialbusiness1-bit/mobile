@@ -148,9 +148,9 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
   
   const calculateTotal = () => {
       if (!selectedProduct || !quantity) return 0;
-      const netTotal = selectedProduct.sellingPrice * quantity;
-      const vatAmount = netTotal * (vatRate || 0);
-      return netTotal + vatAmount;
+      // VAT is inclusive, so the total price is simply selling price * quantity
+      const grossTotal = selectedProduct.sellingPrice * quantity;
+      return grossTotal;
   }
 
   return (
@@ -357,4 +357,3 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
     </Dialog>
   )
 }
-

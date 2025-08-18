@@ -20,16 +20,28 @@ export default function SalesReport({ dateRange }: ReportProps) {
     );
 
     const salesByProduct = products.map(product => {
-        const totalSales = filteredTransactions
-            .filter(t => t.product === product.name && t.status === 'Paid')
-            .reduce((sum, t) => sum + t.amount, 0);
-        const quantitySold = filteredTransactions
-            .filter(t => t.product === product.name && (t.status === 'Paid' || t.status === 'Credit'))
-            .length; // Simplified: Assumes 1 transaction = 1 unit
-        return { name: product.name, quantity: quantitySold, total: totalSales };
-    }).filter(p => p.total > 0).sort((a,b) => b.total - a.total);
+        const productTransactions = filteredTransactions.filter(t => t.product === product.name && (t.status === 'Paid' || t.status === 'Credit'));
+        
+        const grossSales = productTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const netSales = productTransactions.reduce((sum, t) => sum + t.netAmount, 0);
+        const vatCollected = productTransactions.reduce((sum, t) => sum + t.vatAmount, 0);
+        const quantitySold = productTransactions.reduce((sum, t) => sum + t.quantity, 0);
 
-    const totalSalesValue = salesByProduct.reduce((sum, p) => sum + p.total, 0);
+        return { 
+            name: product.name, 
+            quantity: quantitySold, 
+            grossSales,
+            netSales,
+            vatCollected
+        };
+    }).filter(p => p.grossSales > 0).sort((a,b) => b.grossSales - a.grossSales);
+
+    const totals = salesByProduct.reduce((acc, p) => {
+        acc.gross += p.grossSales;
+        acc.net += p.netSales;
+        acc.vat += p.vatCollected;
+        return acc;
+    }, { gross: 0, net: 0, vat: 0 });
 
     return (
         <Card>
@@ -43,8 +55,10 @@ export default function SalesReport({ dateRange }: ReportProps) {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Product</TableHead>
-                            <TableHead className="text-right">Quantity Sold</TableHead>
-                            <TableHead className="text-right">Total Value</TableHead>
+                            <TableHead className="text-right">Qty Sold</TableHead>
+                            <TableHead className="text-right">Total Sales (Gross)</TableHead>
+                            <TableHead className="text-right">VAT Collected</TableHead>
+                            <TableHead className="text-right">Net Sales</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -52,19 +66,23 @@ export default function SalesReport({ dateRange }: ReportProps) {
                             <TableRow key={p.name}>
                                 <TableCell>{p.name}</TableCell>
                                 <TableCell className="text-right">{p.quantity.toLocaleString()}</TableCell>
-                                <TableCell className="text-right">TSh {p.total.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">TSh {p.grossSales.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">TSh {p.vatCollected.toLocaleString()}</TableCell>
+                                <TableCell className="text-right font-medium">TSh {p.netSales.toLocaleString()}</TableCell>
                             </TableRow>
                         ))}
                         {salesByProduct.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={3} className="text-center h-24">No sales recorded for this period.</TableCell>
+                                <TableCell colSpan={5} className="text-center h-24">No sales recorded for this period.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
                     <TableFooter>
                         <TableRow className="font-bold text-lg bg-muted">
-                            <TableCell colSpan={2}>Total Sales Value</TableCell>
-                            <TableCell className="text-right">TSh {totalSalesValue.toLocaleString()}</TableCell>
+                            <TableCell colSpan={2}>Totals</TableCell>
+                            <TableCell className="text-right">TSh {totals.gross.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">TSh {totals.vat.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">TSh {totals.net.toLocaleString()}</TableCell>
                         </TableRow>
                     </TableFooter>
                 </Table>
