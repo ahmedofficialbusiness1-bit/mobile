@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
@@ -35,7 +36,14 @@ const toDate = (timestamp: any): Date => {
     if (timestamp instanceof Date) {
         return timestamp;
     }
-    return new Date();
+    // Handle cases where timestamp might be a string or number from Firestore
+    if (typeof timestamp === 'object' && timestamp !== null && 'seconds' in timestamp && 'nanoseconds' in timestamp) {
+      return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+    }
+    if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+      return new Date(timestamp);
+    }
+    return new Date(); // Fallback, though should be avoided
 }
 
 export interface Transaction {
@@ -253,7 +261,7 @@ interface FinancialContextType {
     invoices: Invoice[];
     cashBalances: { cash: number; bank: number; mobile: number };
     addSale: (saleData: SaleFormData) => Promise<void>;
-    deleteSale: (sale: Transaction) => Promise<void>;
+    deleteSale: (saleId: string) => Promise<void>;
     markReceivableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
     markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
     markPrepaymentAsUsed: (id: string) => Promise<void>;
@@ -273,14 +281,14 @@ interface FinancialContextType {
     repayOwnerLoan: (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => Promise<void>;
     addExpense: (data: AddExpenseData) => Promise<void>;
     approveExpense: (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
-    deleteExpense: (expense: Expense) => Promise<void>;
+    deleteExpense: (expenseId: string) => Promise<void>;
     addEmployee: (employeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
     updateEmployee: (id: string, employeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
     deleteEmployee: (id: string) => Promise<void>;
     processPayroll: (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => Promise<void>;
     paySingleEmployee: (data: { employeeId: string; grossSalary: number; netSalary: number; paymentMethod: PaymentMethod; }) => Promise<void>;
     addPurchaseOrder: (data: Omit<PurchaseOrder, 'id' | 'userId'>) => Promise<void>;
-    deletePurchaseOrder: (po: PurchaseOrder) => Promise<void>;
+    deletePurchaseOrder: (poId: string) => Promise<void>;
     receivePurchaseOrder: (poId: string) => Promise<void>;
     payPurchaseOrder: (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => Promise<void>;
     addInvoice: (invoiceData: InvoiceFormData) => Promise<void>;
@@ -368,21 +376,35 @@ function useFirestoreUserAccounts() {
             return;
         }
 
-        let q;
-        if (isAdmin) {
-            q = collection(db, 'userAccounts');
-        } else {
-            q = query(collection(db, 'userAccounts'), where('__name__', '==', user.uid));
-        }
-        
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const accountsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserAccount));
-            setData(accountsData);
-        }, (error) => {
-            console.error('Error fetching userAccounts:', error);
-        });
+        const fetchAccounts = async () => {
+            let q;
+            if (isAdmin) {
+                q = collection(db, 'userAccounts');
+            } else {
+                const userDocRef = doc(db, 'userAccounts', user.uid);
+                const docSnap = await getDoc(userDocRef);
+                if (docSnap.exists()) {
+                    setData([{ id: docSnap.id, ...docSnap.data() } as UserAccount]);
+                } else {
+                    setData([]);
+                }
+                return;
+            }
 
-        return () => unsubscribe();
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const accountsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserAccount));
+                setData(accountsData);
+            }, (error) => {
+                console.error('Error fetching userAccounts:', error);
+            });
+            return () => unsubscribe();
+        };
+
+        const unsubscribePromise = fetchAccounts();
+
+        return () => {
+            unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
+        };
     }, [user, authLoading, isAdmin]);
     
     return data;
@@ -454,30 +476,25 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         capitalContributions.forEach(c => {
             if (c.type === 'Cash') cash += c.amount;
-            if (c.type === 'Bank') bank += c.amount;
-            if (c.type === 'Drawing') { 
-                 const drawingAmount = c.amount;
-                 if (cash >= drawingAmount) {
-                     cash -= drawingAmount;
-                 } else if (bank >= drawingAmount) {
-                     bank -= drawingAmount;
-                 } else {
-                     mobile -= drawingAmount;
-                 }
+            else if (c.type === 'Bank') bank += c.amount;
+            else if (c.type === 'Drawing' && c.amount > 0) {
+                 const drawing = expenses.find(e => e.description === c.description && e.amount === c.amount);
+                 if (drawing?.paymentMethod === 'Cash') cash -= c.amount;
+                 else if (drawing?.paymentMethod === 'Bank') bank -= c.amount;
+                 else if (drawing?.paymentMethod === 'Mobile') mobile -= c.amount;
             }
         });
 
         transactions.forEach(t => {
             if (t.status === 'Paid') {
                 if (t.paymentMethod === 'Cash') cash += t.amount;
-                if (t.paymentMethod === 'Bank') bank += t.amount;
-                if (t.paymentMethod === 'Mobile') mobile += t.amount;
+                else if (t.paymentMethod === 'Bank') bank += t.amount;
+                else if (t.paymentMethod === 'Mobile') mobile += t.amount;
             }
         });
 
         prepayments.forEach(p => {
             if (p.status === 'Active') {
-                // Assuming all prepayments hit the bank for simplicity
                 bank += p.prepaidAmount;
             }
         });
@@ -485,21 +502,13 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         expenses.forEach(e => {
             if (e.status === 'Approved') {
                 if (e.paymentMethod === 'Cash') cash -= e.amount;
-                if (e.paymentMethod === 'Bank') bank -= e.amount;
-                if (e.paymentMethod === 'Mobile') mobile -= e.amount;
-            }
-        });
-
-        payables.forEach(p => {
-             if (p.status === 'Paid') {
-                if (p.paymentMethod === 'Cash') cash -= p.amount;
-                if (p.paymentMethod === 'Bank') bank -= p.amount;
-                if (p.paymentMethod === 'Mobile') mobile -= p.amount;
+                else if (e.paymentMethod === 'Bank') bank -= e.amount;
+                else if (e.paymentMethod === 'Mobile') mobile -= e.amount;
             }
         });
         
         return { cash, bank, mobile };
-    }, [transactions, capitalContributions, expenses, payables, prepayments]);
+    }, [transactions, capitalContributions, expenses, prepayments]);
 
     const addSale = async (saleData: SaleFormData) => {
         if (!user) throw new Error("User not authenticated.");
@@ -554,9 +563,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await batch.commit();
     }
     
-    const deleteSale = async (sale: Transaction) => {
+    const deleteSale = async (saleId: string) => {
         if (!user) throw new Error("User not authenticated.");
-        const saleRef = doc(db, 'transactions', sale.id);
+        const saleRef = doc(db, 'transactions', saleId);
         
         await runTransaction(db, async (transaction) => {
             const saleDoc = await transaction.get(saleRef);
@@ -564,6 +573,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             
             const saleToDelete = saleDoc.data() as Transaction;
             
+            // Reverse stock
             if (saleToDelete.productId) {
                 const productRef = doc(db, 'products', saleToDelete.productId);
                 const productDoc = await transaction.get(productRef);
@@ -574,51 +584,51 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     transaction.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
                 }
             }
+
+            // Delete the sale
             transaction.delete(saleRef);
         });
     };
 
     const markReceivableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
         if (!user) throw new Error("User not authenticated.");
-        const receivableToUpdate = transactions.find(t => t.id === id);
-        if (!receivableToUpdate) return;
-        
-        const remainingAmount = receivableToUpdate.amount - amount;
-
-        const paymentTransaction = {
-            userId: user.uid,
-            name: receivableToUpdate.name,
-            phone: receivableToUpdate.phone,
-            amount: amount,
-            netAmount: amount / (1 + (receivableToUpdate.vatAmount / receivableToUpdate.netAmount)),
-            vatAmount: amount - (amount / (1 + (receivableToUpdate.vatAmount / receivableToUpdate.netAmount))),
-            status: 'Paid',
-            date: new Date(),
-            paymentMethod: paymentMethod,
-            product: `Payment for ${receivableToUpdate.product}`,
-            notes: "Debt Repayment",
-            productId: '',
-            quantity: 0,
-        };
-        
-        const batch = writeBatch(db);
-        
-        const transactionCollectionRef = collection(db, 'transactions');
-        batch.set(doc(transactionCollectionRef), paymentTransaction);
-
         const receivableRef = doc(db, 'transactions', id);
-        if (remainingAmount <= 0) {
-            batch.delete(receivableRef);
-        } else {
-            const originalNet = receivableToUpdate.netAmount;
-            const originalGross = receivableToUpdate.amount;
-            const newGross = remainingAmount;
-            const newNet = (newGross / originalGross) * originalNet;
-            const newVat = newGross - newNet;
-            batch.update(receivableRef, { amount: newGross, netAmount: newNet, vatAmount: newVat });
-        }
         
-        await batch.commit();
+        await runTransaction(db, async (transaction) => {
+            const receivableDoc = await transaction.get(receivableRef);
+            if (!receivableDoc.exists()) throw new Error("Receivable not found.");
+            
+            const receivableToUpdate = receivableDoc.data() as Transaction;
+            const remainingAmount = receivableToUpdate.amount - amount;
+
+            const paymentTransaction = {
+                userId: user.uid,
+                name: receivableToUpdate.name,
+                phone: receivableToUpdate.phone,
+                amount: amount,
+                netAmount: amount / (1 + (receivableToUpdate.vatAmount / receivableToUpdate.netAmount || 0.18)),
+                vatAmount: amount - (amount / (1 + (receivableToUpdate.vatAmount / receivableToUpdate.netAmount || 0.18))),
+                status: 'Paid',
+                date: new Date(),
+                paymentMethod: paymentMethod,
+                product: `Payment for ${receivableToUpdate.product}`,
+                notes: "Debt Repayment",
+                productId: '',
+                quantity: 0,
+            };
+            transaction.set(doc(collection(db, 'transactions')), paymentTransaction);
+
+            if (remainingAmount <= 0) {
+                transaction.delete(receivableRef);
+            } else {
+                const originalNet = receivableToUpdate.netAmount;
+                const originalGross = receivableToUpdate.amount;
+                const newGross = remainingAmount;
+                const newNet = (newGross / originalGross) * originalNet;
+                const newVat = newGross - newNet;
+                transaction.update(receivableRef, { amount: newGross, netAmount: newNet, vatAmount: newVat });
+            }
+        });
     };
 
     const markPayableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
@@ -639,7 +649,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             const remainingAmount = payableData.amount - amount;
 
             if (remainingAmount <= 0) {
-                 transaction.update(payableRef, { status: 'Paid', amount: 0 }); // Or delete, depending on business logic
+                 transaction.update(payableRef, { status: 'Paid', amount: 0 }); 
             } else {
                  transaction.update(payableRef, { amount: remainingAmount });
             }
@@ -831,10 +841,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await updateDoc(doc(db, 'expenses', id), { status: 'Approved', paymentMethod, userId: user.uid });
     };
 
-    const deleteExpense = async (expense: Expense) => {
+    const deleteExpense = async (expenseId: string) => {
         if (!user) throw new Error("User not authenticated.");
-        const expenseRef = doc(db, 'expenses', expense.id);
-        await deleteDoc(expenseRef);
+        await deleteDoc(doc(db, 'expenses', expenseId));
     };
 
     const addEmployee = async (employeeData: Omit<Employee, 'id' | 'userId'>) => {
@@ -952,9 +961,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await batch.commit();
     }
     
-    const deletePurchaseOrder = async (po: PurchaseOrder) => {
+    const deletePurchaseOrder = async (poId: string) => {
         if (!user) throw new Error("User not authenticated.");
-        const poId = po.id;
 
         await runTransaction(db, async (transaction) => {
             const poRef = doc(db, 'purchaseOrders', poId);
@@ -963,12 +971,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             
             const poToDelete = poDoc.data() as PurchaseOrder;
 
+            // Delete associated payable if it exists
             const payableQuery = query(collection(db, 'payables'), where('product', '==', `From PO #${poToDelete.poNumber}`), where('userId', '==', user.uid));
             const payablesSnap = await getDocs(payableQuery);
             if (!payablesSnap.empty) {
                 payablesSnap.forEach(doc => transaction.delete(doc.ref));
             }
 
+            // Reverse stock if goods were received
             if (poToDelete.receivingStatus === 'Received') {
                 for (const item of poToDelete.items) {
                     const productQuery = query(collection(db, 'products'), where('name', '==', item.description), where('userId', '==', user.uid));
@@ -983,6 +993,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     }
                 }
             }
+
+            // Delete the PO itself
             transaction.delete(poRef);
         });
     }
