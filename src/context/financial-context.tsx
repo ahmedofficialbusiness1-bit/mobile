@@ -386,7 +386,7 @@ const calculateDepreciation = (asset: Asset): { accumulatedDepreciation: number;
     return { accumulatedDepreciation, netBookValue };
 };
 
-const getProductStatus = (product: Omit<Product, 'id'|'userId'>, stockLevel: number): Product['status'] => {
+const getProductStatus = (product: Partial<Product>, stockLevel: number): Product['status'] => {
     const now = new Date();
 
     if (product.expiryDate && isAfter(now, toDate(product.expiryDate))) {
@@ -395,7 +395,7 @@ const getProductStatus = (product: Omit<Product, 'id'|'userId'>, stockLevel: num
     if (stockLevel <= 0) {
         return 'Out of Stock';
     }
-    if (stockLevel <= product.reorderLevel) {
+    if (product.reorderLevel && stockLevel <= product.reorderLevel) {
         return 'Low Stock';
     }
     return 'In Stock';
@@ -558,17 +558,15 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         return initialProducts.map(product => {
             const stockByShop = product.stockByShop || {};
             const totalShopStock = Object.values(stockByShop).reduce((sum, qty) => sum + qty, 0);
+            
             const currentShopStock = activeShopId ? (stockByShop[activeShopId] || 0) : 0;
             
-            // Determine the stock level to check for status
-            const stockLevelForStatus = activeShopId 
-                ? currentShopStock // Use specific shop stock if active
-                : product.mainStock + totalShopStock; // Use total stock if no shop is active (HQ view)
+            const stockLevelForStatus = activeShopId ? currentShopStock : (product.mainStock || 0);
 
             return {
                 ...product,
-                shopStock: totalShopStock, // Total across all shops
-                currentStock: currentShopStock, // Stock for the currently active shop
+                shopStock: totalShopStock,
+                currentStock: currentShopStock,
                 status: getProductStatus(product, stockLevelForStatus),
             }
         })
@@ -858,16 +856,22 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock' | 'stockByShop'>) => {
         if (!user) throw new Error("User not authenticated.");
-        const newProduct = {
-            ...productData,
+        const { expiryDate, ...restOfProductData } = productData;
+        const newProduct: any = {
+            ...restOfProductData,
             userId: user.uid,
-            status: getProductStatus({ ...productData } as Product, productData.mainStock),
-            initialStock: productData.mainStock,
+            status: getProductStatus({ ...restOfProductData } as Product, restOfProductData.mainStock),
+            initialStock: restOfProductData.mainStock,
             shopStock: 0,
             stockByShop: {},
-            entryDate: productData.entryDate || new Date(),
+            entryDate: new Date(),
             lastUpdated: new Date(),
         };
+
+        if (expiryDate) {
+            newProduct.expiryDate = expiryDate;
+        }
+        
         await addDoc(collection(db, 'products'), newProduct);
     };
     
