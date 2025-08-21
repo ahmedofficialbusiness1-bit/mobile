@@ -340,7 +340,7 @@ interface FinancialContextType {
     deleteProduct: (id: string) => Promise<void>;
     transferStock: (productId: string, quantity: number, toShopId: string) => Promise<void>;
     reportDamage: (productId: string, quantity: number, reason: string) => Promise<void>;
-    createStockRequest: (productId: string, quantity: number, notes: string) => Promise<void>;
+    createStockRequest: (productId: string, productName: string, quantity: number, notes: string) => Promise<void>;
     approveStockRequest: (requestId: string) => Promise<void>;
     rejectStockRequest: (requestId: string) => Promise<void>;
     addAsset: (assetData: AddAssetData) => Promise<void>;
@@ -958,10 +958,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
     }
     
-    const createStockRequest = async (productId: string, quantity: number, notes: string) => {
+    const createStockRequest = async (productId: string, productName: string, quantity: number, notes: string) => {
         if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
-        const product = products.find(p => p.id === productId);
-        if (!product) throw new Error("Product not found.");
 
         const shop = shops.find(s => s.id === activeShopId);
         if (!shop) throw new Error("Shop not found.");
@@ -970,8 +968,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             userId: user.uid,
             shopId: activeShopId,
             shopName: shop.name,
-            productId: productId,
-            productName: product.name,
+            productId,
+            productName,
             quantity,
             requestDate: new Date(),
             status: 'Pending',
@@ -983,8 +981,13 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const approveStockRequest = async (requestId: string) => {
         const request = allStockRequests.find(r => r.id === requestId);
         if (!request) throw new Error("Request not found.");
-        await transferStock(request.productId, request.quantity, request.shopId);
-        await updateDoc(doc(db, 'stockRequests', requestId), { status: 'Approved' });
+        if (request.productId === 'new-product-request') {
+             // For new products, just mark as approved. HQ needs to add it manually.
+             await updateDoc(doc(db, 'stockRequests', requestId), { status: 'Approved' });
+        } else {
+            await transferStock(request.productId, request.quantity, request.shopId);
+            await updateDoc(doc(db, 'stockRequests', requestId), { status: 'Approved' });
+        }
     };
 
     const rejectStockRequest = async (requestId: string) => {

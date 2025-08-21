@@ -30,12 +30,12 @@ import type { Product } from '@/context/financial-context'
 interface RequestStockFormProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (productId: string, quantity: number, notes: string) => void
+  onSave: (productId: string, productName: string, quantity: number, notes: string) => void
   products: Product[]
 }
 
 const formSchema = z.object({
-  productId: z.string({ required_error: 'Please select a product.' }),
+  productIdentifier: z.string({ required_error: 'Please select or enter a product.' }),
   quantity: z.coerce.number().min(1, 'Quantity must be at least 1.'),
   notes: z.string().optional(),
 })
@@ -57,7 +57,11 @@ export function RequestStockForm({ isOpen, onClose, onSave, products }: RequestS
   }, [products]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    onSave(values.productId, values.quantity, values.notes || '')
+    const selectedProduct = products.find(p => p.id === values.productIdentifier);
+    const productId = selectedProduct ? selectedProduct.id : 'new-product-request';
+    const productName = selectedProduct ? selectedProduct.name : values.productIdentifier;
+
+    onSave(productId, productName, values.quantity, values.notes || '')
     form.reset()
     onClose()
   }
@@ -68,24 +72,28 @@ export function RequestStockForm({ isOpen, onClose, onSave, products }: RequestS
         <DialogHeader>
           <DialogTitle>Request Stock from Headquarters</DialogTitle>
           <DialogDescription>
-            Select a product and specify the quantity you need for your shop.
+            Select a product or type a new product name, and specify the quantity you need for your shop.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="productId"
+              name="productIdentifier"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Product</FormLabel>
                     <Combobox
                         options={productOptions}
                         value={field.value}
-                        onChange={field.onChange}
+                        onChange={(value) => {
+                           const isOption = productOptions.some(opt => opt.value === value);
+                           field.onChange(isOption ? value : value);
+                        }}
                         placeholder="Search for a product..."
-                        searchPlaceholder="Search product..."
-                        notFoundText="No product found."
+                        searchPlaceholder="Search or type new product..."
+                        notFoundText="No product found. Type to add."
+                        allowCustomValue={true}
                     />
                   <FormMessage />
                 </FormItem>
@@ -129,5 +137,3 @@ export function RequestStockForm({ isOpen, onClose, onSave, products }: RequestS
     </Dialog>
   )
 }
-
-    

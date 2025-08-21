@@ -27,6 +27,7 @@ interface ComboboxProps {
   placeholder?: string;
   searchPlaceholder?: string;
   notFoundText?: string;
+  allowCustomValue?: boolean;
 }
 
 export function Combobox({ 
@@ -35,9 +36,15 @@ export function Combobox({
     onChange,
     placeholder = "Select an option...",
     searchPlaceholder = "Search...",
-    notFoundText = "No option found."
+    notFoundText = "No option found.",
+    allowCustomValue = false
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
+  const [inputValue, setInputValue] = React.useState(value ? options.find(o => o.value === value)?.label : "")
+
+  React.useEffect(() => {
+     setInputValue(value ? options.find(o => o.value === value)?.label : "");
+  }, [value, options]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -56,9 +63,28 @@ export function Combobox({
       </PopoverTrigger>
       <PopoverContent className="w-full p-0">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+          <CommandInput 
+            placeholder={searchPlaceholder} 
+            value={inputValue}
+            onValueChange={setInputValue}
+          />
           <CommandList>
-            <CommandEmpty>{notFoundText}</CommandEmpty>
+            <CommandEmpty>
+              {allowCustomValue ? (
+                <div 
+                  className="p-2 cursor-pointer hover:bg-accent"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onChange(inputValue || '');
+                    setOpen(false);
+                  }}
+                >
+                  Add "{inputValue}"
+                </div>
+              ) : (
+                notFoundText
+              )}
+            </CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
                 <CommandItem
@@ -66,6 +92,7 @@ export function Combobox({
                   value={option.value}
                   onSelect={(currentValue) => {
                     onChange(currentValue === value ? "" : currentValue)
+                    setInputValue(currentValue === value ? "" : options.find(o => o.value === currentValue)?.label || "");
                     setOpen(false)
                   }}
                 >
@@ -85,5 +112,3 @@ export function Combobox({
     </Popover>
   )
 }
-
-    

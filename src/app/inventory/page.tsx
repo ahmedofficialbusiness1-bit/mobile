@@ -73,7 +73,6 @@ function InventoryPageContent() {
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
   const [searchTerm, setSearchTerm] = React.useState('')
   const [activeFilter, setActiveFilter] = React.useState('All')
-  const [monthlyStockData, setMonthlyStockData] = React.useState<MonthlyStockData>({ opening: 0, purchases: 0, sales: 0, closing: 0 });
   
   const isHeadquarters = activeShopId === null;
 
@@ -100,10 +99,10 @@ function InventoryPageContent() {
         }
       })
   }, [products, searchTerm, activeFilter])
-  
+
   const agingData = React.useMemo(() => {
     const today = new Date();
-    return products.reduce((acc, product) => {
+    return filteredProducts.reduce((acc, product) => {
         const daysInStock = differenceInDays(today, product.entryDate);
         if (daysInStock > 365) acc.overYear++;
         else if (daysInStock > 180) acc.sixMonths++;
@@ -111,9 +110,9 @@ function InventoryPageContent() {
         else acc.new++;
         return acc;
     }, { new: 0, threeMonths: 0, sixMonths: 0, overYear: 0 });
-  }, [products]);
+  }, [filteredProducts]);
 
-  React.useEffect(() => {
+  const monthlyStockData = React.useMemo(() => {
     const today = new Date();
     const monthStart = startOfMonth(today);
     const monthEnd = endOfMonth(today);
@@ -126,20 +125,19 @@ function InventoryPageContent() {
       .filter(po => po.receivingStatus === 'Received' && isWithinInterval(po.purchaseDate, { start: monthStart, end: monthEnd }))
       .reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
 
-    const currentStockTotal = products.reduce((sum, p) => sum + p.mainStock + p.shopStock, 0);
+    const currentStockTotal = filteredProducts.reduce((sum, p) => sum + (activeShopId === null ? p.mainStock + p.shopStock : p.currentStock), 0);
     
     const openingStock = currentStockTotal - purchasesThisMonthQty + salesThisMonthQty;
 
     const closingStock = currentStockTotal;
 
-    setMonthlyStockData({
+    return {
         opening: Math.max(0, openingStock), 
         purchases: purchasesThisMonthQty,
         sales: salesThisMonthQty,
         closing: closingStock,
-    });
-  }, [products, transactions, purchaseOrders]);
-
+    };
+  }, [filteredProducts, transactions, purchaseOrders, activeShopId]);
 
   const handleSaveProduct = (data: Omit<Product, 'id' | 'status'>) => {
     if (selectedProduct) {
@@ -238,8 +236,8 @@ function InventoryPageContent() {
       }
   }
   
-  const handleSaveRequest = (productId: string, quantity: number, notes: string) => {
-    createStockRequest(productId, quantity, notes)
+  const handleSaveRequest = (productId: string, productName: string, quantity: number, notes: string) => {
+    createStockRequest(productId, productName, quantity, notes)
     .then(() => {
         toast({
             title: 'Request Sent',
@@ -280,7 +278,7 @@ function InventoryPageContent() {
         </p>
       </div>
 
-      <InventorySummaryCards products={products} onFilterChange={handleFilterChange} activeFilter={activeFilter} />
+      <InventorySummaryCards products={filteredProducts} onFilterChange={handleFilterChange} activeFilter={activeFilter} />
       
        <div className="grid gap-4 md:grid-cols-2">
         <Card>
