@@ -40,11 +40,16 @@ export function Combobox({
     allowCustomValue = false
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
-  const [inputValue, setInputValue] = React.useState(value ? options.find(o => o.value === value)?.label : "")
+  const [inputValue, setInputValue] = React.useState("")
 
   React.useEffect(() => {
-     setInputValue(value ? options.find(o => o.value === value)?.label : "");
+    if (value) {
+      setInputValue(options.find((option) => option.value === value)?.label || "")
+    } else {
+      setInputValue("")
+    }
   }, [value, options]);
+
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -65,22 +70,18 @@ export function Combobox({
         <Command>
           <CommandInput 
             placeholder={searchPlaceholder} 
-            value={inputValue}
-            onValueChange={setInputValue}
           />
           <CommandList>
             <CommandEmpty>
               {allowCustomValue ? (
-                <div 
-                  className="p-2 cursor-pointer hover:bg-accent"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    onChange(inputValue || '');
-                    setOpen(false);
+                 <CommandItem
+                  onSelect={() => {
+                    onChange(inputValue)
+                    setOpen(false)
                   }}
                 >
                   Add "{inputValue}"
-                </div>
+                </CommandItem>
               ) : (
                 notFoundText
               )}
@@ -92,7 +93,6 @@ export function Combobox({
                   value={option.value}
                   onSelect={(currentValue) => {
                     onChange(currentValue === value ? "" : currentValue)
-                    setInputValue(currentValue === value ? "" : options.find(o => o.value === currentValue)?.label || "");
                     setOpen(false)
                   }}
                 >
