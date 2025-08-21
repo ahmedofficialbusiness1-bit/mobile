@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button"
 import {
   Command,
   CommandEmpty,
-  CommandGroup,
   CommandInput,
+  CommandGroup,
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
@@ -42,6 +42,14 @@ export function Combobox({
   const [open, setOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
 
+  const selectedLabel = React.useMemo(() => {
+    if (!value) return placeholder;
+    const selectedOption = options.find((option) => option.value === value);
+    if (selectedOption) return selectedOption.label;
+    if (allowCustomValue) return value;
+    return placeholder;
+  }, [value, options, placeholder, allowCustomValue]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -51,20 +59,12 @@ export function Combobox({
           aria-expanded={open}
           className="w-full justify-between"
         >
-          {value
-            ? options.find((option) => option.value === value)?.label ?? (allowCustomValue ? value : placeholder)
-            : placeholder}
+          <span className="truncate">{selectedLabel}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-        <Command
-          filter={(optionValue, search) => {
-            const option = options.find(opt => opt.value === optionValue);
-            if (option?.label.toLowerCase().includes(search.toLowerCase())) return 1;
-            return 0;
-          }}
-        >
+        <Command>
           <CommandInput 
             placeholder={searchPlaceholder} 
             value={inputValue}
@@ -74,8 +74,9 @@ export function Combobox({
             <CommandEmpty>
               {allowCustomValue && inputValue ? (
                  <CommandItem
-                  onSelect={() => {
-                    onChange(inputValue)
+                  value={inputValue}
+                  onSelect={(currentValue) => {
+                    onChange(currentValue)
                     setOpen(false)
                   }}
                 >
