@@ -30,7 +30,7 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
     }, []);
 
     const filteredTransactions = transactions.filter(t => 
-        dateRange?.from && dateRange?.to && isWithinInterval(t.date, { start: dateRange.from, end: dateRange.to })
+        dateRange?.from && dateRange?.to && isWithinInterval(t.date, { start: dateRange.from, end: date.to })
     );
 
     const filteredExpenses = expenses.filter(e =>
@@ -51,7 +51,7 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
     const purchases = filteredPurchases
         .filter(po => po.receivingStatus === 'Received')
         .reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.totalPrice, 0), 0);
-    const closingInventory = products.reduce((sum, p) => sum + (p.currentStock * p.purchasePrice), 0);
+    const closingInventory = products.reduce((sum, p) => sum + ((p.mainStock + p.shopStock) * p.purchasePrice), 0);
     const costOfSales = openingInventory + purchases - closingInventory;
     const grossProfit = revenue - costOfSales;
 

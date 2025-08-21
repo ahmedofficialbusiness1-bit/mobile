@@ -11,7 +11,7 @@ interface InventorySummaryCardsProps {
 
 export function InventorySummaryCards({ products }: InventorySummaryCardsProps) {
   const totalValue = products.reduce(
-    (sum, p) => sum + p.currentStock * p.purchasePrice,
+    (sum, p) => sum + (p.mainStock + p.shopStock) * p.purchasePrice,
     0
   )
   const lowStockItems = products.filter(

@@ -215,8 +215,9 @@ export default function DashboardPageContent() {
         const slowMovingProducts = allProducts
             .filter(p => p.entryDate < threeMonthsAgo)
             .map(p => {
-                const sold = p.initialStock - p.currentStock;
-                const soldPercentage = (sold / p.initialStock) * 100;
+                const totalStock = p.mainStock + p.shopStock;
+                const sold = p.initialStock - totalStock;
+                const soldPercentage = p.initialStock > 0 ? (sold / p.initialStock) * 100 : 0;
                 return { ...p, soldPercentage };
             })
             .filter(p => p.soldPercentage < 50)
@@ -247,7 +248,7 @@ export default function DashboardPageContent() {
         
         const totalPrepayments = activeCustomerPrepayments.reduce((acc, item) => acc + item.prepaidAmount, 0);
         
-        const inventoryValue = allProducts.reduce((sum, product) => sum + (product.currentStock * product.purchasePrice), 0);
+        const inventoryValue = allProducts.reduce((sum, product) => sum + ((product.mainStock + product.shopStock) * product.purchasePrice), 0);
 
 
         setDashboardData({

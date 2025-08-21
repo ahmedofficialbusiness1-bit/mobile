@@ -32,7 +32,7 @@ import { format } from 'date-fns'
 import type { Product } from '@/context/financial-context'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
-export type AddProductFormData = Omit<Product, 'id' | 'status' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'sellingPrice'> & {
+export type AddProductFormData = Omit<Product, 'id' | 'status' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'> & {
     entryDate?: Date;
 }
 
@@ -41,7 +41,7 @@ const formSchema = z.object({
   category: z.string().min(2, 'Category is required.'),
   description: z.string().optional(),
   barcode: z.string().optional(),
-  currentStock: z.coerce.number().min(0, 'Stock cannot be negative.'),
+  mainStock: z.coerce.number().min(0, 'Stock cannot be negative.'),
   uom: z.string().min(1, 'Unit of Measure is required.'),
   reorderLevel: z.coerce.number().min(0, 'Reorder level cannot be negative.'),
   reorderQuantity: z.coerce.number().min(1, 'Reorder quantity must be at least 1.'),
@@ -67,7 +67,7 @@ export function AddProductForm({ isOpen, onClose, onSave, product }: AddProductF
       category: '',
       description: '',
       barcode: '',
-      currentStock: 0,
+      mainStock: 0,
       uom: 'pcs',
       reorderLevel: 10,
       reorderQuantity: 20,
@@ -87,7 +87,7 @@ export function AddProductForm({ isOpen, onClose, onSave, product }: AddProductF
         category: '',
         description: '',
         barcode: '',
-        currentStock: 0,
+        mainStock: 0,
         uom: 'pcs',
         reorderLevel: 10,
         reorderQuantity: 20,
@@ -111,7 +111,7 @@ export function AddProductForm({ isOpen, onClose, onSave, product }: AddProductF
         <DialogHeader>
           <DialogTitle>{product ? 'Edit Product' : 'Add New Product'}</DialogTitle>
           <DialogDescription>
-            Fill in the details for the new product.
+            Fill in the details for the new product. This will be added to the Main Inventory.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -162,7 +162,7 @@ export function AddProductForm({ isOpen, onClose, onSave, product }: AddProductF
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
-                    name="currentStock"
+                    name="mainStock"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Opening Stock</FormLabel>

@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import * as React from 'react';
@@ -37,7 +36,7 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
         .filter(a => new Date(a.acquisitionDate) <= endDate && a.status === 'Active')
         .reduce((sum, asset) => sum + asset.netBookValue, 0); // Note: Depreciation should be calculated up to endDate
 
-    const inventory = products.reduce((sum, p) => sum + (p.currentStock * p.purchasePrice), 0); // Snapshot at current time
+    const inventory = products.reduce((sum, p) => sum + ((p.mainStock + p.shopStock) * p.purchasePrice), 0); // Snapshot at current time
 
     const tradeReceivables = transactions
         .filter(t => t.status === 'Credit' && new Date(t.date) <= endDate)

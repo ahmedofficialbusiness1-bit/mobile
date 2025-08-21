@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { MoreHorizontal, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Trash2, ArrowRightLeft } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 
 
@@ -28,9 +28,11 @@ interface InventoryDataTableProps {
   products: Product[]
   onEdit: (product: Product) => void
   onDelete: (product: Product) => void
+  onTransfer?: (product: Product) => void
+  inventoryType: 'main' | 'shop'
 }
 
-export function InventoryDataTable({ products, onEdit, onDelete }: InventoryDataTableProps) {
+export function InventoryDataTable({ products, onEdit, onDelete, onTransfer, inventoryType }: InventoryDataTableProps) {
   const getStatusVariant = (status: Product['status']) => {
     switch (status) {
       case 'In Stock':
@@ -56,8 +58,6 @@ export function InventoryDataTable({ products, onEdit, onDelete }: InventoryData
             <TableHead>Category</TableHead>
             <TableHead className="text-right">Qty in Stock</TableHead>
             <TableHead className="text-right">Reorder Lvl</TableHead>
-            <TableHead className="text-right">Reorder Qty</TableHead>
-            <TableHead className="text-right">Selling Price</TableHead>
             <TableHead className="text-right">Total Value</TableHead>
             <TableHead className="text-center">Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -73,16 +73,12 @@ export function InventoryDataTable({ products, onEdit, onDelete }: InventoryData
                 <TableCell className="font-medium">{product.name}</TableCell>
                 <TableCell>{product.category}</TableCell>
                 <TableCell className="text-right font-medium">
-                  {product.currentStock.toLocaleString()} {product.uom}
+                  {(inventoryType === 'main' ? product.mainStock : product.shopStock).toLocaleString()} {product.uom}
                 </TableCell>
                 <TableCell className="text-right">{product.reorderLevel.toLocaleString()}</TableCell>
-                <TableCell className="text-right">{product.reorderQuantity.toLocaleString()}</TableCell>
-                <TableCell className="text-right">
-                  {product.sellingPrice.toLocaleString()}
-                </TableCell>
                 <TableCell className="text-right font-semibold">
                   {(
-                    product.currentStock * product.purchasePrice
+                    (inventoryType === 'main' ? product.mainStock : product.shopStock) * product.purchasePrice
                   ).toLocaleString()}
                 </TableCell>
                 <TableCell className="text-center">
@@ -104,6 +100,13 @@ export function InventoryDataTable({ products, onEdit, onDelete }: InventoryData
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
+                            {inventoryType === 'main' && onTransfer && (
+                                <DropdownMenuItem onClick={() => onTransfer(product)}>
+                                    <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                    Transfer to Shop
+                                </DropdownMenuItem>
+                            )}
+                             {inventoryType === 'main' && <DropdownMenuSeparator />}
                             <DropdownMenuItem onClick={() => onEdit(product)}>Edit</DropdownMenuItem>
                             <DropdownMenuSeparator />
                              <AlertDialog>
@@ -134,7 +137,7 @@ export function InventoryDataTable({ products, onEdit, onDelete }: InventoryData
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={10} className="h-24 text-center">
+              <TableCell colSpan={8} className="h-24 text-center">
                 No products found for the selected filter.
               </TableCell>
             </TableRow>

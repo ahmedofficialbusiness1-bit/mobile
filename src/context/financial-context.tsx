@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
@@ -112,12 +111,12 @@ export interface Product {
   description?: string;
   barcode?: string;
   initialStock: number;
-  currentStock: number;
+  mainStock: number;
+  shopStock: number;
   uom: string; 
   reorderLevel: number;
   reorderQuantity: number;
   purchasePrice: number;
-  sellingPrice: number; // This will no longer be used for sales calculation but kept for reference
   entryDate: Date;
   expiryDate?: Date;
   lastUpdated: Date;
@@ -270,9 +269,10 @@ interface FinancialContextType {
     deleteCustomer: (id: string) => Promise<void>;
     addUserAccount: (userData: Omit<UserAccount, 'id'> & { id: string }) => Promise<void>;
     deleteUserAccount: (id: string) => Promise<void>;
-    addProduct: (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'sellingPrice'>) => Promise<void>;
-    updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'sellingPrice'>) => Promise<void>;
+    addProduct: (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'>) => Promise<void>;
+    updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'>) => Promise<void>;
     deleteProduct: (id: string) => Promise<void>;
+    transferStock: (productId: string, quantity: number) => Promise<void>;
     addAsset: (assetData: AddAssetData) => Promise<void>;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => Promise<void>;
     writeOffAsset: (id: string) => Promise<void>;
@@ -317,13 +317,15 @@ const calculateDepreciation = (asset: Asset): { accumulatedDepreciation: number;
 
 const getProductStatus = (product: Omit<Product, 'status'|'id'|'userId'>): Product['status'] => {
     const now = new Date();
+    const totalStock = product.mainStock + product.shopStock;
+
     if (product.expiryDate && isAfter(now, toDate(product.expiryDate))) {
         return 'Expired';
     }
-    if (product.currentStock <= 0) {
+    if (totalStock <= 0) {
         return 'Out of Stock';
     }
-    if (product.currentStock <= product.reorderLevel) {
+    if (totalStock <= product.reorderLevel) {
         return 'Low Stock';
     }
     return 'In Stock';
@@ -472,6 +474,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         let mobile = 0;
 
         capitalContributions.forEach(c => {
+            if (!c.type) return;
             if (c.type === 'Cash') cash += c.amount;
             else if (c.type === 'Bank') bank += c.amount;
         });
@@ -486,7 +489,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         prepayments.forEach(p => {
             if (p.status === 'Active') {
-                // Assuming prepayments hit the bank
                 bank += p.prepaidAmount;
             }
         });
@@ -505,54 +507,56 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const addSale = async (saleData: SaleFormData) => {
         if (!user) throw new Error("User not authenticated.");
         const productRef = doc(db, 'products', saleData.productId);
-        const productSnap = await getDoc(productRef);
-        if (!productSnap.exists()) throw new Error("Product not found");
         
-        const product = {id: productSnap.id, ...productSnap.data()} as Product;
+        await runTransaction(db, async (transaction) => {
+            const productDoc = await transaction.get(productRef);
+            if (!productDoc.exists()) throw new Error("Product not found");
 
-        if (product.currentStock < saleData.quantity) {
-            throw new Error(`Not enough stock for ${product.name}. Only ${product.currentStock} available.`);
-        }
-        
-        const grossAmount = saleData.unitPrice * saleData.quantity;
-        const netAmount = grossAmount / (1 + saleData.vatRate);
-        const vatAmount = grossAmount - netAmount;
+            const product = {id: productDoc.id, ...productDoc.data()} as Product;
 
-        const newTransaction = {
-            userId: user.uid,
-            name: saleData.customerName,
-            phone: saleData.customerPhone,
-            amount: grossAmount,
-            netAmount: netAmount,
-            vatAmount: vatAmount,
-            status: saleData.paymentMethod === 'Credit' ? 'Credit' : 'Paid',
-            date: new Date(),
-            paymentMethod: saleData.paymentMethod,
-            product: product.name,
-            productId: product.id,
-            quantity: saleData.quantity,
-        };
-        
-        const batch = writeBatch(db);
-        batch.set(doc(collection(db, 'transactions')), newTransaction);
-
-        const updatedStock = product.currentStock - saleData.quantity;
-        const newStatus = getProductStatus({ ...product, currentStock: updatedStock });
-        batch.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
-
-        if (saleData.customerType === 'new') {
-            const customerQuery = query(collection(db, 'customers'), where('phone', '==', saleData.customerPhone), where('userId', '==', user.uid));
-            const existingCustomer = await getDocs(customerQuery);
-            if (existingCustomer.empty) {
-                 batch.set(doc(collection(db, 'customers')), {
-                    userId: user.uid,
-                    name: saleData.customerName,
-                    phone: saleData.customerPhone,
-                });
+            if (product.shopStock < saleData.quantity) {
+                throw new Error(`Not enough stock in shop for ${product.name}. Only ${product.shopStock} available.`);
             }
-        }
-        
-        await batch.commit();
+            
+            const grossAmount = saleData.unitPrice * saleData.quantity;
+            const netAmount = grossAmount / (1 + saleData.vatRate);
+            const vatAmount = grossAmount - netAmount;
+
+            const newTransaction = {
+                userId: user.uid,
+                name: saleData.customerName,
+                phone: saleData.customerPhone,
+                amount: grossAmount,
+                netAmount: netAmount,
+                vatAmount: vatAmount,
+                status: saleData.paymentMethod === 'Credit' ? 'Credit' : 'Paid',
+                date: new Date(),
+                paymentMethod: saleData.paymentMethod,
+                product: product.name,
+                productId: product.id,
+                quantity: saleData.quantity,
+            };
+            
+            const transRef = doc(collection(db, 'transactions'));
+            transaction.set(transRef, newTransaction);
+
+            const updatedShopStock = product.shopStock - saleData.quantity;
+            const newStatus = getProductStatus({ ...product, shopStock: updatedShopStock });
+            transaction.update(productRef, { shopStock: updatedShopStock, status: newStatus, lastUpdated: new Date() });
+
+            if (saleData.customerType === 'new') {
+                const customerQuery = query(collection(db, 'customers'), where('phone', '==', saleData.customerPhone), where('userId', '==', user.uid));
+                const existingCustomer = await getDocs(customerQuery);
+                if (existingCustomer.empty) {
+                     const custRef = doc(collection(db, 'customers'));
+                     transaction.set(custRef, {
+                        userId: user.uid,
+                        name: saleData.customerName,
+                        phone: saleData.customerPhone,
+                    });
+                }
+            }
+        });
     }
     
     const deleteSale = async (saleId: string) => {
@@ -565,19 +569,17 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             
             const saleToDelete = saleDoc.data() as Transaction;
             
-            // Reverse stock
             if (saleToDelete.productId) {
                 const productRef = doc(db, 'products', saleToDelete.productId);
                 const productDoc = await transaction.get(productRef);
                 if (productDoc.exists()) {
                     const product = productDoc.data() as Product;
-                    const updatedStock = product.currentStock + saleToDelete.quantity;
-                    const newStatus = getProductStatus({ ...product, currentStock: updatedStock });
-                    transaction.update(productRef, { currentStock: updatedStock, status: newStatus, lastUpdated: new Date() });
+                    const updatedShopStock = product.shopStock + saleToDelete.quantity;
+                    const newStatus = getProductStatus({ ...product, shopStock: updatedShopStock });
+                    transaction.update(productRef, { shopStock: updatedShopStock, status: newStatus, lastUpdated: new Date() });
                 }
             }
 
-            // Delete the sale
             transaction.delete(saleRef);
         });
     };
@@ -696,31 +698,31 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await deleteDoc(doc(db, 'userAccounts', id));
     }
     
-    const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'sellingPrice'>) => {
+    const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'>) => {
         if (!user) throw new Error("User not authenticated.");
         const newProduct = {
             ...productData,
-            sellingPrice: 0, // Not used, set to 0
             userId: user.uid,
-            status: getProductStatus(productData as Product),
-            initialStock: productData.currentStock,
+            status: getProductStatus({ ...productData, shopStock: 0 } as Product),
+            initialStock: productData.mainStock,
+            shopStock: 0,
             entryDate: new Date(),
             lastUpdated: new Date(),
         };
         await addDoc(collection(db, 'products'), newProduct);
     };
     
-    const updateProduct = async (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'sellingPrice'>) => {
+    const updateProduct = async (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'>) => {
         if (!user) throw new Error("User not authenticated.");
         const originalProduct = products.find(p => p.id === id);
         if (!originalProduct) throw new Error("Product not found.");
         
         const updatedProductData = {
             ...productData,
-            sellingPrice: 0,
-            initialStock: originalProduct.initialStock, // Retain original values
+            initialStock: originalProduct.initialStock,
+            shopStock: originalProduct.shopStock,
             entryDate: originalProduct.entryDate,
-            status: getProductStatus(productData as Product),
+            status: getProductStatus({ ...productData, shopStock: originalProduct.shopStock } as Product),
             lastUpdated: new Date(),
              userId: user.uid,
         };
@@ -730,6 +732,32 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const deleteProduct = async (id: string) => {
         if (!user) throw new Error("User not authenticated.");
         await deleteDoc(doc(db, 'products', id));
+    };
+
+    const transferStock = async (productId: string, quantity: number) => {
+        if (!user) throw new Error("User not authenticated.");
+        const productRef = doc(db, 'products', productId);
+
+        await runTransaction(db, async (transaction) => {
+            const productDoc = await transaction.get(productRef);
+            if (!productDoc.exists()) throw new Error("Product not found");
+
+            const product = productDoc.data() as Product;
+            if (product.mainStock < quantity) {
+                throw new Error(`Insufficient stock in main inventory. Available: ${product.mainStock}`);
+            }
+
+            const newMainStock = product.mainStock - quantity;
+            const newShopStock = product.shopStock + quantity;
+            const newStatus = getProductStatus({ ...product, mainStock: newMainStock, shopStock: newShopStock });
+            
+            transaction.update(productRef, {
+                mainStock: newMainStock,
+                shopStock: newShopStock,
+                status: newStatus,
+                lastUpdated: new Date()
+            });
+        });
     };
 
     const addAsset = async (assetData: AddAssetData) => {
@@ -982,9 +1010,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                         const productDoc = productSnap.docs[0];
                         const productRef = doc(db, 'products', productDoc.id);
                         const productData = productDoc.data() as Product;
-                        const newStock = productData.currentStock - item.quantity;
-                        const newStatus = getProductStatus({ ...productData, currentStock: newStock });
-                        transaction.update(productRef, { currentStock: newStock, status: newStatus });
+                        const newStock = productData.mainStock - item.quantity;
+                        const newStatus = getProductStatus({ ...productData, mainStock: newStock });
+                        transaction.update(productRef, { mainStock: newStock, status: newStatus });
                     }
                 }
             }
@@ -1011,9 +1039,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 const existingProductDoc = existingProductSnap.docs[0];
                 const existingProduct = { id: existingProductDoc.id, ...existingProductDoc.data() } as Product;
                 const productRef = doc(db, 'products', existingProduct.id);
-                const newStock = existingProduct.currentStock + item.quantity;
-                const newStatus = getProductStatus({ ...existingProduct, currentStock: newStock });
-                batch.update(productRef, { currentStock: newStock, status: newStatus, lastUpdated: new Date() });
+                const newStock = existingProduct.mainStock + item.quantity;
+                const newStatus = getProductStatus({ ...existingProduct, mainStock: newStock });
+                batch.update(productRef, { mainStock: newStock, status: newStatus, lastUpdated: new Date() });
             } else {
                 const newProductData = {
                     userId: user.uid,
@@ -1021,12 +1049,12 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     description: item.description,
                     category: 'General',
                     initialStock: item.quantity,
-                    currentStock: item.quantity,
+                    mainStock: item.quantity,
+                    shopStock: 0,
                     uom: item.uom,
                     reorderLevel: 10,
                     reorderQuantity: 20,
                     purchasePrice: item.unitPrice,
-                    sellingPrice: 0, // No longer set at purchase time
                     entryDate: new Date(),
                     lastUpdated: new Date(),
                     supplier: po.supplierName,
@@ -1186,6 +1214,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         addProduct,
         updateProduct,
         deleteProduct,
+        transferStock,
         addAsset,
         sellAsset,
         writeOffAsset,

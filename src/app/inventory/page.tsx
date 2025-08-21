@@ -25,6 +25,7 @@ import { InventoryDataTable } from './inventory-data-table'
 import { differenceInDays, startOfMonth, isWithinInterval } from 'date-fns'
 import { AddProductForm } from './add-product-form'
 import { useToast } from '@/hooks/use-toast'
+import { TransferStockForm } from './transfer-stock-form'
 
 interface AgingData {
   new: number;
@@ -41,9 +42,10 @@ interface MonthlyStockData {
 }
 
 function InventoryPageContent() {
-  const { products, transactions, purchaseOrders, addProduct, updateProduct, deleteProduct } = useFinancials()
+  const { products, transactions, purchaseOrders, addProduct, updateProduct, deleteProduct, transferStock } = useFinancials()
   const { toast } = useToast()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
+  const [isTransferFormOpen, setIsTransferFormOpen] = React.useState(false);
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
   const [searchTerm, setSearchTerm] = React.useState('')
   const [statusFilter, setStatusFilter] = React.useState('All')
@@ -86,13 +88,13 @@ function InventoryPageContent() {
 
     const salesThisMonth = transactions
         .filter(t => isWithinInterval(t.date, monthInterval) && (t.status === 'Paid' || t.status === 'Credit'))
-        .length; // Assuming 1 transaction item = 1 unit sold for simplicity. A real system would track quantity per transaction item.
+        .length;
 
     const purchasesThisMonth = purchaseOrders
       .filter(po => po.receivingStatus === 'Received' && isWithinInterval(po.purchaseDate, monthInterval))
       .reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
       
-    const currentStockTotal = products.reduce((sum, p) => sum + p.currentStock, 0);
+    const currentStockTotal = products.reduce((sum, p) => sum + p.mainStock + p.shopStock, 0);
     const openingStock = currentStockTotal - purchasesThisMonth + salesThisMonth;
     const closingStock = currentStockTotal;
 
@@ -141,6 +143,32 @@ function InventoryPageContent() {
         variant: 'destructive',
     })
   }
+
+  const handleTransferClick = (product: Product) => {
+    setSelectedProduct(product);
+    setIsTransferFormOpen(true);
+  };
+
+  const handleSaveTransfer = (quantity: number) => {
+    if (selectedProduct) {
+        transferStock(selectedProduct.id, quantity)
+            .then(() => {
+                toast({
+                    title: 'Stock Transferred',
+                    description: `${quantity} units of ${selectedProduct.name} moved to shop inventory.`,
+                });
+                setIsTransferFormOpen(false);
+                setSelectedProduct(null);
+            })
+            .catch(error => {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Transfer Failed',
+                    description: error.message,
+                });
+            })
+    }
+  };
 
 
   return (
@@ -230,24 +258,23 @@ function InventoryPageContent() {
         </Card>
       </div>
 
-      <Card>
+      <Tabs defaultValue="main">
         <CardHeader>
-          <CardTitle>Product List</CardTitle>
-          <CardDescription>
-            Manage and track all products in your inventory.
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+             <div>
+                <CardTitle>Product List</CardTitle>
+                <CardDescription>
+                    Manage and track all products in your inventory.
+                </CardDescription>
+             </div>
+             <TabsList>
+                <TabsTrigger value="main">Main Inventory</TabsTrigger>
+                <TabsTrigger value="shop">Shop Inventory</TabsTrigger>
+             </TabsList>
+          </div>
         </CardHeader>
         <CardContent>
-          <Tabs value={statusFilter} onValueChange={setStatusFilter}>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-              <TabsList>
-                <TabsTrigger value="All">All</TabsTrigger>
-                <TabsTrigger value="In Stock">In Stock</TabsTrigger>
-                <TabsTrigger value="Low Stock">Low Stock</TabsTrigger>
-                <TabsTrigger value="Out of Stock">Out of Stock</TabsTrigger>
-                <TabsTrigger value="Expired">Expired</TabsTrigger>
-              </TabsList>
-              <div className="flex gap-2 w-full sm:w-auto">
                 <div className="relative w-full sm:max-w-xs">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -262,18 +289,36 @@ function InventoryPageContent() {
                   Add Product
                 </Button>
               </div>
-            </div>
-            <TabsContent value={statusFilter}>
-                <InventoryDataTable products={filteredProducts} onEdit={handleEditClick} onDelete={handleDeleteClick} />
+            <TabsContent value="main">
+                <InventoryDataTable 
+                    products={filteredProducts} 
+                    onEdit={handleEditClick} 
+                    onDelete={handleDeleteClick} 
+                    onTransfer={handleTransferClick}
+                    inventoryType="main"
+                />
             </TabsContent>
-          </Tabs>
+            <TabsContent value="shop">
+                 <InventoryDataTable 
+                    products={filteredProducts} 
+                    onEdit={handleEditClick} 
+                    onDelete={handleDeleteClick}
+                    inventoryType="shop"
+                />
+            </TabsContent>
         </CardContent>
-      </Card>
+      </Tabs>
     </div>
     <AddProductForm 
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         onSave={handleSaveProduct}
+        product={selectedProduct}
+    />
+    <TransferStockForm
+        isOpen={isTransferFormOpen}
+        onClose={() => setIsTransferFormOpen(false)}
+        onSave={handleSaveTransfer}
         product={selectedProduct}
     />
     </>
