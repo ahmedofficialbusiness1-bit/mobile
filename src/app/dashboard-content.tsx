@@ -118,7 +118,8 @@ export default function DashboardPageContent() {
         payables, 
         prepayments, 
         products,
-        userAccounts
+        userAccounts,
+        activeShopId
     } = useFinancials();
     const { user } = useAuth();
     
@@ -248,7 +249,10 @@ export default function DashboardPageContent() {
         
         const totalPrepayments = activeCustomerPrepayments.reduce((acc, item) => acc + item.prepaidAmount, 0);
         
-        const inventoryValue = products.reduce((sum, product) => sum + ((product.mainStock + product.shopStock) * product.purchasePrice), 0);
+        const inventoryValue = products.reduce((sum, product) => {
+            const stockQuantity = activeShopId ? product.currentStock : (product.mainStock + product.shopStock);
+            return sum + (stockQuantity * product.purchasePrice);
+        }, 0);
 
 
         setDashboardData({
@@ -268,7 +272,7 @@ export default function DashboardPageContent() {
             totalPayable,
             totalPrepayments,
         });
-    }, [date, transactions, payables, prepayments, products]);
+    }, [date, transactions, payables, prepayments, products, activeShopId]);
 
     const handlePresetChange = (value: string) => {
         setSelectedPreset(value);
