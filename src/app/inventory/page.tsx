@@ -381,17 +381,18 @@ function InventoryPageContent() {
                         Clear Filter: {activeFilter}
                     </Button>
                 )}
-                {isHeadquarters ? (
+                <div className="flex items-center gap-2">
+                    {!isHeadquarters && (
+                        <Button onClick={() => setIsRequestFormOpen(true)} variant="outline">
+                            <Send className="mr-2 h-4 w-4" />
+                            Request Stock
+                        </Button>
+                    )}
                     <Button onClick={handleAddClick}>
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Add Product
                     </Button>
-                ) : (
-                    <Button onClick={() => setIsRequestFormOpen(true)}>
-                        <Send className="mr-2 h-4 w-4" />
-                        Request Stock
-                    </Button>
-                )}
+                </div>
               </div>
             {isHeadquarters && (
                 <TabsContent value="main">
@@ -428,14 +429,12 @@ function InventoryPageContent() {
         </CardContent>
       </Tabs>
     </div>
-    {isHeadquarters && (
-      <AddProductForm 
-          isOpen={isFormOpen}
-          onClose={() => setIsFormOpen(false)}
-          onSave={handleSaveProduct}
-          product={selectedProduct}
-      />
-    )}
+    <AddProductForm 
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSave={handleSaveProduct}
+        product={selectedProduct}
+    />
     <TransferStockForm
         isOpen={isTransferFormOpen}
         onClose={() => setIsTransferFormOpen(false)}
