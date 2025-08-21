@@ -3,8 +3,8 @@
 
 import * as React from 'react'
 import { PageGuard } from '@/components/security/page-guard'
-import { PlusCircle, Search, Package, Clock, ShoppingCart, TrendingUp } from 'lucide-react'
-import { useFinancials, type Product } from '@/context/financial-context'
+import { PlusCircle, Search, Package, Clock, ShoppingCart, TrendingUp, X } from 'lucide-react'
+import { useFinancials, type Product, type DamagedGood } from '@/context/financial-context'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -26,6 +26,9 @@ import { differenceInDays, startOfMonth, isWithinInterval } from 'date-fns'
 import { AddProductForm } from './add-product-form'
 import { useToast } from '@/hooks/use-toast'
 import { TransferStockForm } from './transfer-stock-form'
+import { ReportDamageForm } from './report-damage-form'
+import { cn } from '@/lib/utils'
+import { DamagedGoodsTable } from './damaged-goods-table'
 
 interface AgingData {
   new: number;
@@ -42,47 +45,57 @@ interface MonthlyStockData {
 }
 
 function InventoryPageContent() {
-  const { products, transactions, purchaseOrders, addProduct, updateProduct, deleteProduct, transferStock } = useFinancials()
+  const { products, transactions, purchaseOrders, damagedGoods, addProduct, updateProduct, deleteProduct, transferStock, reportDamage } = useFinancials()
   const { toast } = useToast()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isTransferFormOpen, setIsTransferFormOpen] = React.useState(false);
+  const [isDamageFormOpen, setIsDamageFormOpen] = React.useState(false);
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
   const [searchTerm, setSearchTerm] = React.useState('')
-  const [statusFilter, setStatusFilter] = React.useState('All')
-  const [agingData, setAgingData] = React.useState<AgingData>({ new: 0, threeMonths: 0, sixMonths: 0, overYear: 0 });
+  const [activeFilter, setActiveFilter] = React.useState('All')
   const [monthlyStockData, setMonthlyStockData] = React.useState<MonthlyStockData>({ opening: 0, purchases: 0, sales: 0, closing: 0 });
 
-
-  const filteredProducts = React.useMemo(() => {
+ const filteredProducts = React.useMemo(() => {
+    const today = new Date();
     return products
       .filter((product) =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase())
       )
       .filter((product) => {
-        if (statusFilter === 'All') return true
-        return product.status === statusFilter
-      })
-  }, [products, searchTerm, statusFilter])
-  
-  React.useEffect(() => {
-    // Calculate Stock Aging
-    const today = new Date();
-    const agingCounts = products.reduce((acc, product) => {
-        const daysInStock = differenceInDays(today, product.entryDate);
-        if (daysInStock > 365) {
-            acc.overYear++;
-        } else if (daysInStock > 180) {
-            acc.sixMonths++;
-        } else if (daysInStock > 90) {
-            acc.threeMonths++;
-        } else {
-            acc.new++;
+        if (activeFilter === 'All') return true;
+        
+        // Status based filters
+        if (['In Stock', 'Low Stock', 'Out of Stock', 'Expired'].includes(activeFilter)) {
+            return product.status === activeFilter;
         }
+
+        // Aging based filters
+        const daysInStock = differenceInDays(today, product.entryDate);
+        switch(activeFilter) {
+            case 'new': return daysInStock <= 90;
+            case 'threeMonths': return daysInStock > 90 && daysInStock <= 180;
+            case 'sixMonths': return daysInStock > 180 && daysInStock <= 365;
+            case 'overYear': return daysInStock > 365;
+            default: return true;
+        }
+      })
+  }, [products, searchTerm, activeFilter])
+  
+  const agingData = React.useMemo(() => {
+    const today = new Date();
+    return products.reduce((acc, product) => {
+        const daysInStock = differenceInDays(today, product.entryDate);
+        if (daysInStock > 365) acc.overYear++;
+        else if (daysInStock > 180) acc.sixMonths++;
+        else if (daysInStock > 90) acc.threeMonths++;
+        else acc.new++;
         return acc;
     }, { new: 0, threeMonths: 0, sixMonths: 0, overYear: 0 });
-    setAgingData(agingCounts);
+  }, [products]);
 
+  React.useEffect(() => {
     // Calculate Monthly Stock Movement
+    const today = new Date();
     const monthStart = startOfMonth(today);
     const monthInterval = { start: monthStart, end: today };
 
@@ -148,6 +161,11 @@ function InventoryPageContent() {
     setSelectedProduct(product);
     setIsTransferFormOpen(true);
   };
+  
+  const handleDamageClick = (product: Product) => {
+    setSelectedProduct(product);
+    setIsDamageFormOpen(true);
+  }
 
   const handleSaveTransfer = (quantity: number) => {
     if (selectedProduct) {
@@ -169,6 +187,38 @@ function InventoryPageContent() {
             })
     }
   };
+  
+  const handleSaveDamage = (quantity: number, reason: string) => {
+      if (selectedProduct) {
+          reportDamage(selectedProduct.id, quantity, reason)
+           .then(() => {
+                toast({
+                    title: 'Damage Reported',
+                    description: `${quantity} units of ${selectedProduct.name} marked as damaged.`,
+                });
+                setIsDamageFormOpen(false);
+                setSelectedProduct(null);
+            })
+            .catch(error => {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Failed to Report Damage',
+                    description: error.message,
+                });
+            })
+      }
+  }
+  
+  const handleFilterChange = (newFilter: string) => {
+      setActiveFilter(prev => prev === newFilter ? 'All' : newFilter);
+  }
+
+  const agingFilters = [
+    { id: 'new', label: 'New (< 3 Months)', value: agingData.new },
+    { id: 'threeMonths', label: '> 3 Months', value: agingData.threeMonths },
+    { id: 'sixMonths', label: '> 6 Months', value: agingData.sixMonths },
+    { id: 'overYear', label: '> 1 Year', value: agingData.overYear },
+  ];
 
 
   return (
@@ -183,7 +233,7 @@ function InventoryPageContent() {
         </p>
       </div>
 
-      <InventorySummaryCards products={products} />
+      <InventorySummaryCards products={products} onFilterChange={handleFilterChange} activeFilter={activeFilter} />
       
        <div className="grid gap-4 md:grid-cols-2">
         <Card>
@@ -193,26 +243,20 @@ function InventoryPageContent() {
                 Stock Aging Analysis
             </CardTitle>
             <CardDescription>
-                Breakdown of products by how long they've been in stock.
+                Click a category to filter the product list below.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground">New (&lt; 3 Months)</p>
-                <p className="text-2xl font-bold">{agingData.new}</p>
-            </div>
-             <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground">&gt; 3 Months</p>
-                <p className="text-2xl font-bold">{agingData.threeMonths}</p>
-            </div>
-             <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground">&gt; 6 Months</p>
-                <p className="text-2xl font-bold">{agingData.sixMonths}</p>
-            </div>
-             <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground">&gt; 1 Year</p>
-                <p className="text-2xl font-bold">{agingData.overYear}</p>
-            </div>
+            {agingFilters.map(filter => (
+                 <div 
+                    key={filter.id} 
+                    className={cn("p-4 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted", activeFilter === filter.id && "ring-2 ring-primary")}
+                    onClick={() => handleFilterChange(filter.id)}
+                >
+                    <p className="text-sm text-muted-foreground">{filter.label}</p>
+                    <p className="text-2xl font-bold">{filter.value}</p>
+                </div>
+            ))}
           </CardContent>
         </Card>
          <Card>
@@ -270,6 +314,7 @@ function InventoryPageContent() {
              <TabsList>
                 <TabsTrigger value="main">Main Inventory</TabsTrigger>
                 <TabsTrigger value="shop">Shop Inventory</TabsTrigger>
+                <TabsTrigger value="damaged">Damaged Goods</TabsTrigger>
              </TabsList>
           </div>
         </CardHeader>
@@ -284,6 +329,12 @@ function InventoryPageContent() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
+                 {activeFilter !== 'All' && (
+                    <Button variant="ghost" onClick={() => setActiveFilter('All')}>
+                        <X className="mr-2 h-4 w-4"/>
+                        Clear Filter: {activeFilter}
+                    </Button>
+                )}
                 <Button onClick={handleAddClick}>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Add Product
@@ -295,6 +346,7 @@ function InventoryPageContent() {
                     onEdit={handleEditClick} 
                     onDelete={handleDeleteClick} 
                     onTransfer={handleTransferClick}
+                    onDamage={handleDamageClick}
                     inventoryType="main"
                 />
             </TabsContent>
@@ -303,8 +355,12 @@ function InventoryPageContent() {
                     products={filteredProducts} 
                     onEdit={handleEditClick} 
                     onDelete={handleDeleteClick}
+                     onDamage={handleDamageClick}
                     inventoryType="shop"
                 />
+            </TabsContent>
+            <TabsContent value="damaged">
+                <DamagedGoodsTable damagedGoods={damagedGoods} />
             </TabsContent>
         </CardContent>
       </Tabs>
@@ -319,6 +375,12 @@ function InventoryPageContent() {
         isOpen={isTransferFormOpen}
         onClose={() => setIsTransferFormOpen(false)}
         onSave={handleSaveTransfer}
+        product={selectedProduct}
+    />
+     <ReportDamageForm
+        isOpen={isDamageFormOpen}
+        onClose={() => setIsDamageFormOpen(false)}
+        onSave={handleSaveDamage}
         product={selectedProduct}
     />
     </>

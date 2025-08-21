@@ -126,6 +126,16 @@ export interface Product {
   status: 'In Stock' | 'Low Stock' | 'Out of Stock' | 'Expired';
 }
 
+export interface DamagedGood {
+    id: string;
+    userId: string;
+    productId: string;
+    productName: string;
+    quantity: number;
+    reason: string;
+    date: Date;
+}
+
 
 export interface Asset {
     id: string;
@@ -249,6 +259,7 @@ interface FinancialContextType {
     userAccounts: UserAccount[];
     companyName: string;
     products: Product[];
+    damagedGoods: DamagedGood[];
     assets: Asset[];
     capitalContributions: CapitalContribution[];
     ownerLoans: OwnerLoan[];
@@ -273,6 +284,7 @@ interface FinancialContextType {
     updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'>) => Promise<void>;
     deleteProduct: (id: string) => Promise<void>;
     transferStock: (productId: string, quantity: number) => Promise<void>;
+    reportDamage: (productId: string, quantity: number, reason: string) => Promise<void>;
     addAsset: (assetData: AddAssetData) => Promise<void>;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => Promise<void>;
     writeOffAsset: (id: string) => Promise<void>;
@@ -419,6 +431,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const customers = useFirestoreCollection<Customer>('customers');
     const userAccounts = useFirestoreUserAccounts();
     const initialProducts = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
+    const damagedGoods = useFirestoreCollection<DamagedGood>('damagedGoods', ['date']);
     const employees = useFirestoreCollection<Employee>('employees');
     const payrollHistory = useFirestoreCollection<PayrollRun>('payrollHistory', ['date']);
     const capitalContributions = useFirestoreCollection<CapitalContribution>('capitalContributions', ['date']);
@@ -474,7 +487,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         let mobile = 0;
 
         capitalContributions.forEach(c => {
-            if (c && c.type) { // Safeguard against null/undefined object or missing type
+            if (c && c.type) { 
                 if (c.type === 'Cash') cash += c.amount;
                 else if (c.type === 'Bank') bank += c.amount;
             }
@@ -490,7 +503,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         prepayments.forEach(p => {
             if (p.status === 'Active') {
-                // Assuming prepayments hit the bank
                 bank += p.prepaidAmount;
             }
         });
@@ -761,6 +773,43 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             });
         });
     };
+
+    const reportDamage = async (productId: string, quantity: number, reason: string) => {
+        if (!user) throw new Error("User not authenticated.");
+        const productRef = doc(db, 'products', productId);
+        
+        await runTransaction(db, async (transaction) => {
+            const productDoc = await transaction.get(productRef);
+            if (!productDoc.exists()) throw new Error("Product not found");
+            
+            const product = productDoc.data() as Product;
+            const totalStock = product.mainStock + product.shopStock;
+            if (totalStock < quantity) {
+                throw new Error(`Cannot report more damaged goods than available stock. Available: ${totalStock}`);
+            }
+
+            // Prioritize reducing shop stock, then main stock
+            const shopDamage = Math.min(quantity, product.shopStock);
+            const mainDamage = quantity - shopDamage;
+            
+            const newShopStock = product.shopStock - shopDamage;
+            const newMainStock = product.mainStock - mainDamage;
+            const newStatus = getProductStatus({ ...product, shopStock: newShopStock, mainStock: newMainStock });
+
+            transaction.update(productRef, { shopStock: newShopStock, mainStock: newMainStock, status: newStatus, lastUpdated: new Date() });
+
+            const damageRecord = {
+                userId: user.uid,
+                productId,
+                productName: product.name,
+                quantity,
+                reason,
+                date: new Date(),
+            };
+            const damageRef = doc(collection(db, 'damagedGoods'));
+            transaction.set(damageRef, damageRecord);
+        });
+    }
 
     const addAsset = async (assetData: AddAssetData) => {
         if (!user) throw new Error("User not authenticated.");
@@ -1193,6 +1242,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         userAccounts,
         companyName,
         products,
+        damagedGoods,
         assets,
         capitalContributions,
         ownerLoans,
@@ -1217,6 +1267,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         updateProduct,
         deleteProduct,
         transferStock,
+        reportDamage,
         addAsset,
         sellAsset,
         writeOffAsset,

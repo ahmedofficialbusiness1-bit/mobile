@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { MoreHorizontal, Trash2, ArrowRightLeft } from 'lucide-react'
+import { MoreHorizontal, Trash2, ArrowRightLeft, ShieldAlert } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 
 
@@ -29,10 +29,11 @@ interface InventoryDataTableProps {
   onEdit: (product: Product) => void
   onDelete: (product: Product) => void
   onTransfer?: (product: Product) => void
+  onDamage: (product: Product) => void
   inventoryType: 'main' | 'shop'
 }
 
-export function InventoryDataTable({ products, onEdit, onDelete, onTransfer, inventoryType }: InventoryDataTableProps) {
+export function InventoryDataTable({ products, onEdit, onDelete, onTransfer, onDamage, inventoryType }: InventoryDataTableProps) {
   const getStatusVariant = (status: Product['status']) => {
     switch (status) {
       case 'In Stock':
@@ -101,13 +102,19 @@ export function InventoryDataTable({ products, onEdit, onDelete, onTransfer, inv
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                             {inventoryType === 'main' && onTransfer && (
+                                <>
                                 <DropdownMenuItem onClick={() => onTransfer(product)}>
                                     <ArrowRightLeft className="mr-2 h-4 w-4" />
                                     Transfer to Shop
                                 </DropdownMenuItem>
+                                 <DropdownMenuSeparator />
+                                </>
                             )}
-                             {inventoryType === 'main' && <DropdownMenuSeparator />}
-                            <DropdownMenuItem onClick={() => onEdit(product)}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onEdit(product)}>Edit Details</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onDamage(product)}>
+                                <ShieldAlert className="mr-2 h-4 w-4" />
+                                Report Damage
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                              <AlertDialog>
                                 <AlertDialogTrigger asChild>

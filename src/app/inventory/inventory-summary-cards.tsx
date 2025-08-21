@@ -1,15 +1,19 @@
 
 'use client'
 
-import { DollarSign, Package, Archive, AlertTriangle } from 'lucide-react'
+import { DollarSign, Package, Archive, AlertTriangle, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Product } from '@/context/financial-context'
+import { cn } from '@/lib/utils'
+
 
 interface InventorySummaryCardsProps {
   products: Product[]
+  onFilterChange: (filter: string) => void;
+  activeFilter: string;
 }
 
-export function InventorySummaryCards({ products }: InventorySummaryCardsProps) {
+export function InventorySummaryCards({ products, onFilterChange, activeFilter }: InventorySummaryCardsProps) {
   const totalValue = products.reduce(
     (sum, p) => sum + (p.mainStock + p.shopStock) * p.purchasePrice,
     0
@@ -23,6 +27,12 @@ export function InventorySummaryCards({ products }: InventorySummaryCardsProps) 
   const expiredItems = products.filter(
     (p) => p.status === 'Expired'
   ).length
+
+  const summaryFilters = [
+    { id: 'Low Stock', label: 'Low Stock Items', value: lowStockItems, icon: AlertTriangle, color: 'text-amber-500' },
+    { id: 'Out of Stock', label: 'Out of Stock', value: outOfStockItems, icon: Package, color: 'text-red-500' },
+    { id: 'Expired', label: 'Expired Items', value: expiredItems, icon: Archive, color: 'text-muted-foreground' },
+  ];
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -40,36 +50,23 @@ export function InventorySummaryCards({ products }: InventorySummaryCardsProps) 
           <p className="text-xs text-muted-foreground">Based on purchase price</p>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
-          <AlertTriangle className="h-5 w-5 text-amber-500" />
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-bold">{lowStockItems}</p>
-          <p className="text-xs text-muted-foreground">Items below reorder level</p>
-        </CardContent>
-      </Card>
-       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
-          <Package className="h-5 w-5 text-red-500" />
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-bold">{outOfStockItems}</p>
-          <p className="text-xs text-muted-foreground">Items with zero quantity</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium">Expired Items</CardTitle>
-          <Archive className="h-5 w-5 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-bold">{expiredItems}</p>
-          <p className="text-xs text-muted-foreground">Items past their expiry date</p>
-        </CardContent>
-      </Card>
+      
+      {summaryFilters.map(filter => (
+         <Card 
+            key={filter.id} 
+            className={cn("cursor-pointer hover:bg-muted/50", activeFilter === filter.id && "ring-2 ring-primary")}
+            onClick={() => onFilterChange(filter.id)}
+        >
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">{filter.label}</CardTitle>
+            <filter.icon className={cn("h-5 w-5", filter.color)} />
+            </CardHeader>
+            <CardContent>
+            <p className="text-2xl font-bold">{filter.value}</p>
+            <p className="text-xs text-muted-foreground">Items matching this status</p>
+            </CardContent>
+        </Card>
+      ))}
     </div>
   )
 }
