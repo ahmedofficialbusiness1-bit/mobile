@@ -16,7 +16,8 @@ import {
   Shield,
   LogOut,
   Store,
-  ChevronDown
+  ChevronDown,
+  Building,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Menu } from 'lucide-react'
@@ -79,7 +80,7 @@ export function AppHeader() {
   const router = useRouter()
   const title = getPageTitle(pathname)
   const { user } = useAuth();
-  const { shops, activeShop, setActiveShopId } = useFinancials();
+  const { shops, activeShop, setActiveShopId, companyName } = useFinancials();
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -102,16 +103,22 @@ export function AppHeader() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
-                  <Store className="mr-2 h-4 w-4" />
-                  {activeShop ? activeShop.name : "Select Shop"}
+                  {activeShop ? <Store className="mr-2 h-4 w-4" /> : <Building className="mr-2 h-4 w-4" />}
+                  {activeShop ? activeShop.name : `${companyName} (All)`}
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuLabel>Available Shops</DropdownMenuLabel>
+                <DropdownMenuLabel>Switch View</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setActiveShopId(null)}>
+                   <Building className="mr-2 h-4 w-4" />
+                   {companyName} (All Shops)
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {shops.map(shop => (
                   <DropdownMenuItem key={shop.id} onClick={() => setActiveShopId(shop.id)}>
+                    <Store className="mr-2 h-4 w-4" />
                     {shop.name}
                   </DropdownMenuItem>
                 ))}

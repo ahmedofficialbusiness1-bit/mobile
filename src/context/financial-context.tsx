@@ -123,6 +123,7 @@ export interface Product {
   initialStock: number;
   mainStock: number;
   shopStock: number;
+  currentStock: number; // calculated field
   uom: string; 
   reorderLevel: number;
   reorderQuantity: number;
@@ -303,8 +304,8 @@ interface FinancialContextType {
     addShop: (shopData: Omit<Shop, 'id' | 'userId'>) => Promise<void>;
     updateShop: (id: string, shopData: Omit<Shop, 'id' | 'userId'>) => Promise<void>;
     deleteShop: (id: string) => Promise<void>;
-    addProduct: (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'>) => Promise<void>;
-    updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'>) => Promise<void>;
+    addProduct: (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock'>) => Promise<void>;
+    updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock'>) => Promise<void>;
     deleteProduct: (id: string) => Promise<void>;
     transferStock: (productId: string, quantity: number) => Promise<void>;
     reportDamage: (productId: string, quantity: number, reason: string) => Promise<void>;
@@ -350,7 +351,7 @@ const calculateDepreciation = (asset: Asset): { accumulatedDepreciation: number;
     return { accumulatedDepreciation, netBookValue };
 };
 
-const getProductStatus = (product: Omit<Product, 'status'|'id'|'userId'>): Product['status'] => {
+const getProductStatus = (product: Omit<Product, 'status'|'id'|'userId'|'currentStock'>): Product['status'] => {
     const now = new Date();
     const totalStock = product.mainStock + product.shopStock;
 
@@ -467,25 +468,26 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [activeShopId, setActiveShopId] = useState<string | null>(null);
 
     const activeShop = useMemo(() => {
+        if (activeShopId === null) return null;
         return shops.find(shop => shop.id === activeShopId) || null;
     }, [shops, activeShopId]);
 
     useEffect(() => {
-        if (shops.length > 0 && !activeShopId) {
-            setActiveShopId(shops[0].id);
+        if (shops.length > 0 && activeShopId === null) {
+            // By default, it will be "All Shops" view. User can select a specific one.
         }
     }, [shops, activeShopId]);
 
     // --- Filtered Data based on Active Shop ---
-    const transactions = useMemo(() => allTransactions.filter(t => t.shopId === activeShopId), [allTransactions, activeShopId]);
-    const payables = useMemo(() => allPayables.filter(p => p.shopId === activeShopId), [allPayables, activeShopId]);
-    const prepayments = useMemo(() => allPrepayments.filter(p => p.shopId === activeShopId), [allPrepayments, activeShopId]);
-    const damagedGoods = useMemo(() => allDamagedGoods.filter(d => d.shopId === activeShopId), [allDamagedGoods, activeShopId]);
-    const payrollHistory = useMemo(() => allPayrollHistory.filter(p => p.shopId === activeShopId), [allPayrollHistory, activeShopId]);
-    const capitalContributions = useMemo(() => allCapitalContributions.filter(c => c.shopId === activeShopId), [allCapitalContributions, activeShopId]);
-    const expenses = useMemo(() => allExpenses.filter(e => e.shopId === activeShopId), [allExpenses, activeShopId]);
-    const purchaseOrders = useMemo(() => allPurchaseOrders.filter(po => po.shopId === activeShopId), [allPurchaseOrders, activeShopId]);
-    const invoices = useMemo(() => allInvoices.filter(i => i.shopId === activeShopId), [allInvoices, activeShopId]);
+    const transactions = useMemo(() => activeShopId ? allTransactions.filter(t => t.shopId === activeShopId) : allTransactions, [allTransactions, activeShopId]);
+    const payables = useMemo(() => activeShopId ? allPayables.filter(p => p.shopId === activeShopId) : allPayables, [allPayables, activeShopId]);
+    const prepayments = useMemo(() => activeShopId ? allPrepayments.filter(p => p.shopId === activeShopId) : allPrepayments, [allPrepayments, activeShopId]);
+    const damagedGoods = useMemo(() => activeShopId ? allDamagedGoods.filter(d => d.shopId === activeShopId) : allDamagedGoods, [allDamagedGoods, activeShopId]);
+    const payrollHistory = useMemo(() => activeShopId ? allPayrollHistory.filter(p => p.shopId === activeShopId) : allPayrollHistory, [allPayrollHistory, activeShopId]);
+    const capitalContributions = useMemo(() => activeShopId ? allCapitalContributions.filter(c => c.shopId === activeShopId) : allCapitalContributions, [allCapitalContributions, activeShopId]);
+    const expenses = useMemo(() => activeShopId ? allExpenses.filter(e => e.shopId === activeShopId) : allExpenses, [allExpenses, activeShopId]);
+    const purchaseOrders = useMemo(() => activeShopId ? allPurchaseOrders.filter(po => po.shopId === activeShopId) : allPurchaseOrders, [allPurchaseOrders, activeShopId]);
+    const invoices = useMemo(() => activeShopId ? allInvoices.filter(i => i.shopId === activeShopId) : allInvoices, [allInvoices, activeShopId]);
 
 
     const currentUserAccount = React.useMemo(() => {
@@ -509,7 +511,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const products = useMemo(() => {
         return initialProducts.map(product => ({
             ...product,
-            status: getProductStatus(product)
+            status: getProductStatus(product),
+            currentStock: product.shopStock,
         }))
     }, [initialProducts]);
 
@@ -779,7 +782,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await deleteDoc(doc(db, 'shops', id));
     };
 
-    const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'>) => {
+    const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock'>) => {
         if (!user) throw new Error("User not authenticated.");
         const newProduct = {
             ...productData,
@@ -793,7 +796,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await addDoc(collection(db, 'products'), newProduct);
     };
     
-    const updateProduct = async (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'>) => {
+    const updateProduct = async (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock'>) => {
         if (!user) throw new Error("User not authenticated.");
         const originalProduct = products.find(p => p.id === id);
         if (!originalProduct) throw new Error("Product not found.");
