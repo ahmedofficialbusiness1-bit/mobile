@@ -48,6 +48,7 @@ const toDate = (timestamp: any): Date => {
 export interface Transaction {
     id: string;
     userId: string;
+    shopId: string;
     name: string;
     phone: string;
     amount: number;
@@ -65,6 +66,7 @@ export interface Transaction {
 export interface Payable {
     id: string;
     userId: string;
+    shopId: string;
     supplierName: string;
     product: string;
     amount: number;
@@ -76,6 +78,7 @@ export interface Payable {
 export interface CustomerPrepayment {
     id: string;
     userId: string;
+    shopId: string;
     customerName: string;
     phone: string;
     prepaidAmount: number;
@@ -136,6 +139,7 @@ export interface Product {
 export interface DamagedGood {
     id: string;
     userId: string;
+    shopId: string;
     productId: string;
     productName: string;
     quantity: number;
@@ -162,6 +166,7 @@ export type AddAssetData = Omit<Asset, 'id' | 'status' | 'accumulatedDepreciatio
 export interface CapitalContribution {
   id: string;
   userId: string;
+  shopId: string;
   date: Date;
   description: string;
   type: 'Cash' | 'Bank' | 'Asset' | 'Liability' | 'Drawing';
@@ -171,6 +176,7 @@ export interface CapitalContribution {
 export interface OwnerLoan {
     id: string; 
     userId: string;
+    shopId: string;
     date: Date;
     description: string;
     amount: number;
@@ -189,6 +195,7 @@ export interface Employee {
 export interface PayrollRun {
     id: string;
     userId: string;
+    shopId: string;
     employeeId: string;
     month: string;
     date: Date;
@@ -201,6 +208,7 @@ export interface PayrollRun {
 export interface Expense {
   id: string;
   userId: string;
+  shopId: string;
   description: string;
   category: 'Umeme' | 'Maji' | 'Usafiri' | 'Mawasiliano' | 'Kodi' | 'Manunuzi Ofisi' | 'Matangazo' | 'Mishahara' | 'Mengineyo';
   amount: number;
@@ -209,7 +217,7 @@ export interface Expense {
   paymentMethod?: PaymentMethod;
 }
 
-export type AddExpenseData = Omit<Expense, 'id' | 'status' | 'paymentMethod' | 'userId'>;
+export type AddExpenseData = Omit<Expense, 'id' | 'status' | 'paymentMethod' | 'userId' | 'shopId'>;
 
 export interface PurchaseOrderItem {
   description: string
@@ -223,6 +231,7 @@ export interface PurchaseOrderItem {
 export interface PurchaseOrder {
   id: string
   userId: string;
+  shopId: string;
   poNumber: string
   purchaseDate: Date
   supplierName: string
@@ -244,6 +253,7 @@ export interface PurchaseOrder {
 export interface Invoice {
     id: string;
     userId: string;
+    shopId: string;
     invoiceNumber: string;
     customerId: string;
     customerName: string;
@@ -301,7 +311,7 @@ interface FinancialContextType {
     addAsset: (assetData: AddAssetData) => Promise<void>;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => Promise<void>;
     writeOffAsset: (id: string) => Promise<void>;
-    addCapitalContribution: (data: Omit<CapitalContribution, 'id' | 'userId'>) => Promise<void>;
+    addCapitalContribution: (data: Omit<CapitalContribution, 'id' | 'userId' | 'shopId'>) => Promise<void>;
     repayOwnerLoan: (loanId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile', notes: string) => Promise<void>;
     addExpense: (data: AddExpenseData) => Promise<void>;
     approveExpense: (id: string, paymentData: { amount: number, paymentMethod: PaymentMethod }) => Promise<void>;
@@ -311,7 +321,7 @@ interface FinancialContextType {
     deleteEmployee: (id: string) => Promise<void>;
     processPayroll: (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => Promise<void>;
     paySingleEmployee: (data: { employeeId: string; grossSalary: number; netSalary: number; paymentMethod: PaymentMethod; }) => Promise<void>;
-    addPurchaseOrder: (data: Omit<PurchaseOrder, 'id' | 'userId'>) => Promise<void>;
+    addPurchaseOrder: (data: Omit<PurchaseOrder, 'id' | 'userId' | 'shopId'>) => Promise<void>;
     deletePurchaseOrder: (poId: string) => Promise<void>;
     receivePurchaseOrder: (poId: string) => Promise<void>;
     payPurchaseOrder: (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => Promise<void>;
@@ -438,21 +448,21 @@ function useFirestoreUserAccounts() {
 // --- Context Provider ---
 export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { user, loading: authLoading } = useAuth();
-    const transactions = useFirestoreCollection<Transaction>('transactions', ['date']);
-    const payables = useFirestoreCollection<Payable>('payables', ['date']);
-    const prepayments = useFirestoreCollection<CustomerPrepayment>('prepayments', ['date']);
+    const allTransactions = useFirestoreCollection<Transaction>('transactions', ['date']);
+    const allPayables = useFirestoreCollection<Payable>('payables', ['date']);
+    const allPrepayments = useFirestoreCollection<CustomerPrepayment>('prepayments', ['date']);
     const customers = useFirestoreCollection<Customer>('customers');
     const userAccounts = useFirestoreUserAccounts();
     const shops = useFirestoreCollection<Shop>('shops');
     const initialProducts = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
-    const damagedGoods = useFirestoreCollection<DamagedGood>('damagedGoods', ['date']);
+    const allDamagedGoods = useFirestoreCollection<DamagedGood>('damagedGoods', ['date']);
     const employees = useFirestoreCollection<Employee>('employees');
-    const payrollHistory = useFirestoreCollection<PayrollRun>('payrollHistory', ['date']);
-    const capitalContributions = useFirestoreCollection<CapitalContribution>('capitalContributions', ['date']);
+    const allPayrollHistory = useFirestoreCollection<PayrollRun>('payrollHistory', ['date']);
+    const allCapitalContributions = useFirestoreCollection<CapitalContribution>('capitalContributions', ['date']);
     const initialAssets = useFirestoreCollection<Asset>('assets', ['acquisitionDate']);
-    const expenses = useFirestoreCollection<Expense>('expenses', ['date']);
-    const purchaseOrders = useFirestoreCollection<PurchaseOrder>('purchaseOrders', ['purchaseDate', 'expectedDeliveryDate']);
-    const invoices = useFirestoreCollection<Invoice>('invoices', ['issueDate', 'dueDate']);
+    const allExpenses = useFirestoreCollection<Expense>('expenses', ['date']);
+    const allPurchaseOrders = useFirestoreCollection<PurchaseOrder>('purchaseOrders', ['purchaseDate', 'expectedDeliveryDate']);
+    const allInvoices = useFirestoreCollection<Invoice>('invoices', ['issueDate', 'dueDate']);
 
     const [activeShopId, setActiveShopId] = useState<string | null>(null);
 
@@ -465,6 +475,17 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             setActiveShopId(shops[0].id);
         }
     }, [shops, activeShopId]);
+
+    // --- Filtered Data based on Active Shop ---
+    const transactions = useMemo(() => allTransactions.filter(t => t.shopId === activeShopId), [allTransactions, activeShopId]);
+    const payables = useMemo(() => allPayables.filter(p => p.shopId === activeShopId), [allPayables, activeShopId]);
+    const prepayments = useMemo(() => allPrepayments.filter(p => p.shopId === activeShopId), [allPrepayments, activeShopId]);
+    const damagedGoods = useMemo(() => allDamagedGoods.filter(d => d.shopId === activeShopId), [allDamagedGoods, activeShopId]);
+    const payrollHistory = useMemo(() => allPayrollHistory.filter(p => p.shopId === activeShopId), [allPayrollHistory, activeShopId]);
+    const capitalContributions = useMemo(() => allCapitalContributions.filter(c => c.shopId === activeShopId), [allCapitalContributions, activeShopId]);
+    const expenses = useMemo(() => allExpenses.filter(e => e.shopId === activeShopId), [allExpenses, activeShopId]);
+    const purchaseOrders = useMemo(() => allPurchaseOrders.filter(po => po.shopId === activeShopId), [allPurchaseOrders, activeShopId]);
+    const invoices = useMemo(() => allInvoices.filter(i => i.shopId === activeShopId), [allInvoices, activeShopId]);
 
 
     const currentUserAccount = React.useMemo(() => {
@@ -500,6 +521,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 return {
                     id: c.id,
                     userId: c.userId,
+                    shopId: c.shopId,
                     date: c.date,
                     description: c.description,
                     amount: c.amount,
@@ -546,7 +568,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [transactions, capitalContributions, expenses, prepayments]);
 
     const addSale = async (saleData: SaleFormData) => {
-        if (!user) throw new Error("User not authenticated.");
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop selected.");
         const productRef = doc(db, 'products', saleData.productId);
         
         await runTransaction(db, async (transaction) => {
@@ -565,6 +587,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
             const newTransaction = {
                 userId: user.uid,
+                shopId: activeShopId,
                 name: saleData.customerName,
                 phone: saleData.customerPhone,
                 amount: grossAmount,
@@ -626,7 +649,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const markReceivableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
-        if (!user) throw new Error("User not authenticated.");
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
         const receivableRef = doc(db, 'transactions', id);
         
         await runTransaction(db, async (transaction) => {
@@ -638,6 +661,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
             const paymentTransaction = {
                 userId: user.uid,
+                shopId: activeShopId,
                 name: receivableToUpdate.name,
                 phone: receivableToUpdate.phone,
                 amount: amount,
@@ -667,7 +691,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const markPayableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
-        if (!user) throw new Error("User not authenticated.");
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
         if (paymentMethod === 'Credit' || paymentMethod === 'Prepaid') throw new Error("Invalid payment method for payables.");
         
         const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
@@ -691,6 +715,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
             const newExpense = {
                 userId: user.uid,
+                shopId: activeShopId,
                 description: `Payment for ${payableData.product} to ${payableData.supplierName}`,
                 category: 'Manunuzi Ofisi',
                 amount: amount,
@@ -817,7 +842,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const reportDamage = async (productId: string, quantity: number, reason: string) => {
-        if (!user) throw new Error("User not authenticated.");
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
         const productRef = doc(db, 'products', productId);
         
         await runTransaction(db, async (transaction) => {
@@ -842,6 +867,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
             const damageRecord = {
                 userId: user.uid,
+                shopId: activeShopId,
                 productId,
                 productName: product.name,
                 quantity,
@@ -867,7 +893,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
     
     const sellAsset = async (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => {
-        if (!user) throw new Error("User not authenticated.");
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
         const assetToSell = assets.find(a => a.id === id);
         if (!assetToSell) return;
 
@@ -878,6 +904,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         const newTransaction = {
             userId: user.uid,
+            shopId: activeShopId,
             name: "Asset Sale",
             phone: "",
             amount: sellPrice,
@@ -902,12 +929,13 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await updateDoc(doc(db, 'assets', id), { status: 'Written Off', netBookValue: 0 });
     };
     
-    const addCapitalContribution = async (data: Omit<CapitalContribution, 'id' | 'userId'>) => {
-        if (!user) throw new Error("User not authenticated.");
+    const addCapitalContribution = async (data: Omit<CapitalContribution, 'id' | 'userId' | 'shopId'>) => {
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
         
         const dataToSave = {
             ...data,
             userId: user.uid,
+            shopId: activeShopId,
         };
 
         const batch = writeBatch(db);
@@ -942,8 +970,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const addExpense = async (data: AddExpenseData) => {
-        if (!user) throw new Error("User not authenticated.");
-        const newExpense = { ...data, userId: user.uid, status: 'Pending' };
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
+        const newExpense = { ...data, userId: user.uid, shopId: activeShopId, status: 'Pending' };
         await addDoc(collection(db, 'expenses'), newExpense);
     };
     
@@ -978,7 +1006,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
     
     const processPayroll = async (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => {
-        if (!user) throw new Error("User not authenticated.");
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
         const { amount, paymentMethod } = paymentData;
         const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
         if (cashBalances[balanceKey] < amount) {
@@ -992,6 +1020,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         employeesToPay.forEach(emp => {
             const newRun = {
                 userId: user.uid,
+                shopId: activeShopId,
                 employeeId: emp.employeeId,
                 month: currentMonth,
                 date: new Date(),
@@ -1006,6 +1035,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const expenseRef = collection(db, 'expenses');
         const newExpense = {
             userId: user.uid,
+            shopId: activeShopId,
             description: `Payroll for ${employeesToPay.length} employees for ${currentMonth}`,
             category: 'Mishahara',
             amount: totalGross,
@@ -1019,7 +1049,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
     
     const paySingleEmployee = async (data: { employeeId: string; grossSalary: number; netSalary: number; paymentMethod: PaymentMethod; }) => {
-        if (!user) throw new Error("User not authenticated.");
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
         const { netSalary, paymentMethod, grossSalary, employeeId } = data;
         const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
         if (cashBalances[balanceKey] < netSalary) {
@@ -1032,6 +1062,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         const newPayrollRun = {
             userId: user.uid,
+            shopId: activeShopId,
             employeeId: employeeId,
             month: currentMonth,
             date: new Date(),
@@ -1043,6 +1074,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         const newExpense = {
             userId: user.uid,
+            shopId: activeShopId,
             description: `Salary for ${employee?.name || employeeId} for ${currentMonth}`,
             category: 'Mishahara',
             amount: grossSalary,
@@ -1055,16 +1087,17 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await batch.commit();
     };
 
-    const addPurchaseOrder = async (data: Omit<PurchaseOrder, 'id' | 'userId'>) => {
-        if (!user) throw new Error("User not authenticated.");
+    const addPurchaseOrder = async (data: Omit<PurchaseOrder, 'id' | 'userId' | 'shopId'>) => {
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
         const batch = writeBatch(db);
         const poRef = collection(db, 'purchaseOrders');
-        batch.set(doc(poRef), { ...data, userId: user.uid });
+        batch.set(doc(poRef), { ...data, userId: user.uid, shopId: activeShopId });
 
         if (data.paymentStatus === 'Unpaid') {
             const totalAmount = data.items.reduce((sum, item) => sum + item.totalPrice, 0);
             const newPayable = {
                 userId: user.uid,
+                shopId: activeShopId,
                 supplierName: data.supplierName,
                 product: `From PO #${data.poNumber}`,
                 amount: totalAmount,
@@ -1189,6 +1222,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
              const totalAmount = po.items.reduce((sum, item) => sum + item.totalPrice, 0);
              const newExpense = {
                 userId: user.uid,
+                shopId: po.shopId,
                 description: `Payment for PO #${po.poNumber}`,
                 category: 'Manunuzi Ofisi',
                 amount: totalAmount,
@@ -1202,7 +1236,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
 
     const addInvoice = async (invoiceData: InvoiceFormData) => {
-        if (!user) throw new Error("User not authenticated.");
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
         const subtotal = invoiceData.items.reduce((sum, item) => sum + item.totalPrice, 0);
         const vatAmount = subtotal * invoiceData.vatRate;
         const totalAmount = subtotal + vatAmount;
@@ -1211,6 +1245,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         
         const newInvoiceData = {
             userId: user.uid,
+            shopId: activeShopId,
             invoiceNumber: invoiceData.invoiceNumber,
             customerId: invoiceData.customerId,
             customerName: invoiceData.customerName,
@@ -1227,6 +1262,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         const newTransaction = {
             userId: user.uid,
+            shopId: activeShopId,
             name: invoiceData.customerName,
             phone: invoiceData.customerPhone,
             amount: totalAmount,

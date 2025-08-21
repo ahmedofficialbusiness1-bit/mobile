@@ -27,7 +27,7 @@ export interface CapitalContribution {
 interface CapitalFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Omit<CapitalContribution, 'id' | 'type'> & { type: 'Cash' | 'Bank' | 'Asset' | 'Liability' }) => void;
+  onSave: (data: Omit<CapitalContribution, 'id' | 'type' | 'shopId' | 'userId'> & { type: 'Cash' | 'Bank' | 'Asset' | 'Liability' }) => void;
 }
 
 const formSchema = z.object({

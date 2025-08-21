@@ -41,7 +41,7 @@ import { useToast } from '@/hooks/use-toast'
 import { PaymentDialog } from '@/components/payment-dialog'
 
 function InvoicesPageContent() {
-  const { invoices, products, customers, addInvoice, payInvoice } = useFinancials()
+  const { invoices, customers, addInvoice, payInvoice } = useFinancials()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false)
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
@@ -106,7 +106,7 @@ function InvoicesPageContent() {
             <div>
               <CardTitle>Invoice Management</CardTitle>
               <CardDescription>
-                Create, send, and track the status of your customer invoices.
+                Create, send, and track the status of your customer invoices for the current shop.
               </CardDescription>
             </div>
             <Button onClick={() => setIsFormOpen(true)}>
@@ -241,7 +241,6 @@ function InvoicesPageContent() {
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         onSave={handleSaveInvoice}
-        products={products}
         customers={customers}
     />
      <PaymentDialog

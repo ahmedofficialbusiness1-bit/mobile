@@ -17,7 +17,7 @@ export default function CapitalView() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const { toast } = useToast();
 
-  const handleSaveCapital = (data: Omit<CapitalContribution, 'id'>) => {
+  const handleSaveCapital = (data: Omit<CapitalContribution, 'id' | 'userId' | 'shopId'>) => {
     addCapitalContribution(data);
     toast({
       title: "Capital Introduced Successfully",
@@ -65,14 +65,14 @@ export default function CapitalView() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={4} className="h-24 text-center">
-                      No capital contributions recorded yet.
+                      No capital contributions recorded yet for this shop.
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold text-lg">
-                  <TableCell colSpan={3}>Total Contributed Capital</TableCell>
+                  <TableCell colSpan={3}>Total Contributed Capital (This Shop)</TableCell>
                   <TableCell className="text-right">
                     TSh {totalCapital.toLocaleString()}
                   </TableCell>

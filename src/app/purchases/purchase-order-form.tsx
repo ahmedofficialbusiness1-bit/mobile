@@ -46,7 +46,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 interface PurchaseOrderFormProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: Omit<PurchaseOrder, 'id' | 'userId'>) => void
+  onSave: (data: Omit<PurchaseOrder, 'id' | 'userId' | 'shopId'>) => void
   purchaseOrder: PurchaseOrder | null
 }
 
@@ -152,7 +152,7 @@ export function PurchaseOrderForm({
             {purchaseOrder ? 'Edit Purchase Order' : 'Create New Purchase Order'}
           </DialogTitle>
           <DialogDescription>
-            Fill in the details to create or update a purchase order.
+            Fill in the details to create or update a purchase order. This will be associated with the currently active shop.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
