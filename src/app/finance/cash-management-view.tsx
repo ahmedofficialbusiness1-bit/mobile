@@ -4,17 +4,19 @@
 import * as React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Wallet, Landmark, Smartphone, PiggyBank, ArrowDownLeft, MinusCircle, CreditCard, ReceiptText } from 'lucide-react'
+import { Wallet, Landmark, Smartphone, PiggyBank, ArrowDownLeft, MinusCircle, CreditCard, ReceiptText, ArrowRightLeft } from 'lucide-react'
 import { useFinancials } from '@/context/financial-context'
 import { LoanRepaymentForm } from './loan-repayment-form'
 import { useToast } from '@/hooks/use-toast'
 import { useRouter } from 'next/navigation'
+import { TransferFundsForm } from './transfer-funds-form'
 
 export default function CashManagementView() {
-    const { cashBalances, ownerLoans, repayOwnerLoan, transactions, payables } = useFinancials();
+    const { cashBalances, ownerLoans, repayOwnerLoan, transactions, payables, addFundTransfer } = useFinancials();
     const router = useRouter();
     const { toast } = useToast();
     const [isRepayOpen, setIsRepayOpen] = React.useState(false);
+    const [isTransferOpen, setIsTransferOpen] = React.useState(false);
     
     const totalLoan = ownerLoans.reduce((acc, loan) => acc + loan.amount - loan.repaid, 0);
     const totalReceivable = transactions.filter(t => t.status === 'Credit').reduce((acc, t) => acc + t.amount, 0);
@@ -36,6 +38,23 @@ export default function CashManagementView() {
             description: `Paid TSh ${amount.toLocaleString()} via ${paymentMethod}.`,
         });
         setIsRepayOpen(false);
+    };
+    
+    const handleTransfer = (from: 'Cash' | 'Bank' | 'Mobile', to: 'Cash' | 'Bank' | 'Mobile', amount: number, notes: string) => {
+        try {
+            addFundTransfer({ from, to, amount, notes, date: new Date() });
+            toast({
+                title: 'Funds Transferred Successfully',
+                description: `TSh ${amount.toLocaleString()} moved from ${from} to ${to}.`,
+            });
+            setIsTransferOpen(false);
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: 'Transfer Failed',
+                description: error.message,
+            });
+        }
     };
 
     const handleNavigateToExpenses = () => {
@@ -95,10 +114,14 @@ export default function CashManagementView() {
                             </CardContent>
                         </Card>
                     </CardContent>
-                    <CardFooter className="flex gap-2">
+                    <CardFooter className="flex flex-wrap gap-2">
                         <Button onClick={handleNavigateToExpenses}>
                             <ArrowDownLeft className="mr-2 h-4 w-4" />
                             Record a Payment/Expense
+                        </Button>
+                         <Button variant="outline" onClick={() => setIsTransferOpen(true)}>
+                            <ArrowRightLeft className="mr-2 h-4 w-4" />
+                            Transfer Funds
                         </Button>
                     </CardFooter>
                 </Card>
@@ -147,6 +170,12 @@ export default function CashManagementView() {
                 onSave={handleRepayment}
                 maxAmount={totalLoan}
                 maxBalances={cashBalances}
+            />
+            <TransferFundsForm
+                isOpen={isTransferOpen}
+                onClose={() => setIsTransferOpen(false)}
+                onSave={handleTransfer}
+                balances={cashBalances}
             />
         </>
     )

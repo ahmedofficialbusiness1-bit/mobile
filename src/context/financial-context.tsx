@@ -271,6 +271,17 @@ export interface Invoice {
     status: 'Draft' | 'Pending' | 'Paid' | 'Overdue' | 'Void';
 }
 
+export interface FundTransfer {
+    id: string;
+    userId: string;
+    shopId: string;
+    date: Date;
+    from: 'Cash' | 'Bank' | 'Mobile';
+    to: 'Cash' | 'Bank' | 'Mobile';
+    amount: number;
+    notes?: string;
+}
+
 
 // --- Context Definition ---
 interface FinancialContextType {
@@ -294,6 +305,7 @@ interface FinancialContextType {
     payrollHistory: PayrollRun[];
     purchaseOrders: PurchaseOrder[];
     invoices: Invoice[];
+    fundTransfers: FundTransfer[];
     cashBalances: { cash: number; bank: number; mobile: number };
     addSale: (saleData: SaleFormData) => Promise<void>;
     deleteSale: (saleId: string) => Promise<void>;
@@ -333,6 +345,7 @@ interface FinancialContextType {
     payPurchaseOrder: (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => Promise<void>;
     addInvoice: (invoiceData: InvoiceFormData) => Promise<void>;
     payInvoice: (invoiceId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => Promise<void>;
+    addFundTransfer: (data: Omit<FundTransfer, 'id' | 'userId' | 'shopId'>) => Promise<void>;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -483,6 +496,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const allExpenses = useFirestoreCollection<Expense>('expenses', ['date'], defaultShopIdForMigration);
     const allPurchaseOrders = useFirestoreCollection<PurchaseOrder>('purchaseOrders', ['purchaseDate', 'expectedDeliveryDate'], defaultShopIdForMigration);
     const allInvoices = useFirestoreCollection<Invoice>('invoices', ['issueDate', 'dueDate'], defaultShopIdForMigration);
+    const allFundTransfers = useFirestoreCollection<FundTransfer>('fundTransfers', ['date'], defaultShopIdForMigration);
 
     const activeShop = useMemo(() => {
         if (activeShopId === null) return null;
@@ -502,6 +516,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const purchaseOrders = useMemo(() => activeShopId ? allPurchaseOrders.filter(po => po.shopId === activeShopId) : allPurchaseOrders, [allPurchaseOrders, activeShopId]);
     const invoices = useMemo(() => activeShopId ? allInvoices.filter(i => i.shopId === activeShopId) : allInvoices, [allInvoices, activeShopId]);
     const assetsData = useMemo(() => activeShopId ? initialAssets.filter(a => a.shopId === activeShopId) : initialAssets, [initialAssets, activeShopId]);
+    const fundTransfers = useMemo(() => activeShopId ? allFundTransfers.filter(ft => ft.shopId === activeShopId) : allFundTransfers, [allFundTransfers, activeShopId]);
 
     const currentUserAccount = React.useMemo(() => {
         if (!user || userAccounts.length === 0 || authLoading) return null;
@@ -591,8 +606,17 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
         });
         
+        fundTransfers.forEach(ft => {
+            if(ft.from === 'Cash') cash -= ft.amount;
+            if(ft.from === 'Bank') bank -= ft.amount;
+            if(ft.from === 'Mobile') mobile -= ft.amount;
+            if(ft.to === 'Cash') cash += ft.amount;
+            if(ft.to === 'Bank') bank += ft.amount;
+            if(ft.to === 'Mobile') mobile += ft.amount;
+        });
+        
         return { cash, bank, mobile };
-    }, [transactions, allCapitalContributions, expenses, prepayments, activeShopId]);
+    }, [transactions, allCapitalContributions, expenses, prepayments, fundTransfers, activeShopId]);
 
     const addSale = async (saleData: SaleFormData) => {
         if (!user || !activeShopId) throw new Error("User not authenticated or no active shop selected.");
@@ -1349,6 +1373,15 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         await batch.commit();
     };
+    
+    const addFundTransfer = async (data: Omit<FundTransfer, 'id' | 'userId' | 'shopId'>) => {
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
+        const fromBalance = cashBalances[data.from.toLowerCase() as keyof typeof cashBalances];
+        if (data.amount > fromBalance) {
+            throw new Error(`Insufficient funds in ${data.from} account. Available: ${fromBalance.toLocaleString()}`);
+        }
+        await addDoc(collection(db, 'fundTransfers'), { ...data, userId: user.uid, shopId: activeShopId });
+    };
 
 
     const contextValue: FinancialContextType = {
@@ -1373,6 +1406,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         cashBalances,
         purchaseOrders,
         invoices,
+        fundTransfers,
         addSale,
         deleteSale,
         markReceivableAsPaid,
@@ -1410,7 +1444,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         receivePurchaseOrder,
         payPurchaseOrder,
         addInvoice,
-        payInvoice
+        payInvoice,
+        addFundTransfer
     };
 
     if (authLoading) {

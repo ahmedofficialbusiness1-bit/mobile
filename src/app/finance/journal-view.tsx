@@ -21,7 +21,7 @@ interface JournalEntry {
 }
 
 export default function JournalView() {
-  const { transactions, expenses, capitalContributions, payrollHistory, payables } = useFinancials()
+  const { transactions, expenses, capitalContributions, payrollHistory, payables, fundTransfers } = useFinancials()
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -34,7 +34,7 @@ export default function JournalView() {
     transactions.filter(t => t.status === 'Paid').forEach(t => {
       allEntries.push({ date: t.date, description: `Sale: ${t.product} to ${t.name}`, credit: t.amount })
     })
-    capitalContributions.filter(c => c.type !== 'Drawing').forEach(c => {
+    capitalContributions.filter(c => c.type !== 'Liability').forEach(c => {
       allEntries.push({ date: c.date, description: `Capital: ${c.description}`, credit: c.amount })
     })
 
@@ -42,18 +42,22 @@ export default function JournalView() {
     expenses.filter(e => e.status === 'Approved').forEach(e => {
       allEntries.push({ date: e.date, description: `Expense: ${e.description}`, debit: e.amount })
     })
-    capitalContributions.filter(c => c.type === 'Drawing').forEach(d => {
-        allEntries.push({ date: d.date, description: `Drawing: ${d.description}`, debit: d.amount })
-    })
     payrollHistory.forEach(p => {
         allEntries.push({ date: p.date, description: `Payroll for ${p.month}`, debit: p.totalNet })
     })
     payables.filter(p => p.status === 'Paid').forEach(p => {
         allEntries.push({ date: p.date, description: `Payable: ${p.product} to ${p.supplierName}`, debit: p.amount })
     })
+    
+    // Fund Transfers
+    fundTransfers.forEach(ft => {
+        allEntries.push({ date: ft.date, description: `Transfer from ${ft.from} to ${ft.to}`, debit: ft.amount });
+        allEntries.push({ date: ft.date, description: `Transfer from ${ft.from} to ${ft.to}`, credit: ft.amount });
+    })
+
 
     return allEntries.sort((a, b) => b.date.getTime() - a.date.getTime())
-  }, [transactions, expenses, capitalContributions, payrollHistory, payables])
+  }, [transactions, expenses, capitalContributions, payrollHistory, payables, fundTransfers])
 
   const filteredEntries = journalEntries.filter(entry => {
     if (!date?.from || !date?.to) return true
