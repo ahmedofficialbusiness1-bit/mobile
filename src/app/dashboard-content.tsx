@@ -425,7 +425,7 @@ export default function DashboardPageContent() {
               <CardHeader>
                 <CardTitle>Sales Breakdown</CardTitle>
                 <CardDescription>
-                  Breakdown of total cash/bank/mobile flow and total outstanding debt.
+                  Breakdown of total cash/bank/mobile flow and total outstanding debt for the selected shop.
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -815,3 +815,5 @@ export default function DashboardPageContent() {
         </div>
       )
 }
+
+    

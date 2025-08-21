@@ -24,13 +24,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Combobox } from '@/components/ui/combobox'
 import type { Product } from '@/context/financial-context'
 
 interface RequestStockFormProps {
@@ -55,8 +49,12 @@ export function RequestStockForm({ isOpen, onClose, onSave, products }: RequestS
     },
   })
 
-  const selectedProductId = form.watch('productId')
-  const selectedProduct = products.find(p => p.id === selectedProductId)
+  const productOptions = React.useMemo(() => {
+    return products.map(product => ({
+      value: product.id,
+      label: `${product.name} (Main Stock: ${product.mainStock})`,
+    }))
+  }, [products]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     onSave(values.productId, values.quantity, values.notes || '')
@@ -81,20 +79,14 @@ export function RequestStockForm({ isOpen, onClose, onSave, products }: RequestS
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Product</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a product" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {products.map(product => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} (Main Stock: {product.mainStock})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <Combobox
+                        options={productOptions}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Search for a product..."
+                        searchPlaceholder="Search product..."
+                        notFoundText="No product found."
+                    />
                   <FormMessage />
                 </FormItem>
               )}
@@ -137,3 +129,5 @@ export function RequestStockForm({ isOpen, onClose, onSave, products }: RequestS
     </Dialog>
   )
 }
+
+    
