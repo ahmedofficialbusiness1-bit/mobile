@@ -245,85 +245,62 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
                 </div>
             )}
             
-            <FormField
-              control={form.control}
-              name="productId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a product to sell" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {products.filter(p => p.status !== 'Out of Stock' && p.status !== 'Expired').map(product => (
-                        <SelectItem key={product.id} value={product.id}>
-                            {product.name} ({product.currentStock} in stock)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-2">
                 <FormField
-                  control={form.control}
-                  name="quantity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quantity</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="unitPrice"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Unit Price (TSh)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="Enter selling price" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-            </div>
-            
-             <FormField
                 control={form.control}
-                name="vatRate"
+                name="productId"
                 render={({ field }) => (
-                <FormItem>
-                    <FormLabel>VAT</FormLabel>
-                    <Select onValueChange={(value) => field.onChange(parseFloat(value))} defaultValue={String(field.value)}>
-                    <FormControl>
+                    <FormItem>
+                    <FormLabel>Product</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
                         <SelectTrigger>
-                        <SelectValue />
+                            <SelectValue placeholder="Select a product to sell" />
                         </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        <SelectItem value="0.18">Mainland (18%)</SelectItem>
-                        <SelectItem value="0.15">Zanzibar (15%)</SelectItem>
-                        <SelectItem value="0">No VAT (0%)</SelectItem>
-                    </SelectContent>
+                        </FormControl>
+                        <SelectContent>
+                        {products
+                            .filter(p => p.status !== 'Out of Stock' && p.status !== 'Expired')
+                            .map(product => (
+                            <SelectItem key={product.id} value={product.id}>
+                                {product.name} ({product.currentStock} in stock)
+                            </SelectItem>
+                            ))}
+                        </SelectContent>
                     </Select>
                     <FormMessage />
-                </FormItem>
+                    </FormItem>
                 )}
-            />
+                />
+                <div className="flex items-end gap-2">
+                    <FormField
+                        control={form.control}
+                        name="quantity"
+                        render={({ field }) => (
+                        <FormItem className="flex-1">
+                            <FormLabel>Quantity</FormLabel>
+                            <FormControl>
+                            <Input type="number" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="unitPrice"
+                        render={({ field }) => (
+                        <FormItem className="flex-1">
+                            <FormLabel>Unit Price</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="Enter selling price" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                </div>
+            </div>
 
              <FormItem>
                 <FormLabel>Total Price (TSh)</FormLabel>
@@ -333,34 +310,60 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
                     className="font-bold bg-muted"
                 />
             </FormItem>
+            
+            <div className="grid grid-cols-2 gap-4">
+                 <FormField
+                    control={form.control}
+                    name="vatRate"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>VAT</FormLabel>
+                        <Select onValueChange={(value) => field.onChange(parseFloat(value))} defaultValue={String(field.value)}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="0.18">Mainland (18%)</SelectItem>
+                            <SelectItem value="0.15">Zanzibar (15%)</SelectItem>
+                            <SelectItem value="0">No VAT (0%)</SelectItem>
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
 
-            <FormField
-              control={form.control}
-              name="paymentMethod"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Payment Method</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a payment method" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Cash">Cash</SelectItem>
-                      <SelectItem value="Mobile">Mobile Money</SelectItem>
-                      <SelectItem value="Bank">Bank Transfer</SelectItem>
-                      <SelectItem value="Credit">On Credit</SelectItem>
-                       <SelectItem value="Prepaid">Use Customer Deposit</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                control={form.control}
+                name="paymentMethod"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Payment Method</FormLabel>
+                    <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                    >
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a payment method" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        <SelectItem value="Cash">Cash</SelectItem>
+                        <SelectItem value="Mobile">Mobile Money</SelectItem>
+                        <SelectItem value="Bank">Bank Transfer</SelectItem>
+                        <SelectItem value="Credit">On Credit</SelectItem>
+                        <SelectItem value="Prepaid">Use Customer Deposit</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            </div>
+
             
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={onClose}>
