@@ -102,6 +102,13 @@ export interface UserAccount {
     country: string;
 }
 
+export interface Shop {
+    id: string;
+    userId: string;
+    name: string;
+    location?: string;
+}
+
 
 export interface Product {
   id: string;
@@ -257,6 +264,9 @@ interface FinancialContextType {
     prepayments: CustomerPrepayment[];
     customers: Customer[];
     userAccounts: UserAccount[];
+    shops: Shop[];
+    activeShop: Shop | null;
+    setActiveShopId: (shopId: string | null) => void;
     companyName: string;
     products: Product[];
     damagedGoods: DamagedGood[];
@@ -280,6 +290,9 @@ interface FinancialContextType {
     deleteCustomer: (id: string) => Promise<void>;
     addUserAccount: (userData: Omit<UserAccount, 'id'> & { id: string }) => Promise<void>;
     deleteUserAccount: (id: string) => Promise<void>;
+    addShop: (shopData: Omit<Shop, 'id' | 'userId'>) => Promise<void>;
+    updateShop: (id: string, shopData: Omit<Shop, 'id' | 'userId'>) => Promise<void>;
+    deleteShop: (id: string) => Promise<void>;
     addProduct: (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'>) => Promise<void>;
     updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'>) => Promise<void>;
     deleteProduct: (id: string) => Promise<void>;
@@ -430,6 +443,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const prepayments = useFirestoreCollection<CustomerPrepayment>('prepayments', ['date']);
     const customers = useFirestoreCollection<Customer>('customers');
     const userAccounts = useFirestoreUserAccounts();
+    const shops = useFirestoreCollection<Shop>('shops');
     const initialProducts = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
     const damagedGoods = useFirestoreCollection<DamagedGood>('damagedGoods', ['date']);
     const employees = useFirestoreCollection<Employee>('employees');
@@ -439,6 +453,19 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const expenses = useFirestoreCollection<Expense>('expenses', ['date']);
     const purchaseOrders = useFirestoreCollection<PurchaseOrder>('purchaseOrders', ['purchaseDate', 'expectedDeliveryDate']);
     const invoices = useFirestoreCollection<Invoice>('invoices', ['issueDate', 'dueDate']);
+
+    const [activeShopId, setActiveShopId] = useState<string | null>(null);
+
+    const activeShop = useMemo(() => {
+        return shops.find(shop => shop.id === activeShopId) || null;
+    }, [shops, activeShopId]);
+
+    useEffect(() => {
+        if (shops.length > 0 && !activeShopId) {
+            setActiveShopId(shops[0].id);
+        }
+    }, [shops, activeShopId]);
+
 
     const currentUserAccount = React.useMemo(() => {
         if (!user || userAccounts.length === 0 || authLoading) return null;
@@ -712,6 +739,21 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await deleteDoc(doc(db, 'userAccounts', id));
     }
     
+    const addShop = async (shopData: Omit<Shop, 'id' | 'userId'>) => {
+        if (!user) throw new Error("User not authenticated.");
+        await addDoc(collection(db, 'shops'), { ...shopData, userId: user.uid });
+    };
+
+    const updateShop = async (id: string, shopData: Omit<Shop, 'id' | 'userId'>) => {
+        if (!user) throw new Error("User not authenticated.");
+        await updateDoc(doc(db, 'shops', id), { ...shopData, userId: user.uid });
+    };
+
+    const deleteShop = async (id: string) => {
+        if (!user) throw new Error("User not authenticated.");
+        await deleteDoc(doc(db, 'shops', id));
+    };
+
     const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock'>) => {
         if (!user) throw new Error("User not authenticated.");
         const newProduct = {
@@ -1240,6 +1282,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         prepayments,
         customers,
         userAccounts,
+        shops,
+        activeShop,
+        setActiveShopId,
         companyName,
         products,
         damagedGoods,
@@ -1263,6 +1308,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         deleteCustomer,
         addUserAccount,
         deleteUserAccount,
+        addShop,
+        updateShop,
+        deleteShop,
         addProduct,
         updateProduct,
         deleteProduct,
