@@ -58,7 +58,7 @@ export default function LoginPage() {
         title: 'Login Successful',
         description: 'Welcome back!',
       })
-      router.push('/')
+      router.push('/select-shop')
     } catch (error: any) {
       toast({
         variant: 'destructive',

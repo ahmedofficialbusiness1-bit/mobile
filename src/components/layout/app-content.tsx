@@ -8,7 +8,7 @@ import { AppSidebar } from '@/components/layout/sidebar'
 import { AppHeader } from '@/components/layout/header'
 
 
-const authRoutes = ['/login', '/signup', '/forgot-password'];
+const authRoutes = ['/login', '/signup', '/forgot-password', '/select-shop'];
 
 export function AppContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

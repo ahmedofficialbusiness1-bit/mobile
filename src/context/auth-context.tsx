@@ -15,6 +15,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const unprotectedRoutes = ['/login', '/signup', '/forgot-password'];
+const specialRoute = '/select-shop';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -35,12 +36,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     if (!loading) {
-      const isProtected = !unprotectedRoutes.includes(pathname);
+      const isProtected = !unprotectedRoutes.includes(pathname) && pathname !== specialRoute;
+      
       if (!user && isProtected) {
         router.push('/login');
       }
-      if (user && unprotectedRoutes.includes(pathname)) {
-        router.push('/');
+      
+      if (user) {
+          if (unprotectedRoutes.includes(pathname)) {
+            router.push('/select-shop');
+          }
       }
     }
   }, [user, loading, pathname, router]);
