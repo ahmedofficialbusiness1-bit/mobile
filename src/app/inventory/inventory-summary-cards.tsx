@@ -5,6 +5,7 @@ import { DollarSign, Package, Archive, AlertTriangle, Trash2 } from 'lucide-reac
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Product } from '@/context/financial-context'
 import { cn } from '@/lib/utils'
+import { useFinancials } from '@/context/financial-context'
 
 
 interface InventorySummaryCardsProps {
@@ -14,10 +15,13 @@ interface InventorySummaryCardsProps {
 }
 
 export function InventorySummaryCards({ products, onFilterChange, activeFilter }: InventorySummaryCardsProps) {
-  const totalValue = products.reduce(
-    (sum, p) => sum + (p.mainStock + p.shopStock) * p.purchasePrice,
-    0
-  )
+  const { activeShopId } = useFinancials();
+
+  const totalValue = products.reduce((sum, p) => {
+    const stockQuantity = activeShopId ? p.currentStock : (p.mainStock + p.shopStock);
+    return sum + stockQuantity * p.purchasePrice;
+  }, 0)
+
   const lowStockItems = products.filter(
     (p) => p.status === 'Low Stock'
   ).length
