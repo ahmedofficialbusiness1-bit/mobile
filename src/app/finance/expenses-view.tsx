@@ -2,13 +2,14 @@
 'use client'
 
 import * as React from 'react';
-import { format } from 'date-fns';
+import { format, isWithinInterval, startOfMonth, endOfMonth, addDays, startOfYear, endOfYear, subMonths, startOfWeek, endOfWeek } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, CheckCircle2, Search, Trash2 } from 'lucide-react';
+import { PlusCircle, CheckCircle2, Search, Trash2, Calendar as CalendarIcon } from 'lucide-react';
 import { ExpenseForm } from './expense-form';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -22,6 +23,9 @@ import { cn } from '@/lib/utils';
 import { PaymentDialog } from '@/components/payment-dialog';
 import { useFinancials, type PaymentMethod, type Expense, type AddExpenseData } from '@/context/financial-context';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 export default function ExpensesView() {
@@ -31,6 +35,35 @@ export default function ExpensesView() {
   const [selectedExpense, setSelectedExpense] = React.useState<Expense | null>(null);
   const [searchTerm, setSearchTerm] = React.useState('');
   const { toast } = useToast();
+
+  const [date, setDate] = React.useState<DateRange | undefined>({
+      from: startOfMonth(new Date()),
+      to: endOfMonth(new Date()),
+    })
+  const [selectedPreset, setSelectedPreset] = React.useState<string>("month");
+
+  const handlePresetChange = (value: string) => {
+        setSelectedPreset(value);
+        const now = new Date();
+        switch (value) {
+            case 'today':
+                setDate({ from: now, to: now });
+                break;
+            case 'week':
+                setDate({ from: startOfWeek(now), to: endOfWeek(now) });
+                break;
+            case 'month':
+                setDate({ from: startOfMonth(now), to: endOfMonth(now) });
+                break;
+            case 'year':
+                setDate({ from: startOfYear(now), to: endOfYear(now) });
+                break;
+            case 'all':
+                setDate({ from: new Date('2020-01-01'), to: endOfYear(addDays(now, 1)) });
+                break;
+        }
+    }
+
 
   const handleSaveExpense = (expenseData: AddExpenseData) => {
     addExpense(expenseData);
@@ -75,10 +108,11 @@ export default function ExpensesView() {
     })
   }
   
-  const filteredExpenses = expenses.filter(expense => 
-    expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    expense.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredExpenses = React.useMemo(() => expenses.filter(expense => 
+    (expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    expense.category.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    date?.from && date?.to && isWithinInterval(expense.date, { start: date.from, end: addDays(date.to, 1) })
+  ), [expenses, searchTerm, date]);
 
   const totalPending = filteredExpenses
     .filter(e => e.status === 'Pending')
@@ -102,8 +136,8 @@ export default function ExpensesView() {
           </Button>
         </CardHeader>
         <CardContent>
-           <div className="mb-4">
-             <div className="relative w-full max-w-sm">
+           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              <div className="relative w-full sm:max-w-xs">
                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                <Input 
                   placeholder="Tafuta kwa maelezo au aina..." 
@@ -111,6 +145,56 @@ export default function ExpensesView() {
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                 />
+            </div>
+             <div className="flex items-center gap-2 w-full md:w-auto">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date"
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal md:w-[260px]",
+                      !date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date?.from ? (
+                      date.to ? (
+                        <>
+                          {format(date.from, "LLL dd, y")} -{" "}
+                          {format(date.to, "LLL dd, y")}
+                        </>
+                      ) : (
+                        format(date.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span>Pick a date range</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={date?.from}
+                    selected={date}
+                    onSelect={setDate}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+               <Select value={selectedPreset} onValueChange={handlePresetChange}>
+                  <SelectTrigger className="w-full md:w-[180px]">
+                      <SelectValue placeholder="Select a preset" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="week">This Week</SelectItem>
+                      <SelectItem value="month">This Month</SelectItem>
+                      <SelectItem value="year">This Year</SelectItem>
+                      <SelectItem value="all">All Time</SelectItem>
+                  </SelectContent>
+                </Select>
             </div>
           </div>
           <div className="overflow-x-auto">

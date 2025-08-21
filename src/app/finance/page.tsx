@@ -9,7 +9,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { Menu, Briefcase, FileText, Banknote, Landmark, Users, PiggyBank, BookUser } from 'lucide-react'
+import { Menu, Briefcase, FileText, Banknote, Landmark, Users, PiggyBank, BookUser, Printer } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import AccountsView from './accounts-view'
 import PayrollView from './payroll-view'
@@ -32,6 +32,10 @@ const financeNavItems = [
 
 function FinancePageContent() {
     const [activeView, setActiveView] = React.useState('accounts');
+
+    const handlePrint = () => {
+        window.print();
+    };
 
     const renderContent = () => {
         switch (activeView) {
@@ -72,7 +76,7 @@ function FinancePageContent() {
 
     return (
         <div className="flex flex-col gap-8">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between no-print">
                 <div className="text-left">
                     <h1 className="text-3xl font-bold font-headline">
                         Finance Management
@@ -81,25 +85,31 @@ function FinancePageContent() {
                         Track and manage your company's financial health, from debts to customer deposits.
                     </p>
                 </div>
-                <div className="md:hidden">
-                    <Sheet>
-                        <SheetTrigger asChild>
-                            <Button variant="outline" size="icon">
-                                <Menu className="h-4 w-4" />
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="left" className="w-[240px]">
-                           <NavMenu isSheet={true} />
-                        </SheetContent>
-                    </Sheet>
+                <div className="flex items-center gap-2">
+                    <Button onClick={handlePrint} variant="outline">
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print View
+                    </Button>
+                    <div className="md:hidden">
+                        <Sheet>
+                            <SheetTrigger asChild>
+                                <Button variant="outline" size="icon">
+                                    <Menu className="h-4 w-4" />
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent side="left" className="w-[240px]">
+                               <NavMenu isSheet={true} />
+                            </SheetContent>
+                        </Sheet>
+                    </div>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-8">
-                <aside className="hidden md:block">
+                <aside className="hidden md:block no-print">
                    <NavMenu />
                 </aside>
-                <main>
+                <main className="printable-area">
                     {renderContent()}
                 </main>
             </div>

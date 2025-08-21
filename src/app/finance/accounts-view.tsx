@@ -2,7 +2,8 @@
 'use client'
 
 import * as React from 'react'
-import { format } from 'date-fns'
+import { format, isWithinInterval, startOfMonth, endOfMonth, addDays, startOfYear, endOfYear, subMonths, startOfWeek, endOfWeek } from 'date-fns'
+import type { DateRange } from 'react-day-picker'
 import {
   Table,
   TableBody,
@@ -14,10 +15,14 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, CreditCard, Undo } from 'lucide-react'
+import { CheckCircle, CreditCard, Undo, Calendar as CalendarIcon } from 'lucide-react'
 import { useFinancials, PaymentMethod } from '@/context/financial-context'
 import { PaymentDialog } from '@/components/payment-dialog'
 import { useToast } from '@/hooks/use-toast'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { cn } from '@/lib/utils'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
     
 export default function AccountsView() {
     const { 
@@ -33,9 +38,37 @@ export default function AccountsView() {
 
     const [dialogOpen, setDialogOpen] = React.useState(false);
     const [selectedItem, setSelectedItem] = React.useState<{ id: string; type: 'receivable' | 'payable', amount: number } | null>(null);
+    const [date, setDate] = React.useState<DateRange | undefined>({
+      from: startOfMonth(new Date()),
+      to: endOfMonth(new Date()),
+    })
+    const [selectedPreset, setSelectedPreset] = React.useState<string>("month");
 
-    const receivables = transactions.filter(t => t.status === 'Credit');
-    const activePayables = payables.filter(p => p.status === 'Unpaid');
+     const handlePresetChange = (value: string) => {
+        setSelectedPreset(value);
+        const now = new Date();
+        switch (value) {
+            case 'today':
+                setDate({ from: now, to: now });
+                break;
+            case 'week':
+                setDate({ from: startOfWeek(now), to: endOfWeek(now) });
+                break;
+            case 'month':
+                setDate({ from: startOfMonth(now), to: endOfMonth(now) });
+                break;
+            case 'year':
+                setDate({ from: startOfYear(now), to: endOfYear(now) });
+                break;
+            case 'all':
+                setDate({ from: new Date('2020-01-01'), to: endOfYear(addDays(now, 1)) });
+                break;
+        }
+    }
+
+
+    const receivables = React.useMemo(() => transactions.filter(t => t.status === 'Credit' && date?.from && date?.to && isWithinInterval(t.date, { start: date.from, end: addDays(date.to, 1) })), [transactions, date]);
+    const activePayables = React.useMemo(() => payables.filter(p => p.status === 'Unpaid' && date?.from && date?.to && isWithinInterval(p.date, { start: date.from, end: addDays(date.to, 1) })), [payables, date]);
     const activePrepayments = prepayments.filter(p => p.status === 'Active');
     
     const totalReceivable = receivables.reduce((sum, item) => sum + item.amount, 0);
@@ -114,13 +147,13 @@ export default function AccountsView() {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-24">No outstanding credits. All customers have paid.</TableCell>
+                                    <TableCell colSpan={5} className="text-center h-24">No outstanding credits for the selected period.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                          <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={4} className="font-bold text-lg">Total Receivable</TableCell>
+                                <TableCell colSpan={4} className="font-bold text-lg">Total Receivable (Filtered)</TableCell>
                                 <TableCell className="text-right font-bold text-lg whitespace-nowrap">TSh {totalReceivable.toLocaleString()}</TableCell>
                             </TableRow>
                         </TableFooter>
@@ -166,13 +199,13 @@ export default function AccountsView() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center h-24">No outstanding payables. All suppliers have been paid.</TableCell>
+                                        <TableCell colSpan={5} className="text-center h-24">No outstanding payables for the selected period.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
                              <TableFooter>
                                 <TableRow>
-                                    <TableCell colSpan={4} className="font-bold text-lg">Total Payable</TableCell>
+                                    <TableCell colSpan={4} className="font-bold text-lg">Total Payable (Filtered)</TableCell>
                                     <TableCell className="text-right font-bold text-lg whitespace-nowrap">TSh {totalPayable.toLocaleString()}</TableCell>
                                 </TableRow>
                             </TableFooter>
@@ -185,7 +218,7 @@ export default function AccountsView() {
                 <CardHeader>
                     <CardTitle>Customer Deposits (Prepaid)</CardTitle>
                     <CardDescription>
-                        Customers with a prepaid balance. This balance can be used for a future purchase or refunded in cash.
+                        Customers with a prepaid balance. This balance can be used for a future purchase or refunded in cash. (Not affected by date filter).
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

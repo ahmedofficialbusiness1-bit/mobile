@@ -2,7 +2,7 @@
 'use client'
 
 import * as React from 'react'
-import { format, isWithinInterval, startOfMonth, endOfMonth, addDays } from 'date-fns'
+import { format, isWithinInterval, startOfMonth, endOfMonth, addDays, startOfYear, endOfYear, subMonths, startOfWeek, endOfWeek } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
 import { Calendar as CalendarIcon, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar'
 import { cn } from '@/lib/utils'
 import { useFinancials } from '@/context/financial-context'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface JournalEntry {
   date: Date
@@ -26,6 +27,30 @@ export default function JournalView() {
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   })
+  const [selectedPreset, setSelectedPreset] = React.useState<string>("month");
+
+  const handlePresetChange = (value: string) => {
+        setSelectedPreset(value);
+        const now = new Date();
+        switch (value) {
+            case 'today':
+                setDate({ from: now, to: now });
+                break;
+            case 'week':
+                setDate({ from: startOfWeek(now), to: endOfWeek(now) });
+                break;
+            case 'month':
+                setDate({ from: startOfMonth(now), to: endOfMonth(now) });
+                break;
+            case 'year':
+                setDate({ from: startOfYear(now), to: endOfYear(now) });
+                break;
+            case 'all':
+                setDate({ from: new Date('2020-01-01'), to: endOfYear(addDays(now, 1)) });
+                break;
+        }
+    }
+
 
   const journalEntries: JournalEntry[] = React.useMemo(() => {
     const allEntries: JournalEntry[] = []
@@ -75,42 +100,56 @@ export default function JournalView() {
                 <CardTitle>Transaction Journal</CardTitle>
                 <CardDescription>A chronological record of all financial transactions.</CardDescription>
             </div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  id="date"
-                  variant={"outline"}
-                  className={cn(
-                    "w-full justify-start text-left font-normal md:w-[300px]",
-                    !date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date?.from ? (
-                    date.to ? (
-                      <>
-                        {format(date.from, "LLL dd, y")} -{" "}
-                        {format(date.to, "LLL dd, y")}
-                      </>
+             <div className="flex items-center gap-2 w-full md:w-auto">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date"
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal md:w-[260px]",
+                      !date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date?.from ? (
+                      date.to ? (
+                        <>
+                          {format(date.from, "LLL dd, y")} -{" "}
+                          {format(date.to, "LLL dd, y")}
+                        </>
+                      ) : (
+                        format(date.from, "LLL dd, y")
+                      )
                     ) : (
-                      format(date.from, "LLL dd, y")
-                    )
-                  ) : (
-                    <span>Pick a date range</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={date?.from}
-                  selected={date}
-                  onSelect={setDate}
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
+                      <span>Pick a date range</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={date?.from}
+                    selected={date}
+                    onSelect={setDate}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+               <Select value={selectedPreset} onValueChange={handlePresetChange}>
+                  <SelectTrigger className="w-full md:w-[180px]">
+                      <SelectValue placeholder="Select a preset" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="week">This Week</SelectItem>
+                      <SelectItem value="month">This Month</SelectItem>
+                      <SelectItem value="year">This Year</SelectItem>
+                      <SelectItem value="all">All Time</SelectItem>
+                  </SelectContent>
+                </Select>
+            </div>
         </div>
       </CardHeader>
       <CardContent>
