@@ -151,6 +151,19 @@ export interface DamagedGood {
     date: Date;
 }
 
+export interface StockRequest {
+    id: string;
+    userId: string;
+    shopId: string;
+    shopName: string;
+    productId: string;
+    productName: string;
+    quantity: number;
+    requestDate: Date;
+    status: 'Pending' | 'Approved' | 'Rejected';
+    notes?: string;
+}
+
 
 export interface Asset {
     id: string;
@@ -297,6 +310,7 @@ interface FinancialContextType {
     companyName: string;
     products: Product[];
     damagedGoods: DamagedGood[];
+    stockRequests: StockRequest[];
     assets: Asset[];
     capitalContributions: CapitalContribution[];
     ownerLoans: OwnerLoan[];
@@ -326,6 +340,9 @@ interface FinancialContextType {
     deleteProduct: (id: string) => Promise<void>;
     transferStock: (productId: string, quantity: number, toShopId: string) => Promise<void>;
     reportDamage: (productId: string, quantity: number, reason: string) => Promise<void>;
+    createStockRequest: (productId: string, quantity: number, notes: string) => Promise<void>;
+    approveStockRequest: (requestId: string) => Promise<void>;
+    rejectStockRequest: (requestId: string) => Promise<void>;
     addAsset: (assetData: AddAssetData) => Promise<void>;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => Promise<void>;
     writeOffAsset: (id: string) => Promise<void>;
@@ -489,6 +506,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const userAccounts = useFirestoreUserAccounts();
     const initialProducts = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
     const allDamagedGoods = useFirestoreCollection<DamagedGood>('damagedGoods', ['date'], defaultShopIdForMigration);
+    const allStockRequests = useFirestoreCollection<StockRequest>('stockRequests', ['requestDate']);
     const employees = useFirestoreCollection<Employee>('employees');
     const allPayrollHistory = useFirestoreCollection<PayrollRun>('payrollHistory', ['date'], defaultShopIdForMigration);
     const allCapitalContributions = useFirestoreCollection<CapitalContribution>('capitalContributions', ['date'], defaultShopIdForMigration);
@@ -510,6 +528,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const customers = useMemo(() => activeShopId ? allCustomers.filter(c => c.shopId === activeShopId) : allCustomers, [allCustomers, activeShopId]);
     const shops = useMemo(() => allShops, [allShops]);
     const damagedGoods = useMemo(() => activeShopId ? allDamagedGoods.filter(d => d.shopId === activeShopId) : allDamagedGoods, [allDamagedGoods, activeShopId]);
+    const stockRequests = useMemo(() => activeShopId ? allStockRequests.filter(sr => sr.shopId === activeShopId) : allStockRequests, [allStockRequests, activeShopId]);
     const payrollHistory = useMemo(() => activeShopId ? allPayrollHistory.filter(p => p.shopId === activeShopId) : allPayrollHistory, [allPayrollHistory, activeShopId]);
     const capitalContributions = useMemo(() => activeShopId ? allCapitalContributions.filter(c => c.shopId === activeShopId) : allCapitalContributions, [allCapitalContributions, activeShopId]);
     const expenses = useMemo(() => activeShopId ? allExpenses.filter(e => e.shopId === activeShopId) : allExpenses, [allExpenses, activeShopId]);
@@ -938,6 +957,39 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             transaction.set(damageRef, damageRecord);
         });
     }
+    
+    const createStockRequest = async (productId: string, quantity: number, notes: string) => {
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
+        const product = products.find(p => p.id === productId);
+        if (!product) throw new Error("Product not found.");
+
+        const shop = shops.find(s => s.id === activeShopId);
+        if (!shop) throw new Error("Shop not found.");
+
+        const newRequest = {
+            userId: user.uid,
+            shopId: activeShopId,
+            shopName: shop.name,
+            productId: productId,
+            productName: product.name,
+            quantity,
+            requestDate: new Date(),
+            status: 'Pending',
+            notes,
+        };
+        await addDoc(collection(db, 'stockRequests'), newRequest);
+    };
+
+    const approveStockRequest = async (requestId: string) => {
+        const request = allStockRequests.find(r => r.id === requestId);
+        if (!request) throw new Error("Request not found.");
+        await transferStock(request.productId, request.quantity, request.shopId);
+        await updateDoc(doc(db, 'stockRequests', requestId), { status: 'Approved' });
+    };
+
+    const rejectStockRequest = async (requestId: string) => {
+        await updateDoc(doc(db, 'stockRequests', requestId), { status: 'Rejected' });
+    };
 
     const addAsset = async (assetData: AddAssetData) => {
         if (!user || !activeShopId) throw new Error("User not authenticated or no active shop selected.");
@@ -1397,6 +1449,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         companyName,
         products,
         damagedGoods,
+        stockRequests,
         assets,
         capitalContributions,
         ownerLoans,
@@ -1426,6 +1479,9 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         deleteProduct,
         transferStock,
         reportDamage,
+        createStockRequest,
+        approveStockRequest,
+        rejectStockRequest,
         addAsset,
         sellAsset,
         writeOffAsset,
