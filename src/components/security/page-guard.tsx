@@ -12,20 +12,20 @@ interface PageGuardProps {
 }
 
 export function PageGuard({ tabId, children }: PageGuardProps) {
-  const { isTabLocked, unlockTab, verifyPassword } = useSecurity()
-  const [isLocked, setIsLocked] = React.useState(isTabLocked(tabId));
-  const [showPrompt, setShowPrompt] = React.useState(isTabLocked(tabId));
+  const { isItemLocked, unlockItem, verifyPassword } = useSecurity()
+  const [isLocked, setIsLocked] = React.useState(isItemLocked(tabId));
+  const [showPrompt, setShowPrompt] = React.useState(isItemLocked(tabId));
   const router = useRouter();
 
   React.useEffect(() => {
-      const locked = isTabLocked(tabId);
+      const locked = isItemLocked(tabId);
       setIsLocked(locked);
       setShowPrompt(locked);
-  }, [tabId, isTabLocked]);
+  }, [tabId, isItemLocked]);
 
   const handlePasswordSubmit = (password: string) => {
     if (verifyPassword(tabId, password)) {
-      unlockTab(tabId)
+      unlockItem(tabId)
       setIsLocked(false)
       setShowPrompt(false)
     } else {

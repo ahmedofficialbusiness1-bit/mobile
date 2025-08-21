@@ -55,7 +55,7 @@ export function AppSidebar() {
   const pathname = usePathname()
   const { setOpenMobile } = useSidebar()
   const { user, isAdmin } = useAuth()
-  const { isTabLocked } = useSecurity();
+  const { isItemLocked } = useSecurity();
 
   const handleLinkClick = () => {
     // Close sidebar on link click on mobile
@@ -93,7 +93,7 @@ export function AppSidebar() {
                     <item.icon className="h-4 w-4" />
                     <span>{item.label}</span>
                   </div>
-                   {isTabLocked(item.id) && <Lock className="h-3 w-3 text-muted-foreground" />}
+                   {isItemLocked(item.id) && <Lock className="h-3 w-3 text-muted-foreground" />}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -108,9 +108,12 @@ export function AppSidebar() {
                         className="font-headline"
                         onClick={handleLinkClick}
                     >
-                        <Link href={item.href}>
-                            <item.icon className="h-4 w-4" />
-                            <span>{item.label}</span>
+                        <Link href={item.href} className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2">
+                                <item.icon className="h-4 w-4" />
+                                <span>{item.label}</span>
+                            </div>
+                             {isItemLocked(item.id) && <Lock className="h-3 w-3 text-muted-foreground" />}
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>

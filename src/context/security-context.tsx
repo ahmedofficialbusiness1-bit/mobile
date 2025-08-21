@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Simple "hashing" for demonstration. In a real app, use a proper library like bcrypt.
 const simpleHash = (s: string) => {
@@ -16,21 +16,21 @@ const simpleHash = (s: string) => {
 };
 
 interface SecurityContextType {
-  lockedTabs: Record<string, string>; // tabId -> passwordHash
-  unlockedTabs: Set<string>;
-  lockTab: (tabId: string, password: string) => void;
-  unlockTab: (tabId: string) => void;
-  removeLock: (tabId: string) => void;
-  verifyPassword: (tabId: string, password: string) => boolean;
-  isTabLocked: (tabId: string) => boolean;
+  lockedItems: Record<string, string>; // itemId (tabId or shopId) -> passwordHash
+  unlockedItems: Set<string>;
+  lockItem: (itemId: string, password: string) => void;
+  unlockItem: (itemId: string) => void;
+  removeItemLock: (itemId: string) => void;
+  verifyPassword: (itemId: string, password: string) => boolean;
+  isItemLocked: (itemId: string) => boolean;
 }
 
 const SecurityContext = createContext<SecurityContextType | undefined>(undefined);
 
 export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const [lockedTabs, setLockedTabs] = useState<Record<string, string>>({});
-  const [unlockedTabs, setUnlockedTabs] = useState<Set<string>>(new Set());
+  const [lockedItems, setLockedItems] = useState<Record<string, string>>({});
+  const [unlockedItems, setUnlockedItems] = useState<Set<string>>(new Set());
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -40,9 +40,9 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
           const settingsRef = doc(db, 'securitySettings', user.uid);
           const docSnap = await getDoc(settingsRef);
           if (docSnap.exists()) {
-            setLockedTabs(docSnap.data().lockedTabs || {});
+            setLockedItems(docSnap.data().lockedItems || {});
           } else {
-            setLockedTabs({});
+            setLockedItems({});
           }
         } catch (error) {
           console.error("Failed to load security settings from Firestore", error);
@@ -50,9 +50,8 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
            setIsLoaded(true);
         }
       } else {
-        // If no user, reset settings and mark as loaded
-        setLockedTabs({});
-        setUnlockedTabs(new Set());
+        setLockedItems({});
+        setUnlockedItems(new Set());
         setIsLoaded(true);
       }
     };
@@ -63,55 +62,54 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
       if (!user) return;
       try {
         const settingsRef = doc(db, 'securitySettings', user.uid);
-        await setDoc(settingsRef, { lockedTabs: data }, { merge: true });
+        await setDoc(settingsRef, { lockedItems: data }, { merge: true });
       } catch (error) {
         console.error("Failed to save security settings to Firestore", error)
       }
   }
 
-  const lockTab = async (tabId: string, password: string) => {
-    const newLocks = { ...lockedTabs, [tabId]: simpleHash(password) };
-    setLockedTabs(newLocks);
+  const lockItem = async (itemId: string, password: string) => {
+    const newLocks = { ...lockedItems, [itemId]: simpleHash(password) };
+    setLockedItems(newLocks);
     await saveToFirestore(newLocks);
-    // Re-lock the tab if it was previously unlocked
-    setUnlockedTabs(prev => {
+    setUnlockedItems(prev => {
         const newSet = new Set(prev);
-        newSet.delete(tabId);
+        newSet.delete(itemId);
         return newSet;
     })
   };
   
-  const removeLock = async (tabId: string) => {
-    const newLocks = { ...lockedTabs };
-    delete newLocks[tabId];
-    setLockedTabs(newLocks);
+  const removeItemLock = async (itemId: string) => {
+    const newLocks = { ...lockedItems };
+    delete newLocks[itemId];
+    setLockedItems(newLocks);
     await saveToFirestore(newLocks);
-    setUnlockedTabs(prev => {
+    setUnlockedItems(prev => {
         const newSet = new Set(prev);
-        newSet.delete(tabId);
+        newSet.delete(itemId);
         return newSet;
     })
   }
 
-  const unlockTab = (tabId: string) => {
-    setUnlockedTabs(prev => new Set(prev).add(tabId));
+  const unlockItem = (itemId: string) => {
+    setUnlockedItems(prev => new Set(prev).add(itemId));
   };
 
-  const verifyPassword = (tabId: string, password: string) => {
-    return lockedTabs[tabId] === simpleHash(password);
+  const verifyPassword = (itemId: string, password: string) => {
+    return lockedItems[itemId] === simpleHash(password);
   };
 
-  const isTabLocked = useCallback((tabId: string) => {
-    if (!isLoaded || !user) return false; // Don't lock tabs if not loaded or no user
-    return lockedTabs.hasOwnProperty(tabId) && !unlockedTabs.has(tabId);
-  }, [lockedTabs, unlockedTabs, isLoaded, user]);
+  const isItemLocked = useCallback((itemId: string) => {
+    if (!isLoaded || !user) return false;
+    return lockedItems.hasOwnProperty(itemId) && !unlockedItems.has(itemId);
+  }, [lockedItems, unlockedItems, isLoaded, user]);
 
   if (!isLoaded) {
     return null; // Or a loading spinner
   }
 
   return (
-    <SecurityContext.Provider value={{ lockedTabs, unlockedTabs, lockTab, unlockTab, removeLock, verifyPassword, isTabLocked }}>
+    <SecurityContext.Provider value={{ lockedItems, unlockedItems, lockItem, unlockItem, removeItemLock, verifyPassword, isItemLocked }}>
       {children}
     </SecurityContext.Provider>
   );

@@ -20,6 +20,7 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs'
 import ShopsSettings from './shops-settings'
+import { useFinancials } from '@/context/financial-context'
 
 
 const tabs = [
@@ -40,15 +41,16 @@ const formSchema = z.object({
   password: z.string().min(4, 'Password must be at least 4 characters.'),
 })
 
-interface TabSecurityFormProps {
-  tabId: string
-  tabLabel: string
+interface SecurityFormProps {
+  itemId: string
+  itemLabel: string
+  itemType: 'tab' | 'shop'
 }
 
-function TabSecurityForm({ tabId, tabLabel }: TabSecurityFormProps) {
-  const { lockTab, removeLock, lockedTabs } = useSecurity()
+function SecurityForm({ itemId, itemLabel, itemType }: SecurityFormProps) {
+  const { lockItem, removeItemLock, lockedItems } = useSecurity()
   const { toast } = useToast()
-  const isLocked = lockedTabs.hasOwnProperty(tabId)
+  const isLocked = lockedItems.hasOwnProperty(itemId)
   const [isEnabled, setIsEnabled] = React.useState(isLocked)
   
   const form = useForm<z.infer<typeof formSchema>>({
@@ -57,28 +59,28 @@ function TabSecurityForm({ tabId, tabLabel }: TabSecurityFormProps) {
   })
 
   React.useEffect(() => {
-    setIsEnabled(lockedTabs.hasOwnProperty(tabId));
-  }, [lockedTabs, tabId]);
+    setIsEnabled(lockedItems.hasOwnProperty(itemId));
+  }, [lockedItems, itemId]);
   
   const handleToggle = (checked: boolean) => {
     setIsEnabled(checked)
     if (!checked) {
-      removeLock(tabId)
+      removeItemLock(itemId)
       form.reset()
-      toast({ title: `Security disabled for ${tabLabel}` })
+      toast({ title: `Security disabled for ${itemLabel}` })
     }
   }
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    lockTab(tabId, values.password)
-    toast({ title: `Password set for ${tabLabel}` })
+    lockItem(itemId, values.password)
+    toast({ title: `Password set for ${itemLabel}` })
     form.reset()
   }
 
   return (
     <div className="flex flex-col sm:flex-row items-start justify-between gap-4 rounded-lg border p-4">
       <div className="space-y-0.5">
-        <h3 className="font-medium">{tabLabel}</h3>
+        <h3 className="font-medium">{itemLabel}</h3>
         <p className="text-sm text-muted-foreground">
           {isLocked
             ? 'Security is enabled and password is set.'
@@ -116,6 +118,8 @@ function TabSecurityForm({ tabId, tabLabel }: TabSecurityFormProps) {
 
 
 function SettingsPageContent() {
+    const { shops } = useFinancials();
+
     return (
         <div className="flex flex-col gap-8">
             <div className="text-left">
@@ -130,7 +134,7 @@ function SettingsPageContent() {
             <Tabs defaultValue="shops" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="shops">Shops & Branches</TabsTrigger>
-                    <TabsTrigger value="security">Tab Security</TabsTrigger>
+                    <TabsTrigger value="security">Access Security</TabsTrigger>
                 </TabsList>
                 <TabsContent value="shops">
                     <ShopsSettings />
@@ -138,14 +142,21 @@ function SettingsPageContent() {
                 <TabsContent value="security">
                      <Card>
                         <CardHeader>
-                        <CardTitle>Tab Security</CardTitle>
+                        <CardTitle>Access Security</CardTitle>
                         <CardDescription>
-                            Set a password to restrict access to specific tabs. Once set, a password cannot be changed, only removed by disabling security for that tab.
+                            Set a password to restrict access to specific areas. Once set, a password cannot be changed, only removed by disabling security for that item.
                         </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                           <h3 className="text-lg font-semibold mt-6 mb-2">Shop & Branch Access</h3>
+                            <SecurityForm itemId="headquarters" itemLabel="Headquarters (All Shops View)" itemType="shop" />
+                            {shops.map(shop => (
+                                 <SecurityForm key={shop.id} itemId={shop.id} itemLabel={shop.name} itemType="shop" />
+                            ))}
+
+                           <h3 className="text-lg font-semibold mt-8 mb-2">Page / Tab Access</h3>
                             {tabs.map(tab => (
-                                <TabSecurityForm key={tab.id} tabId={tab.id} tabLabel={tab.label} />
+                                <SecurityForm key={tab.id} itemId={tab.id} itemLabel={tab.label} itemType="tab" />
                             ))}
                         </CardContent>
                     </Card>
