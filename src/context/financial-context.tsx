@@ -122,8 +122,9 @@ export interface Product {
   barcode?: string;
   initialStock: number;
   mainStock: number;
-  shopStock: number;
-  currentStock: number; // calculated field
+  shopStock: number; // This will now be a calculated total of stockByShop
+  stockByShop: Record<string, number>; // { [shopId]: quantity }
+  currentStock: number; // calculated field based on active shop
   uom: string; 
   reorderLevel: number;
   reorderQuantity: number;
@@ -304,10 +305,10 @@ interface FinancialContextType {
     addShop: (shopData: Omit<Shop, 'id' | 'userId'>) => Promise<void>;
     updateShop: (id: string, shopData: Omit<Shop, 'id' | 'userId'>) => Promise<void>;
     deleteShop: (id: string) => Promise<void>;
-    addProduct: (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock'>) => Promise<void>;
-    updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock'>) => Promise<void>;
+    addProduct: (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock' | 'stockByShop'>) => Promise<void>;
+    updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock' | 'stockByShop'>) => Promise<void>;
     deleteProduct: (id: string) => Promise<void>;
-    transferStock: (productId: string, quantity: number) => Promise<void>;
+    transferStock: (productId: string, quantity: number, toShopId: string) => Promise<void>;
     reportDamage: (productId: string, quantity: number, reason: string) => Promise<void>;
     addAsset: (assetData: AddAssetData) => Promise<void>;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => Promise<void>;
@@ -353,7 +354,7 @@ const calculateDepreciation = (asset: Asset): { accumulatedDepreciation: number;
 
 const getProductStatus = (product: Omit<Product, 'status'|'id'|'userId'|'currentStock'>): Product['status'] => {
     const now = new Date();
-    const totalStock = product.mainStock + product.shopStock;
+    const totalStock = product.mainStock + (product.shopStock || 0);
 
     if (product.expiryDate && isAfter(now, toDate(product.expiryDate))) {
         return 'Expired';
@@ -367,7 +368,7 @@ const getProductStatus = (product: Omit<Product, 'status'|'id'|'userId'|'current
     return 'In Stock';
 }
 
-function useFirestoreCollection<T>(collectionName: string, dateFields: string[] = ['date']) {
+function useFirestoreCollection<T>(collectionName: string, dateFields: string[] = ['date'], defaultShopId?: string | null) {
     const { user, loading: authLoading } = useAuth();
     const [data, setData] = useState<T[]>([]);
     const stableCollectionName = collectionName;
@@ -383,13 +384,19 @@ function useFirestoreCollection<T>(collectionName: string, dateFields: string[] 
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const collectionData = snapshot.docs.map(doc => {
-                const docData = doc.data();
+                const docData: any = doc.data();
                 const parsedDateFields = JSON.parse(stableDateFields);
                 for (const field of parsedDateFields) {
                     if (docData[field]) {
                         docData[field] = toDate(docData[field]);
                     }
                 }
+                
+                // MIGRATION LOGIC: Assign a default shopId if it doesn't exist
+                if (!docData.shopId && defaultShopId) {
+                    docData.shopId = defaultShopId;
+                }
+                
                 return { id: doc.id, ...docData } as T;
             });
             setData(collectionData);
@@ -398,7 +405,7 @@ function useFirestoreCollection<T>(collectionName: string, dateFields: string[] 
         });
 
         return () => unsubscribe();
-    }, [stableCollectionName, stableDateFields, user, authLoading]);
+    }, [stableCollectionName, stableDateFields, user, authLoading, defaultShopId]);
 
     return data;
 }
@@ -449,23 +456,29 @@ function useFirestoreUserAccounts() {
 // --- Context Provider ---
 export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { user, loading: authLoading } = useAuth();
-    const allTransactions = useFirestoreCollection<Transaction>('transactions', ['date']);
-    const allPayables = useFirestoreCollection<Payable>('payables', ['date']);
-    const allPrepayments = useFirestoreCollection<CustomerPrepayment>('prepayments', ['date']);
+    const [activeShopId, setActiveShopId] = useState<string | null>(null);
+    const shops = useFirestoreCollection<Shop>('shops');
+
+    // Find the default shop ID for data migration once shops are loaded
+    const defaultShopIdForMigration = useMemo(() => {
+        const targetShop = shops.find(s => s.name === "Mlandege Home Store 1");
+        return targetShop ? targetShop.id : null;
+    }, [shops]);
+    
+    const allTransactions = useFirestoreCollection<Transaction>('transactions', ['date'], defaultShopIdForMigration);
+    const allPayables = useFirestoreCollection<Payable>('payables', ['date'], defaultShopIdForMigration);
+    const allPrepayments = useFirestoreCollection<CustomerPrepayment>('prepayments', ['date'], defaultShopIdForMigration);
     const customers = useFirestoreCollection<Customer>('customers');
     const userAccounts = useFirestoreUserAccounts();
-    const shops = useFirestoreCollection<Shop>('shops');
     const initialProducts = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
-    const allDamagedGoods = useFirestoreCollection<DamagedGood>('damagedGoods', ['date']);
+    const allDamagedGoods = useFirestoreCollection<DamagedGood>('damagedGoods', ['date'], defaultShopIdForMigration);
     const employees = useFirestoreCollection<Employee>('employees');
-    const allPayrollHistory = useFirestoreCollection<PayrollRun>('payrollHistory', ['date']);
-    const allCapitalContributions = useFirestoreCollection<CapitalContribution>('capitalContributions', ['date']);
+    const allPayrollHistory = useFirestoreCollection<PayrollRun>('payrollHistory', ['date'], defaultShopIdForMigration);
+    const allCapitalContributions = useFirestoreCollection<CapitalContribution>('capitalContributions', ['date'], defaultShopIdForMigration);
     const initialAssets = useFirestoreCollection<Asset>('assets', ['acquisitionDate']);
-    const allExpenses = useFirestoreCollection<Expense>('expenses', ['date']);
-    const allPurchaseOrders = useFirestoreCollection<PurchaseOrder>('purchaseOrders', ['purchaseDate', 'expectedDeliveryDate']);
-    const allInvoices = useFirestoreCollection<Invoice>('invoices', ['issueDate', 'dueDate']);
-
-    const [activeShopId, setActiveShopId] = useState<string | null>(null);
+    const allExpenses = useFirestoreCollection<Expense>('expenses', ['date'], defaultShopIdForMigration);
+    const allPurchaseOrders = useFirestoreCollection<PurchaseOrder>('purchaseOrders', ['purchaseDate', 'expectedDeliveryDate'], defaultShopIdForMigration);
+    const allInvoices = useFirestoreCollection<Invoice>('invoices', ['issueDate', 'dueDate'], defaultShopIdForMigration);
 
     const activeShop = useMemo(() => {
         if (activeShopId === null) return null;
@@ -473,9 +486,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [shops, activeShopId]);
 
     useEffect(() => {
-        if (shops.length > 0 && activeShopId === null) {
-            // By default, it will be "All Shops" view. User can select a specific one.
-        }
+        // Default to "All Shops" view. User can select a specific one.
     }, [shops, activeShopId]);
 
     // --- Filtered Data based on Active Shop ---
@@ -509,16 +520,23 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [initialAssets]);
 
     const products = useMemo(() => {
-        return initialProducts.map(product => ({
-            ...product,
-            status: getProductStatus(product),
-            currentStock: product.shopStock,
-        }))
-    }, [initialProducts]);
+        return initialProducts.map(product => {
+             const stockByShop = product.stockByShop || {};
+             const totalShopStock = Object.values(stockByShop).reduce((sum, qty) => sum + qty, 0);
+             const currentShopStock = activeShopId ? (stockByShop[activeShopId] || 0) : 0;
+            return {
+                ...product,
+                shopStock: totalShopStock, // Total across all shops
+                currentStock: currentShopStock, // Stock for the currently active shop
+                status: getProductStatus({ ...product, shopStock: totalShopStock }),
+            }
+        })
+    }, [initialProducts, activeShopId]);
 
 
     const ownerLoans = useMemo(() => {
-        return capitalContributions
+        const loans = activeShopId ? allCapitalContributions.filter(c => c.shopId === activeShopId) : allCapitalContributions;
+        return loans
             .filter(c => c.type === 'Liability')
             .map(c => {
                 return {
@@ -531,7 +549,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     repaid: 0 
                 };
             });
-    }, [capitalContributions]);
+    }, [allCapitalContributions, activeShopId]);
 
     const cashBalances = useMemo(() => {
         let cash = 0;
@@ -539,7 +557,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         let mobile = 0;
 
         capitalContributions.forEach(c => {
-            if (c && c.type) { 
+            if (c && c.type) {
                 if (c.type === 'Cash') cash += c.amount;
                 else if (c.type === 'Bank') bank += c.amount;
             }
@@ -579,9 +597,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             if (!productDoc.exists()) throw new Error("Product not found");
 
             const product = {id: productDoc.id, ...productDoc.data()} as Product;
+            const shopStock = product.stockByShop?.[activeShopId] || 0;
 
-            if (product.shopStock < saleData.quantity) {
-                throw new Error(`Not enough stock in shop for ${product.name}. Only ${product.shopStock} available.`);
+            if (shopStock < saleData.quantity) {
+                throw new Error(`Not enough stock in shop for ${product.name}. Only ${shopStock} available.`);
             }
             
             const grossAmount = saleData.unitPrice * saleData.quantity;
@@ -607,9 +626,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             const transRef = doc(collection(db, 'transactions'));
             transaction.set(transRef, newTransaction);
 
-            const updatedShopStock = product.shopStock - saleData.quantity;
-            const newStatus = getProductStatus({ ...product, shopStock: updatedShopStock });
-            transaction.update(productRef, { shopStock: updatedShopStock, status: newStatus, lastUpdated: new Date() });
+            const updatedStockByShop = { ...(product.stockByShop || {}), [activeShopId]: shopStock - saleData.quantity };
+            const newTotalShopStock = Object.values(updatedStockByShop).reduce((sum, qty) => sum + qty, 0);
+            const newStatus = getProductStatus({ ...product, shopStock: newTotalShopStock });
+            transaction.update(productRef, { stockByShop: updatedStockByShop, shopStock: newTotalShopStock, status: newStatus, lastUpdated: new Date() });
 
             if (saleData.customerType === 'new') {
                 const customerQuery = query(collection(db, 'customers'), where('phone', '==', saleData.customerPhone), where('userId', '==', user.uid));
@@ -636,14 +656,16 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             
             const saleToDelete = saleDoc.data() as Transaction;
             
-            if (saleToDelete.productId) {
+            if (saleToDelete.productId && saleToDelete.shopId) {
                 const productRef = doc(db, 'products', saleToDelete.productId);
                 const productDoc = await transaction.get(productRef);
                 if (productDoc.exists()) {
                     const product = productDoc.data() as Product;
-                    const updatedShopStock = product.shopStock + saleToDelete.quantity;
-                    const newStatus = getProductStatus({ ...product, shopStock: updatedShopStock });
-                    transaction.update(productRef, { shopStock: updatedShopStock, status: newStatus, lastUpdated: new Date() });
+                    const currentShopStock = product.stockByShop?.[saleToDelete.shopId] || 0;
+                    const updatedStockByShop = { ...(product.stockByShop || {}), [saleToDelete.shopId]: currentShopStock + saleToDelete.quantity };
+                    const newTotalShopStock = Object.values(updatedStockByShop).reduce((sum, qty) => sum + qty, 0);
+                    const newStatus = getProductStatus({ ...product, shopStock: newTotalShopStock });
+                    transaction.update(productRef, { stockByShop: updatedStockByShop, shopStock: newTotalShopStock, status: newStatus, lastUpdated: new Date() });
                 }
             }
 
@@ -782,7 +804,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await deleteDoc(doc(db, 'shops', id));
     };
 
-    const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock'>) => {
+    const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock' | 'stockByShop'>) => {
         if (!user) throw new Error("User not authenticated.");
         const newProduct = {
             ...productData,
@@ -790,23 +812,27 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             status: getProductStatus({ ...productData, shopStock: 0 } as Product),
             initialStock: productData.mainStock,
             shopStock: 0,
+            stockByShop: {},
             entryDate: new Date(),
             lastUpdated: new Date(),
         };
         await addDoc(collection(db, 'products'), newProduct);
     };
     
-    const updateProduct = async (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock'>) => {
+    const updateProduct = async (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock' | 'stockByShop'>) => {
         if (!user) throw new Error("User not authenticated.");
         const originalProduct = products.find(p => p.id === id);
         if (!originalProduct) throw new Error("Product not found.");
         
+        const totalShopStock = Object.values(originalProduct.stockByShop || {}).reduce((sum, qty) => sum + qty, 0);
+        
         const updatedProductData = {
             ...productData,
             initialStock: originalProduct.initialStock,
-            shopStock: originalProduct.shopStock,
+            stockByShop: originalProduct.stockByShop,
+            shopStock: totalShopStock,
             entryDate: originalProduct.entryDate,
-            status: getProductStatus({ ...productData, shopStock: originalProduct.shopStock } as Product),
+            status: getProductStatus({ ...productData, shopStock: totalShopStock } as Product),
             lastUpdated: new Date(),
              userId: user.uid,
         };
@@ -818,7 +844,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await deleteDoc(doc(db, 'products', id));
     };
 
-    const transferStock = async (productId: string, quantity: number) => {
+    const transferStock = async (productId: string, quantity: number, toShopId: string) => {
         if (!user) throw new Error("User not authenticated.");
         const productRef = doc(db, 'products', productId);
 
@@ -832,12 +858,15 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
 
             const newMainStock = product.mainStock - quantity;
-            const newShopStock = product.shopStock + quantity;
-            const newStatus = getProductStatus({ ...product, mainStock: newMainStock, shopStock: newShopStock });
+            const currentShopStock = product.stockByShop?.[toShopId] || 0;
+            const updatedStockByShop = { ...(product.stockByShop || {}), [toShopId]: currentShopStock + quantity };
+            const newTotalShopStock = Object.values(updatedStockByShop).reduce((sum, qty) => sum + qty, 0);
+            const newStatus = getProductStatus({ ...product, mainStock: newMainStock, shopStock: newTotalShopStock });
             
             transaction.update(productRef, {
                 mainStock: newMainStock,
-                shopStock: newShopStock,
+                shopStock: newTotalShopStock,
+                stockByShop: updatedStockByShop,
                 status: newStatus,
                 lastUpdated: new Date()
             });
@@ -853,20 +882,17 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             if (!productDoc.exists()) throw new Error("Product not found");
             
             const product = productDoc.data() as Product;
-            const totalStock = product.mainStock + product.shopStock;
-            if (totalStock < quantity) {
-                throw new Error(`Cannot report more damaged goods than available stock. Available: ${totalStock}`);
+            const shopStock = product.stockByShop?.[activeShopId] || 0;
+
+            if (shopStock < quantity) {
+                throw new Error(`Cannot report more damaged goods than available in this shop. Available: ${shopStock}`);
             }
 
-            // Prioritize reducing shop stock, then main stock
-            const shopDamage = Math.min(quantity, product.shopStock);
-            const mainDamage = quantity - shopDamage;
-            
-            const newShopStock = product.shopStock - shopDamage;
-            const newMainStock = product.mainStock - mainDamage;
-            const newStatus = getProductStatus({ ...product, shopStock: newShopStock, mainStock: newMainStock });
+            const updatedStockByShop = { ...(product.stockByShop || {}), [activeShopId]: shopStock - quantity };
+            const newTotalShopStock = Object.values(updatedStockByShop).reduce((sum, qty) => sum + qty, 0);
+            const newStatus = getProductStatus({ ...product, shopStock: newTotalShopStock });
 
-            transaction.update(productRef, { shopStock: newShopStock, mainStock: newMainStock, status: newStatus, lastUpdated: new Date() });
+            transaction.update(productRef, { stockByShop: updatedStockByShop, shopStock: newTotalShopStock, status: newStatus, lastUpdated: new Date() });
 
             const damageRecord = {
                 userId: user.uid,
@@ -1180,6 +1206,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     initialStock: item.quantity,
                     mainStock: item.quantity,
                     shopStock: 0,
+                    stockByShop: {},
                     uom: item.uom,
                     reorderLevel: 10,
                     reorderQuantity: 20,

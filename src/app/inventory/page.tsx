@@ -45,7 +45,7 @@ interface MonthlyStockData {
 }
 
 function InventoryPageContent() {
-  const { products, transactions, purchaseOrders, damagedGoods, addProduct, updateProduct, deleteProduct, transferStock, reportDamage } = useFinancials()
+  const { products, transactions, purchaseOrders, damagedGoods, addProduct, updateProduct, deleteProduct, transferStock, reportDamage, shops, activeShopId } = useFinancials()
   const { toast } = useToast()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isTransferFormOpen, setIsTransferFormOpen] = React.useState(false);
@@ -169,13 +169,21 @@ function InventoryPageContent() {
   };
   
   const handleDamageClick = (product: Product) => {
+    if (!activeShopId) {
+        toast({
+            variant: 'destructive',
+            title: 'No Shop Selected',
+            description: 'Please select a specific shop before reporting damages.',
+        });
+        return;
+    }
     setSelectedProduct(product);
     setIsDamageFormOpen(true);
   }
 
-  const handleSaveTransfer = (quantity: number) => {
+  const handleSaveTransfer = (quantity: number, toShopId: string) => {
     if (selectedProduct) {
-        transferStock(selectedProduct.id, quantity)
+        transferStock(selectedProduct.id, quantity, toShopId)
             .then(() => {
                 toast({
                     title: 'Stock Transferred',
@@ -358,7 +366,7 @@ function InventoryPageContent() {
             </TabsContent>
             <TabsContent value="shop">
                  <InventoryDataTable 
-                    products={filteredProducts} 
+                    products={filteredProducts.filter(p => p.currentStock > 0)}
                     onEdit={handleEditClick} 
                     onDelete={handleDeleteClick}
                      onDamage={handleDamageClick}
@@ -382,6 +390,7 @@ function InventoryPageContent() {
         onClose={() => setIsTransferFormOpen(false)}
         onSave={handleSaveTransfer}
         product={selectedProduct}
+        shops={shops}
     />
      <ReportDamageForm
         isOpen={isDamageFormOpen}
