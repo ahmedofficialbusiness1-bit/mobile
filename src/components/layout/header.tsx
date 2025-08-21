@@ -98,7 +98,7 @@ export function AppHeader() {
         <h1 className="text-xl font-semibold md:text-2xl font-headline">{title}</h1>
       </div>
       <div className="flex items-center gap-4">
-         {shops.length > 0 && (
+         {shops && shops.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
