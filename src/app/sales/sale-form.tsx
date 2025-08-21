@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import * as React from 'react'
@@ -34,7 +33,6 @@ import {
 } from '@/components/ui/select'
 import { Product, PaymentMethod, Customer } from '@/context/financial-context'
 import { Switch } from '@/components/ui/switch'
-import { Combobox } from '@/components/ui/combobox'
 
 export type VatRate = 0 | 0.15 | 0.18;
 
@@ -112,22 +110,6 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
   const quantity = form.watch('quantity');
   const unitPrice = form.watch('unitPrice');
   
-  const productOptions = React.useMemo(() => 
-    products
-        .filter(p => p.status !== 'Out of Stock' && p.status !== 'Expired')
-        .map(product => ({
-            value: product.id,
-            label: `${product.name} (${product.currentStock} in stock)`
-        })), 
-  [products]);
-
-  const customerOptions = React.useMemo(() =>
-    customers.map(customer => ({
-        value: customer.id,
-        label: `${customer.name} (${customer.phone})`
-    })),
-  [customers]);
-
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const selectedProduct = products.find(p => p.id === values.productId);
@@ -213,14 +195,20 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Select Customer</FormLabel>
-                       <Combobox
-                            options={customerOptions}
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Search for a customer..."
-                            searchPlaceholder="Search customer..."
-                            notFoundText="No customer found."
-                        />
+                       <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a customer" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {customers.map(customer => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name} ({customer.phone})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -263,14 +251,22 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Product</FormLabel>
-                        <Combobox
-                            options={productOptions}
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Search for a product..."
-                            searchPlaceholder="Search product..."
-                            notFoundText="No product found."
-                        />
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a product" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {products
+                                .filter(p => p.status !== 'Out of Stock' && p.status !== 'Expired')
+                                .map(product => (
+                                    <SelectItem key={product.id} value={product.id}>
+                                    {product.name} ({product.currentStock} in stock)
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <FormMessage />
                     </FormItem>
                 )}
@@ -380,5 +376,3 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
     </Dialog>
   )
 }
-
-    

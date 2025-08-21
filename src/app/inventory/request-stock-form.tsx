@@ -24,7 +24,13 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Combobox } from '@/components/ui/combobox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { Product } from '@/context/financial-context'
 
 interface RequestStockFormProps {
@@ -35,7 +41,7 @@ interface RequestStockFormProps {
 }
 
 const formSchema = z.object({
-  productIdentifier: z.string({ required_error: 'Please select or enter a product.' }),
+  productId: z.string({ required_error: 'Please select a product.' }),
   quantity: z.coerce.number().min(1, 'Quantity must be at least 1.'),
   notes: z.string().optional(),
 })
@@ -49,19 +55,11 @@ export function RequestStockForm({ isOpen, onClose, onSave, products }: RequestS
     },
   })
 
-  const productOptions = React.useMemo(() => {
-    return products.map(product => ({
-      value: product.id,
-      label: `${product.name} (Main Stock: ${product.mainStock})`,
-    }))
-  }, [products]);
-
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const selectedProduct = products.find(p => p.id === values.productIdentifier);
-    const productId = selectedProduct ? selectedProduct.id : 'new-product-request';
-    const productName = selectedProduct ? selectedProduct.name : values.productIdentifier;
+    const selectedProduct = products.find(p => p.id === values.productId);
+    if (!selectedProduct) return;
 
-    onSave(productId, productName, values.quantity, values.notes || '')
+    onSave(selectedProduct.id, selectedProduct.name, values.quantity, values.notes || '')
     form.reset()
     onClose()
   }
@@ -72,29 +70,31 @@ export function RequestStockForm({ isOpen, onClose, onSave, products }: RequestS
         <DialogHeader>
           <DialogTitle>Request Stock from Headquarters</DialogTitle>
           <DialogDescription>
-            Select a product or type a new product name, and specify the quantity you need for your shop.
+            Select a product and specify the quantity you need for your shop.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="productIdentifier"
+              name="productId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Product</FormLabel>
-                    <Combobox
-                        options={productOptions}
-                        value={field.value}
-                        onChange={(value) => {
-                           const isOption = productOptions.some(opt => opt.value === value);
-                           field.onChange(isOption ? value : value);
-                        }}
-                        placeholder="Search for a product..."
-                        searchPlaceholder="Search or type new product..."
-                        notFoundText="No product found. Type to add."
-                        allowCustomValue={true}
-                    />
+                   <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a product to request" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {products.map(product => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name} (Main Stock: {product.mainStock})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                    </Select>
                   <FormMessage />
                 </FormItem>
               )}
