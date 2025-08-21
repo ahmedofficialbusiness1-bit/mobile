@@ -42,15 +42,6 @@ export function Combobox({
   const [open, setOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
 
-  React.useEffect(() => {
-    if (value) {
-      setInputValue(options.find((option) => option.value === value)?.label || "")
-    } else {
-      setInputValue("")
-    }
-  }, [value, options]);
-
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -61,19 +52,27 @@ export function Combobox({
           className="w-full justify-between"
         >
           {value
-            ? options.find((option) => option.value === value)?.label
+            ? options.find((option) => option.value === value)?.label ?? (allowCustomValue ? value : placeholder)
             : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
-        <Command>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+        <Command
+          filter={(optionValue, search) => {
+            const option = options.find(opt => opt.value === optionValue);
+            if (option?.label.toLowerCase().includes(search.toLowerCase())) return 1;
+            return 0;
+          }}
+        >
           <CommandInput 
             placeholder={searchPlaceholder} 
+            value={inputValue}
+            onValueChange={setInputValue}
           />
           <CommandList>
             <CommandEmpty>
-              {allowCustomValue ? (
+              {allowCustomValue && inputValue ? (
                  <CommandItem
                   onSelect={() => {
                     onChange(inputValue)
@@ -92,7 +91,7 @@ export function Combobox({
                   key={option.value}
                   value={option.value}
                   onSelect={(currentValue) => {
-                    onChange(currentValue === value ? "" : currentValue)
+                    onChange(currentValue)
                     setOpen(false)
                   }}
                 >
