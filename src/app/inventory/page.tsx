@@ -21,8 +21,7 @@ import {
 } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { InventorySummaryCards } from './inventory-summary-cards'
-import { InventoryDataTable } from './inventory-data-table'
-import { differenceInDays, startOfMonth, isWithinInterval } from 'date-fns'
+import { differenceInDays, startOfMonth, isWithinInterval, endOfMonth } from 'date-fns'
 import { AddProductForm } from './add-product-form'
 import { useToast } from '@/hooks/use-toast'
 import { TransferStockForm } from './transfer-stock-form'
@@ -94,31 +93,37 @@ function InventoryPageContent() {
   }, [products]);
 
   React.useEffect(() => {
-    // Calculate Monthly Stock Movement
     const today = new Date();
     const monthStart = startOfMonth(today);
-    const monthInterval = { start: monthStart, end: today };
+    const monthEnd = endOfMonth(today);
 
-    const salesThisMonth = transactions
-        .filter(t => isWithinInterval(t.date, monthInterval) && (t.status === 'Paid' || t.status === 'Credit'))
-        .length;
+    // Calculate sales quantity for the current month
+    const salesThisMonthQty = transactions
+      .filter(t => isWithinInterval(t.date, { start: monthStart, end: monthEnd }))
+      .reduce((sum, t) => sum + t.quantity, 0);
 
-    const purchasesThisMonth = purchaseOrders
-      .filter(po => po.receivingStatus === 'Received' && isWithinInterval(po.purchaseDate, monthInterval))
+    // Calculate purchases quantity for the current month
+    const purchasesThisMonthQty = purchaseOrders
+      .filter(po => po.receivingStatus === 'Received' && isWithinInterval(po.purchaseDate, { start: monthStart, end: monthEnd }))
       .reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
-      
+
+    // Calculate current total stock
     const currentStockTotal = products.reduce((sum, p) => sum + p.mainStock + p.shopStock, 0);
-    const openingStock = currentStockTotal - purchasesThisMonth + salesThisMonth;
+    
+    // Correctly calculate opening stock
+    const openingStock = currentStockTotal - purchasesThisMonthQty + salesThisMonthQty;
+
+    // Closing stock is the current stock total at this point in time
     const closingStock = currentStockTotal;
 
     setMonthlyStockData({
-        opening: openingStock,
-        purchases: purchasesThisMonth,
-        sales: salesThisMonth,
+        opening: Math.max(0, openingStock), // Ensure opening stock is not negative
+        purchases: purchasesThisMonthQty,
+        sales: salesThisMonthQty,
         closing: closingStock,
-    })
-
+    });
   }, [products, transactions, purchaseOrders]);
+
 
   const handleSaveProduct = (data: Omit<Product, 'id' | 'status'>) => {
     if (selectedProduct) {
