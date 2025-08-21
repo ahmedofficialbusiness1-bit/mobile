@@ -3,8 +3,8 @@
 
 import * as React from 'react'
 import { PageGuard } from '@/components/security/page-guard'
-import { PlusCircle, Search, Package, Clock, ShoppingCart, TrendingUp, X } from 'lucide-react'
-import { useFinancials, type Product, type DamagedGood } from '@/context/financial-context'
+import { PlusCircle, Search, Package, Clock, ShoppingCart, TrendingUp, X, Send } from 'lucide-react'
+import { useFinancials, type Product, type DamagedGood, type StockRequest } from '@/context/financial-context'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -29,6 +29,9 @@ import { ReportDamageForm } from './report-damage-form'
 import { cn } from '@/lib/utils'
 import { DamagedGoodsTable } from './damaged-goods-table'
 import { InventoryDataTable } from './inventory-data-table'
+import { RequestStockForm } from './request-stock-form'
+import { StockRequestsTable } from './stock-requests-table'
+
 
 interface AgingData {
   new: number;
@@ -45,15 +48,34 @@ interface MonthlyStockData {
 }
 
 function InventoryPageContent() {
-  const { products, transactions, purchaseOrders, damagedGoods, addProduct, updateProduct, deleteProduct, transferStock, reportDamage, shops, activeShopId } = useFinancials()
+  const { 
+    products, 
+    transactions, 
+    purchaseOrders, 
+    damagedGoods, 
+    addProduct, 
+    updateProduct, 
+    deleteProduct, 
+    transferStock, 
+    reportDamage, 
+    shops, 
+    activeShopId,
+    stockRequests,
+    createStockRequest,
+    approveStockRequest,
+    rejectStockRequest
+  } = useFinancials()
   const { toast } = useToast()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isTransferFormOpen, setIsTransferFormOpen] = React.useState(false);
   const [isDamageFormOpen, setIsDamageFormOpen] = React.useState(false);
+  const [isRequestFormOpen, setIsRequestFormOpen] = React.useState(false);
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
   const [searchTerm, setSearchTerm] = React.useState('')
   const [activeFilter, setActiveFilter] = React.useState('All')
   const [monthlyStockData, setMonthlyStockData] = React.useState<MonthlyStockData>({ opening: 0, purchases: 0, sales: 0, closing: 0 });
+  
+  const isHeadquarters = activeShopId === null;
 
  const filteredProducts = React.useMemo(() => {
     const today = new Date();
@@ -64,12 +86,10 @@ function InventoryPageContent() {
       .filter((product) => {
         if (activeFilter === 'All') return true;
         
-        // Status based filters
         if (['In Stock', 'Low Stock', 'Out of Stock', 'Expired'].includes(activeFilter)) {
             return product.status === activeFilter;
         }
 
-        // Aging based filters
         const daysInStock = differenceInDays(today, product.entryDate);
         switch(activeFilter) {
             case 'new': return daysInStock <= 90;
@@ -98,27 +118,22 @@ function InventoryPageContent() {
     const monthStart = startOfMonth(today);
     const monthEnd = endOfMonth(today);
 
-    // Calculate sales quantity for the current month
     const salesThisMonthQty = transactions
       .filter(t => isWithinInterval(t.date, { start: monthStart, end: monthEnd }))
       .reduce((sum, t) => sum + t.quantity, 0);
 
-    // Calculate purchases quantity for the current month
     const purchasesThisMonthQty = purchaseOrders
       .filter(po => po.receivingStatus === 'Received' && isWithinInterval(po.purchaseDate, { start: monthStart, end: monthEnd }))
       .reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
 
-    // Calculate current total stock
     const currentStockTotal = products.reduce((sum, p) => sum + p.mainStock + p.shopStock, 0);
     
-    // Correctly calculate opening stock
     const openingStock = currentStockTotal - purchasesThisMonthQty + salesThisMonthQty;
 
-    // Closing stock is the current stock total at this point in time
     const closingStock = currentStockTotal;
 
     setMonthlyStockData({
-        opening: Math.max(0, openingStock), // Ensure opening stock is not negative
+        opening: Math.max(0, openingStock), 
         purchases: purchasesThisMonthQty,
         sales: salesThisMonthQty,
         closing: closingStock,
@@ -223,6 +238,24 @@ function InventoryPageContent() {
       }
   }
   
+  const handleSaveRequest = (productId: string, quantity: number, notes: string) => {
+    createStockRequest(productId, quantity, notes)
+    .then(() => {
+        toast({
+            title: 'Request Sent',
+            description: 'Your stock request has been sent to headquarters for approval.',
+        });
+        setIsRequestFormOpen(false);
+    })
+    .catch(error => {
+        toast({
+            variant: 'destructive',
+            title: 'Request Failed',
+            description: error.message,
+        });
+    })
+  }
+  
   const handleFilterChange = (newFilter: string) => {
       setActiveFilter(prev => prev === newFilter ? 'All' : newFilter);
   }
@@ -316,18 +349,19 @@ function InventoryPageContent() {
         </Card>
       </div>
 
-      <Tabs defaultValue="main">
+      <Tabs defaultValue={isHeadquarters ? "main" : "shop"} className="w-full">
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
              <div>
-                <CardTitle>Product List</CardTitle>
+                <CardTitle>Product & Stock Management</CardTitle>
                 <CardDescription>
                     Manage and track all products in your inventory.
                 </CardDescription>
              </div>
-             <TabsList>
-                <TabsTrigger value="main">Main Inventory</TabsTrigger>
+             <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
+                {isHeadquarters && <TabsTrigger value="main">Main Inventory</TabsTrigger>}
                 <TabsTrigger value="shop">Shop Inventory</TabsTrigger>
+                <TabsTrigger value="requests">Stock Requests</TabsTrigger>
                 <TabsTrigger value="damaged">Damaged Goods</TabsTrigger>
              </TabsList>
           </div>
@@ -349,21 +383,30 @@ function InventoryPageContent() {
                         Clear Filter: {activeFilter}
                     </Button>
                 )}
-                <Button onClick={handleAddClick}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Product
-                </Button>
+                {isHeadquarters ? (
+                    <Button onClick={handleAddClick}>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Product
+                    </Button>
+                ) : (
+                    <Button onClick={() => setIsRequestFormOpen(true)}>
+                        <Send className="mr-2 h-4 w-4" />
+                        Request Stock
+                    </Button>
+                )}
               </div>
-            <TabsContent value="main">
-                <InventoryDataTable 
-                    products={filteredProducts} 
-                    onEdit={handleEditClick} 
-                    onDelete={handleDeleteClick} 
-                    onTransfer={handleTransferClick}
-                    onDamage={handleDamageClick}
-                    inventoryType="main"
-                />
-            </TabsContent>
+            {isHeadquarters && (
+                <TabsContent value="main">
+                    <InventoryDataTable 
+                        products={filteredProducts} 
+                        onEdit={handleEditClick} 
+                        onDelete={handleDeleteClick} 
+                        onTransfer={handleTransferClick}
+                        onDamage={handleDamageClick}
+                        inventoryType="main"
+                    />
+                </TabsContent>
+            )}
             <TabsContent value="shop">
                  <InventoryDataTable 
                     products={filteredProducts.filter(p => p.currentStock > 0)}
@@ -373,18 +416,28 @@ function InventoryPageContent() {
                     inventoryType="shop"
                 />
             </TabsContent>
+             <TabsContent value="requests">
+                <StockRequestsTable
+                    requests={stockRequests}
+                    isHeadquarters={isHeadquarters}
+                    onApprove={approveStockRequest}
+                    onReject={rejectStockRequest}
+                />
+            </TabsContent>
             <TabsContent value="damaged">
                 <DamagedGoodsTable damagedGoods={damagedGoods} />
             </TabsContent>
         </CardContent>
       </Tabs>
     </div>
-    <AddProductForm 
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSave={handleSaveProduct}
-        product={selectedProduct}
-    />
+    {isHeadquarters && (
+      <AddProductForm 
+          isOpen={isFormOpen}
+          onClose={() => setIsFormOpen(false)}
+          onSave={handleSaveProduct}
+          product={selectedProduct}
+      />
+    )}
     <TransferStockForm
         isOpen={isTransferFormOpen}
         onClose={() => setIsTransferFormOpen(false)}
@@ -398,6 +451,12 @@ function InventoryPageContent() {
         onSave={handleSaveDamage}
         product={selectedProduct}
     />
+     <RequestStockForm
+        isOpen={isRequestFormOpen}
+        onClose={() => setIsRequestFormOpen(false)}
+        onSave={handleSaveRequest}
+        products={products.filter(p => p.mainStock > 0)}
+    />
     </>
   )
 }
@@ -409,5 +468,3 @@ export default function InventoryPage() {
         </PageGuard>
     )
 }
-
-    
