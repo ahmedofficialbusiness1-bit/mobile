@@ -28,6 +28,7 @@ import { TransferStockForm } from './transfer-stock-form'
 import { ReportDamageForm } from './report-damage-form'
 import { cn } from '@/lib/utils'
 import { DamagedGoodsTable } from './damaged-goods-table'
+import { InventoryDataTable } from './inventory-data-table'
 
 interface AgingData {
   new: number;
@@ -399,3 +400,5 @@ export default function InventoryPage() {
         </PageGuard>
     )
 }
+
+    
