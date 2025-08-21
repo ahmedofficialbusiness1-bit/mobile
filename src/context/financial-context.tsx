@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
@@ -89,6 +90,7 @@ export interface CustomerPrepayment {
 export interface Customer {
     id: string;
     userId: string;
+    shopId: string;
     name: string;
     contactPerson?: string;
     phone: string;
@@ -153,6 +155,7 @@ export interface DamagedGood {
 export interface Asset {
     id: string;
     userId: string;
+    shopId: string;
     name: string;
     cost: number;
     acquisitionDate: Date;
@@ -163,7 +166,7 @@ export interface Asset {
     source: 'Capital' | 'Purchase';
 }
 
-export type AddAssetData = Omit<Asset, 'id' | 'status' | 'accumulatedDepreciation' | 'netBookValue' | 'source' | 'userId'>;
+export type AddAssetData = Omit<Asset, 'id' | 'status' | 'accumulatedDepreciation' | 'netBookValue' | 'source' | 'userId' | 'shopId'>;
 
 export interface CapitalContribution {
   id: string;
@@ -279,6 +282,7 @@ interface FinancialContextType {
     shops: Shop[];
     activeShop: Shop | null;
     setActiveShopId: (shopId: string | null) => void;
+    activeShopId: string | null;
     companyName: string;
     products: Product[];
     damagedGoods: DamagedGood[];
@@ -297,8 +301,8 @@ interface FinancialContextType {
     markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
     markPrepaymentAsUsed: (id: string) => Promise<void>;
     markPrepaymentAsRefunded: (id: string) => Promise<void>;
-    addCustomer: (customerData: Omit<Customer, 'id' | 'userId'>) => Promise<void>;
-    updateCustomer: (id: string, customerData: Omit<Customer, 'id' | 'userId'>) => Promise<void>;
+    addCustomer: (customerData: Omit<Customer, 'id' | 'userId' | 'shopId'>) => Promise<void>;
+    updateCustomer: (id: string, customerData: Omit<Customer, 'id' | 'userId' | 'shopId'>) => Promise<void>;
     deleteCustomer: (id: string) => Promise<void>;
     addUserAccount: (userData: Omit<UserAccount, 'id'> & { id: string }) => Promise<void>;
     deleteUserAccount: (id: string) => Promise<void>;
@@ -457,49 +461,47 @@ function useFirestoreUserAccounts() {
 export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { user, loading: authLoading } = useAuth();
     const [activeShopId, setActiveShopId] = useState<string | null>(null);
-    const shops = useFirestoreCollection<Shop>('shops');
+    const allShops = useFirestoreCollection<Shop>('shops');
 
     // Find the default shop ID for data migration once shops are loaded
     const defaultShopIdForMigration = useMemo(() => {
-        const targetShop = shops.find(s => s.name === "Mlandege Home Store 1");
+        const targetShop = allShops.find(s => s.name === "Mlandege Home Store 1");
         return targetShop ? targetShop.id : null;
-    }, [shops]);
+    }, [allShops]);
     
     const allTransactions = useFirestoreCollection<Transaction>('transactions', ['date'], defaultShopIdForMigration);
     const allPayables = useFirestoreCollection<Payable>('payables', ['date'], defaultShopIdForMigration);
     const allPrepayments = useFirestoreCollection<CustomerPrepayment>('prepayments', ['date'], defaultShopIdForMigration);
-    const customers = useFirestoreCollection<Customer>('customers');
+    const allCustomers = useFirestoreCollection<Customer>('customers', [], defaultShopIdForMigration);
     const userAccounts = useFirestoreUserAccounts();
     const initialProducts = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
     const allDamagedGoods = useFirestoreCollection<DamagedGood>('damagedGoods', ['date'], defaultShopIdForMigration);
     const employees = useFirestoreCollection<Employee>('employees');
     const allPayrollHistory = useFirestoreCollection<PayrollRun>('payrollHistory', ['date'], defaultShopIdForMigration);
     const allCapitalContributions = useFirestoreCollection<CapitalContribution>('capitalContributions', ['date'], defaultShopIdForMigration);
-    const initialAssets = useFirestoreCollection<Asset>('assets', ['acquisitionDate']);
+    const initialAssets = useFirestoreCollection<Asset>('assets', ['acquisitionDate'], defaultShopIdForMigration);
     const allExpenses = useFirestoreCollection<Expense>('expenses', ['date'], defaultShopIdForMigration);
     const allPurchaseOrders = useFirestoreCollection<PurchaseOrder>('purchaseOrders', ['purchaseDate', 'expectedDeliveryDate'], defaultShopIdForMigration);
     const allInvoices = useFirestoreCollection<Invoice>('invoices', ['issueDate', 'dueDate'], defaultShopIdForMigration);
 
     const activeShop = useMemo(() => {
         if (activeShopId === null) return null;
-        return shops.find(shop => shop.id === activeShopId) || null;
-    }, [shops, activeShopId]);
-
-    useEffect(() => {
-        // Default to "All Shops" view. User can select a specific one.
-    }, [shops, activeShopId]);
+        return allShops.find(shop => shop.id === activeShopId) || null;
+    }, [allShops, activeShopId]);
 
     // --- Filtered Data based on Active Shop ---
     const transactions = useMemo(() => activeShopId ? allTransactions.filter(t => t.shopId === activeShopId) : allTransactions, [allTransactions, activeShopId]);
     const payables = useMemo(() => activeShopId ? allPayables.filter(p => p.shopId === activeShopId) : allPayables, [allPayables, activeShopId]);
     const prepayments = useMemo(() => activeShopId ? allPrepayments.filter(p => p.shopId === activeShopId) : allPrepayments, [allPrepayments, activeShopId]);
+    const customers = useMemo(() => activeShopId ? allCustomers.filter(c => c.shopId === activeShopId) : allCustomers, [allCustomers, activeShopId]);
+    const shops = useMemo(() => allShops, [allShops]);
     const damagedGoods = useMemo(() => activeShopId ? allDamagedGoods.filter(d => d.shopId === activeShopId) : allDamagedGoods, [allDamagedGoods, activeShopId]);
     const payrollHistory = useMemo(() => activeShopId ? allPayrollHistory.filter(p => p.shopId === activeShopId) : allPayrollHistory, [allPayrollHistory, activeShopId]);
     const capitalContributions = useMemo(() => activeShopId ? allCapitalContributions.filter(c => c.shopId === activeShopId) : allCapitalContributions, [allCapitalContributions, activeShopId]);
     const expenses = useMemo(() => activeShopId ? allExpenses.filter(e => e.shopId === activeShopId) : allExpenses, [allExpenses, activeShopId]);
     const purchaseOrders = useMemo(() => activeShopId ? allPurchaseOrders.filter(po => po.shopId === activeShopId) : allPurchaseOrders, [allPurchaseOrders, activeShopId]);
     const invoices = useMemo(() => activeShopId ? allInvoices.filter(i => i.shopId === activeShopId) : allInvoices, [allInvoices, activeShopId]);
-
+    const assetsData = useMemo(() => activeShopId ? initialAssets.filter(a => a.shopId === activeShopId) : initialAssets, [initialAssets, activeShopId]);
 
     const currentUserAccount = React.useMemo(() => {
         if (!user || userAccounts.length === 0 || authLoading) return null;
@@ -510,14 +512,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const companyName = useMemo(() => currentUserAccount?.companyName || "DiraBiz", [currentUserAccount]);
 
     const assets = useMemo(() => {
-        return initialAssets.map(asset => {
+        return assetsData.map(asset => {
             if (asset.status === 'Active') {
                 const { accumulatedDepreciation, netBookValue } = calculateDepreciation(asset);
                 return { ...asset, accumulatedDepreciation, netBookValue };
             }
             return asset;
         })
-    }, [initialAssets]);
+    }, [assetsData]);
 
     const products = useMemo(() => {
         return initialProducts.map(product => {
@@ -638,6 +640,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                      const custRef = doc(collection(db, 'customers'));
                      transaction.set(custRef, {
                         userId: user.uid,
+                        shopId: activeShopId,
                         name: saleData.customerName,
                         phone: saleData.customerPhone,
                     });
@@ -764,14 +767,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await updateDoc(doc(db, 'prepayments', id), { status: 'Refunded' });
     };
 
-    const addCustomer = async (customerData: Omit<Customer, 'id' | 'userId'>) => {
-        if (!user) throw new Error("User not authenticated.");
-        await addDoc(collection(db, 'customers'), { ...customerData, userId: user.uid });
+    const addCustomer = async (customerData: Omit<Customer, 'id' | 'userId' | 'shopId'>) => {
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop selected.");
+        await addDoc(collection(db, 'customers'), { ...customerData, userId: user.uid, shopId: activeShopId });
     };
 
-    const updateCustomer = async (id: string, customerData: Omit<Customer, 'id' | 'userId'>) => {
+    const updateCustomer = async (id: string, customerData: Omit<Customer, 'id' | 'userId' | 'shopId'>) => {
         if (!user) throw new Error("User not authenticated.");
-        await updateDoc(doc(db, 'customers', id), { ...customerData, userId: user.uid });
+        await updateDoc(doc(db, 'customers', id), customerData);
     };
 
     const deleteCustomer = async (id: string) => {
@@ -909,10 +912,11 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
 
     const addAsset = async (assetData: AddAssetData) => {
-        if (!user) throw new Error("User not authenticated.");
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop selected.");
         const newAssetData = {
             ...assetData,
             userId: user.uid,
+            shopId: activeShopId,
             status: 'Active',
             accumulatedDepreciation: 0,
             netBookValue: assetData.cost,
@@ -974,6 +978,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (data.type === 'Asset') {
             const assetData = {
                 userId: user.uid,
+                shopId: activeShopId,
                 name: data.description,
                 cost: data.amount,
                 acquisitionDate: data.date,
@@ -1351,6 +1356,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         shops,
         activeShop,
         setActiveShopId,
+        activeShopId,
         companyName,
         products,
         damagedGoods,
