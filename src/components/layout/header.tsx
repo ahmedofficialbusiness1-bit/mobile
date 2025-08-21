@@ -15,6 +15,8 @@ import {
   Users,
   Shield,
   LogOut,
+  Store,
+  ChevronDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Menu } from 'lucide-react'
@@ -22,6 +24,16 @@ import { useAuth } from '@/context/auth-context'
 import { auth } from '@/lib/firebase'
 import { signOut } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
+import { useFinancials } from '@/context/financial-context'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu'
+
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },
@@ -67,6 +79,7 @@ export function AppHeader() {
   const router = useRouter()
   const title = getPageTitle(pathname)
   const { user } = useAuth();
+  const { shops, activeShop, setActiveShopId } = useFinancials();
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -84,10 +97,32 @@ export function AppHeader() {
         </SidebarTrigger>
         <h1 className="text-xl font-semibold md:text-2xl font-headline">{title}</h1>
       </div>
-      <Button variant="ghost" size="sm" onClick={handleLogout}>
-        <LogOut className="mr-2 h-4 w-4" />
-        Logout
-      </Button>
+      <div className="flex items-center gap-4">
+         {shops.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Store className="mr-2 h-4 w-4" />
+                  {activeShop ? activeShop.name : "Select Shop"}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel>Available Shops</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {shops.map(shop => (
+                  <DropdownMenuItem key={shop.id} onClick={() => setActiveShopId(shop.id)}>
+                    {shop.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        <Button variant="ghost" size="sm" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </Button>
+      </div>
     </header>
   )
 }
