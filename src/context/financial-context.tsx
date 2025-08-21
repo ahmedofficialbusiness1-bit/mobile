@@ -117,7 +117,7 @@ export interface Product {
   reorderLevel: number;
   reorderQuantity: number;
   purchasePrice: number;
-  sellingPrice: number;
+  sellingPrice: number; // This will no longer be used for sales calculation but kept for reference
   entryDate: Date;
   expiryDate?: Date;
   lastUpdated: Date;
@@ -200,7 +200,6 @@ export interface PurchaseOrderItem {
   modelNo?: string
   quantity: number
   unitPrice: number
-  sellingPrice: number
   uom: string
   totalPrice: number
 }
@@ -271,8 +270,8 @@ interface FinancialContextType {
     deleteCustomer: (id: string) => Promise<void>;
     addUserAccount: (userData: Omit<UserAccount, 'id'> & { id: string }) => Promise<void>;
     deleteUserAccount: (id: string) => Promise<void>;
-    addProduct: (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate'>) => Promise<void>;
-    updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate'>) => Promise<void>;
+    addProduct: (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'sellingPrice'>) => Promise<void>;
+    updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'sellingPrice'>) => Promise<void>;
     deleteProduct: (id: string) => Promise<void>;
     addAsset: (assetData: AddAssetData) => Promise<void>;
     sellAsset: (id: string, sellPrice: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' | 'Credit') => Promise<void>;
@@ -473,11 +472,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         let mobile = 0;
 
         capitalContributions.forEach(c => {
-            // Safeguard: Only process if 'type' exists and is not a drawing
-            if (c.type && c.type !== 'Drawing') {
-                if (c.type === 'Cash') cash += c.amount;
-                else if (c.type === 'Bank') bank += c.amount;
-            }
+            if (c.type === 'Cash') cash += c.amount;
+            else if (c.type === 'Bank') bank += c.amount;
         });
 
         transactions.forEach(t => {
@@ -518,7 +514,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             throw new Error(`Not enough stock for ${product.name}. Only ${product.currentStock} available.`);
         }
         
-        const grossAmount = product.sellingPrice * saleData.quantity;
+        const grossAmount = saleData.unitPrice * saleData.quantity;
         const netAmount = grossAmount / (1 + saleData.vatRate);
         const vatAmount = grossAmount - netAmount;
 
@@ -700,10 +696,11 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await deleteDoc(doc(db, 'userAccounts', id));
     }
     
-    const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate'>) => {
+    const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'sellingPrice'>) => {
         if (!user) throw new Error("User not authenticated.");
         const newProduct = {
             ...productData,
+            sellingPrice: 0, // Not used, set to 0
             userId: user.uid,
             status: getProductStatus(productData as Product),
             initialStock: productData.currentStock,
@@ -713,13 +710,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await addDoc(collection(db, 'products'), newProduct);
     };
     
-    const updateProduct = async (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate'>) => {
+    const updateProduct = async (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'sellingPrice'>) => {
         if (!user) throw new Error("User not authenticated.");
         const originalProduct = products.find(p => p.id === id);
         if (!originalProduct) throw new Error("Product not found.");
         
         const updatedProductData = {
             ...productData,
+            sellingPrice: 0,
             initialStock: originalProduct.initialStock, // Retain original values
             entryDate: originalProduct.entryDate,
             status: getProductStatus(productData as Product),
@@ -1028,7 +1026,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     reorderLevel: 10,
                     reorderQuantity: 20,
                     purchasePrice: item.unitPrice,
-                    sellingPrice: item.sellingPrice,
+                    sellingPrice: 0, // No longer set at purchase time
                     entryDate: new Date(),
                     lastUpdated: new Date(),
                     supplier: po.supplierName,

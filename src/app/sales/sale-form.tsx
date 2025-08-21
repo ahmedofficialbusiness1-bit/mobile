@@ -45,6 +45,7 @@ export interface SaleFormData {
   productId: string
   productName: string
   quantity: number
+  unitPrice: number
   paymentMethod: PaymentMethod
   vatRate: VatRate
 }
@@ -64,6 +65,7 @@ const formSchema = z.object({
   customerPhone: z.string().optional(),
   productId: z.string({ required_error: 'Please select a product.' }),
   quantity: z.coerce.number().min(1, { message: 'Quantity must be at least 1.' }),
+  unitPrice: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
   paymentMethod: z.enum(['Cash', 'Mobile', 'Bank', 'Credit', 'Prepaid']),
   vatRate: z.coerce.number().min(0).max(0.18),
 }).superRefine((data, ctx) => {
@@ -99,6 +101,7 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
     defaultValues: {
       customerType: 'existing',
       quantity: 1,
+      unitPrice: 0,
       paymentMethod: 'Cash',
       vatRate: 0.18,
     },
@@ -107,7 +110,7 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
   const selectedProductId = form.watch('productId');
   const customerType = form.watch('customerType');
   const quantity = form.watch('quantity');
-  const vatRate = form.watch('vatRate');
+  const unitPrice = form.watch('unitPrice');
   const selectedProduct = products.find(p => p.id === selectedProductId);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
@@ -140,6 +143,7 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
     form.reset({
       customerType: 'existing',
       quantity: 1,
+      unitPrice: 0,
       paymentMethod: 'Cash',
       vatRate: 0.18,
     })
@@ -147,9 +151,8 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
   }
   
   const calculateTotal = () => {
-      if (!selectedProduct || !quantity) return 0;
-      // VAT is inclusive, so the total price is simply selling price * quantity
-      const grossTotal = selectedProduct.sellingPrice * quantity;
+      if (!unitPrice || !quantity) return 0;
+      const grossTotal = unitPrice * quantity;
       return grossTotal;
   }
 
@@ -286,27 +289,41 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
                 />
                  <FormField
                   control={form.control}
-                  name="vatRate"
+                  name="unitPrice"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>VAT</FormLabel>
-                      <Select onValueChange={(value) => field.onChange(parseFloat(value))} defaultValue={String(field.value)}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="0.18">Mainland (18%)</SelectItem>
-                          <SelectItem value="0.15">Zanzibar (15%)</SelectItem>
-                          <SelectItem value="0">No VAT (0%)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Unit Price (TSh)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="Enter selling price" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
             </div>
+            
+             <FormField
+                control={form.control}
+                name="vatRate"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>VAT</FormLabel>
+                    <Select onValueChange={(value) => field.onChange(parseFloat(value))} defaultValue={String(field.value)}>
+                    <FormControl>
+                        <SelectTrigger>
+                        <SelectValue />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        <SelectItem value="0.18">Mainland (18%)</SelectItem>
+                        <SelectItem value="0.15">Zanzibar (15%)</SelectItem>
+                        <SelectItem value="0">No VAT (0%)</SelectItem>
+                    </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
 
              <FormItem>
                 <FormLabel>Total Price (TSh)</FormLabel>

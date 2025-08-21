@@ -32,7 +32,7 @@ import { format } from 'date-fns'
 import type { Product } from '@/context/financial-context'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
-export type AddProductFormData = Omit<Product, 'id' | 'status' | 'lastUpdated' | 'initialStock' | 'entryDate'> & {
+export type AddProductFormData = Omit<Product, 'id' | 'status' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'sellingPrice'> & {
     entryDate?: Date;
 }
 
@@ -46,7 +46,6 @@ const formSchema = z.object({
   reorderLevel: z.coerce.number().min(0, 'Reorder level cannot be negative.'),
   reorderQuantity: z.coerce.number().min(1, 'Reorder quantity must be at least 1.'),
   purchasePrice: z.coerce.number().min(0, 'Purchase price cannot be negative.'),
-  sellingPrice: z.coerce.number().min(0, 'Selling price cannot be negative.'),
   expiryDate: z.date().optional(),
   location: z.string().optional(),
   batchNumber: z.string().optional(),
@@ -73,7 +72,6 @@ export function AddProductForm({ isOpen, onClose, onSave, product }: AddProductF
       reorderLevel: 10,
       reorderQuantity: 20,
       purchasePrice: 0,
-      sellingPrice: 0,
       location: '',
       batchNumber: '',
       supplier: '',
@@ -94,7 +92,6 @@ export function AddProductForm({ isOpen, onClose, onSave, product }: AddProductF
         reorderLevel: 10,
         reorderQuantity: 20,
         purchasePrice: 0,
-        sellingPrice: 0,
         location: '',
         batchNumber: '',
         supplier: '',
@@ -210,19 +207,6 @@ export function AddProductForm({ isOpen, onClose, onSave, product }: AddProductF
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Purchase Price (TSh)</FormLabel>
-                        <FormControl>
-                          <Input type="number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="sellingPrice"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Selling Price (TSh)</FormLabel>
                         <FormControl>
                           <Input type="number" {...field} />
                         </FormControl>
