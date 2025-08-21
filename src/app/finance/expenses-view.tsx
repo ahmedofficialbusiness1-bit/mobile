@@ -125,7 +125,7 @@ export default function ExpensesView() {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 no-print">
           <div>
             <CardTitle>Usimamizi wa Matumizi</CardTitle>
             <CardDescription>Fuatilia na thibitisha matumizi ya kila siku ya biashara.</CardDescription>
@@ -136,7 +136,7 @@ export default function ExpensesView() {
           </Button>
         </CardHeader>
         <CardContent>
-           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 no-print">
               <div className="relative w-full sm:max-w-xs">
                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                <Input 
@@ -207,7 +207,7 @@ export default function ExpensesView() {
                   <TableHead>Hali</TableHead>
                   <TableHead>Njia ya Malipo</TableHead>
                   <TableHead className="text-right">Kiasi</TableHead>
-                  <TableHead className="text-center">Kitendo</TableHead>
+                  <TableHead className="text-center no-print">Kitendo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -229,7 +229,7 @@ export default function ExpensesView() {
                       </TableCell>
                        <TableCell>{expense.paymentMethod || '---'}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">TSh {expense.amount.toLocaleString()}</TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center no-print">
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon">
