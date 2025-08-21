@@ -18,6 +18,7 @@ export function InventorySummaryCards({ products, onFilterChange, activeFilter }
   const { activeShopId } = useFinancials();
 
   const totalValue = products.reduce((sum, p) => {
+    // If a shop is active, use its current stock. Otherwise, use the total stock (main + all shops)
     const stockQuantity = activeShopId ? p.currentStock : (p.mainStock + p.shopStock);
     return sum + stockQuantity * p.purchasePrice;
   }, 0)

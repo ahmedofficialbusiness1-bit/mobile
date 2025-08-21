@@ -386,17 +386,16 @@ const calculateDepreciation = (asset: Asset): { accumulatedDepreciation: number;
     return { accumulatedDepreciation, netBookValue };
 };
 
-const getProductStatus = (product: Omit<Product, 'status'|'id'|'userId'|'currentStock'>): Product['status'] => {
+const getProductStatus = (product: Omit<Product, 'id'|'userId'>, stockLevel: number): Product['status'] => {
     const now = new Date();
-    const totalStock = product.mainStock + (product.shopStock || 0);
 
     if (product.expiryDate && isAfter(now, toDate(product.expiryDate))) {
         return 'Expired';
     }
-    if (totalStock <= 0) {
+    if (stockLevel <= 0) {
         return 'Out of Stock';
     }
-    if (totalStock <= product.reorderLevel) {
+    if (stockLevel <= product.reorderLevel) {
         return 'Low Stock';
     }
     return 'In Stock';
@@ -557,15 +556,19 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const products = useMemo(() => {
         return initialProducts.map(product => {
-             const stockByShop = product.stockByShop || {};
-             const totalShopStock = Object.values(stockByShop).reduce((sum, qty) => sum + qty, 0);
-             const currentStockForShop = activeShopId ? (stockByShop[activeShopId] || 0) : totalShopStock;
-             
+            const stockByShop = product.stockByShop || {};
+            const totalShopStock = Object.values(stockByShop).reduce((sum, qty) => sum + qty, 0);
+            
+            // Determine the stock level to check for status
+            const stockLevelForStatus = activeShopId 
+                ? (stockByShop[activeShopId] || 0) // Use specific shop stock if active
+                : product.mainStock + totalShopStock; // Use total stock if no shop is active (HQ view)
+
             return {
                 ...product,
                 shopStock: totalShopStock, // Total across all shops
-                currentStock: currentStockForShop, // Stock for the currently active shop OR total shop stock if no shop is active
-                status: getProductStatus({ ...product, shopStock: totalShopStock }),
+                currentStock: activeShopId ? (stockByShop[activeShopId] || 0) : 0, // Stock for the currently active shop
+                status: getProductStatus(product, stockLevelForStatus),
             }
         })
     }, [initialProducts, activeShopId]);
@@ -677,9 +680,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             transaction.set(transRef, newTransaction);
 
             const updatedStockByShop = { ...(product.stockByShop || {}), [activeShopId]: shopStock - saleData.quantity };
-            const newTotalShopStock = Object.values(updatedStockByShop).reduce((sum, qty) => sum + qty, 0);
-            const newStatus = getProductStatus({ ...product, shopStock: newTotalShopStock });
-            transaction.update(productRef, { stockByShop: updatedStockByShop, shopStock: newTotalShopStock, status: newStatus, lastUpdated: new Date() });
+            
+            transaction.update(productRef, { stockByShop: updatedStockByShop, lastUpdated: new Date() });
 
             if (saleData.customerType === 'new') {
                 const customerQuery = query(collection(db, 'customers'), where('phone', '==', saleData.customerPhone), where('userId', '==', user.uid));
@@ -714,9 +716,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     const product = productDoc.data() as Product;
                     const currentShopStock = product.stockByShop?.[saleToDelete.shopId] || 0;
                     const updatedStockByShop = { ...(product.stockByShop || {}), [saleToDelete.shopId]: currentShopStock + saleToDelete.quantity };
-                    const newTotalShopStock = Object.values(updatedStockByShop).reduce((sum, qty) => sum + qty, 0);
-                    const newStatus = getProductStatus({ ...product, shopStock: newTotalShopStock });
-                    transaction.update(productRef, { stockByShop: updatedStockByShop, shopStock: newTotalShopStock, status: newStatus, lastUpdated: new Date() });
+                    transaction.update(productRef, { stockByShop: updatedStockByShop, lastUpdated: new Date() });
                 }
             }
 
@@ -860,7 +860,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const newProduct = {
             ...productData,
             userId: user.uid,
-            status: getProductStatus({ ...productData, shopStock: 0 } as Product),
+            status: getProductStatus({ ...productData } as Product, productData.mainStock),
             initialStock: productData.mainStock,
             shopStock: 0,
             stockByShop: {},
@@ -883,7 +883,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             stockByShop: originalProduct.stockByShop,
             shopStock: totalShopStock,
             entryDate: originalProduct.entryDate,
-            status: getProductStatus({ ...productData, shopStock: totalShopStock } as Product),
             lastUpdated: new Date(),
              userId: user.uid,
         };
@@ -911,14 +910,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             const newMainStock = product.mainStock - quantity;
             const currentShopStock = product.stockByShop?.[toShopId] || 0;
             const updatedStockByShop = { ...(product.stockByShop || {}), [toShopId]: currentShopStock + quantity };
-            const newTotalShopStock = Object.values(updatedStockByShop).reduce((sum, qty) => sum + qty, 0);
-            const newStatus = getProductStatus({ ...product, mainStock: newMainStock, shopStock: newTotalShopStock });
             
             transaction.update(productRef, {
                 mainStock: newMainStock,
-                shopStock: newTotalShopStock,
                 stockByShop: updatedStockByShop,
-                status: newStatus,
                 lastUpdated: new Date()
             });
         });
@@ -940,10 +935,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
 
             const updatedStockByShop = { ...(product.stockByShop || {}), [activeShopId]: shopStock - quantity };
-            const newTotalShopStock = Object.values(updatedStockByShop).reduce((sum, qty) => sum + qty, 0);
-            const newStatus = getProductStatus({ ...product, shopStock: newTotalShopStock });
 
-            transaction.update(productRef, { stockByShop: updatedStockByShop, shopStock: newTotalShopStock, status: newStatus, lastUpdated: new Date() });
+            transaction.update(productRef, { stockByShop: updatedStockByShop, lastUpdated: new Date() });
 
             const damageRecord = {
                 userId: user.uid,
@@ -1255,8 +1248,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                         const productRef = doc(db, 'products', productDoc.id);
                         const productData = productDoc.data() as Product;
                         const newStock = productData.mainStock - item.quantity;
-                        const newStatus = getProductStatus({ ...productData, mainStock: newStock });
-                        transaction.update(productRef, { mainStock: newStock, status: newStatus });
+                        transaction.update(productRef, { mainStock: newStock });
                     }
                 }
             }
@@ -1284,8 +1276,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 const existingProduct = { id: existingProductDoc.id, ...existingProductDoc.data() } as Product;
                 const productRef = doc(db, 'products', existingProduct.id);
                 const newStock = existingProduct.mainStock + item.quantity;
-                const newStatus = getProductStatus({ ...existingProduct, mainStock: newStock });
-                batch.update(productRef, { mainStock: newStock, status: newStatus, lastUpdated: new Date() });
+                batch.update(productRef, { mainStock: newStock, lastUpdated: new Date() });
             } else {
                 const newProductData = {
                     userId: user.uid,
@@ -1303,7 +1294,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     entryDate: new Date(),
                     lastUpdated: new Date(),
                     supplier: po.supplierName,
-                    status: 'In Stock'
                 };
                 const productRef = doc(collection(db, 'products'));
                 batch.set(productRef, newProductData);

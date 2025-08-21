@@ -125,7 +125,7 @@ function InventoryPageContent() {
       .filter(po => po.receivingStatus === 'Received' && isWithinInterval(po.purchaseDate, { start: monthStart, end: monthEnd }))
       .reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
 
-    const currentStockTotal = filteredProducts.reduce((sum, p) => sum + (activeShopId === null ? p.mainStock + p.shopStock : p.currentStock), 0);
+    const currentStockTotal = products.reduce((sum, p) => sum + (activeShopId === null ? p.mainStock + p.shopStock : p.currentStock), 0);
     
     const openingStock = currentStockTotal - purchasesThisMonthQty + salesThisMonthQty;
 
@@ -137,7 +137,7 @@ function InventoryPageContent() {
         sales: salesThisMonthQty,
         closing: closingStock,
     };
-  }, [filteredProducts, transactions, purchaseOrders, activeShopId]);
+  }, [products, transactions, purchaseOrders, activeShopId]);
 
   const handleSaveProduct = (data: Omit<Product, 'id' | 'status'>) => {
     if (selectedProduct) {
@@ -278,7 +278,7 @@ function InventoryPageContent() {
         </p>
       </div>
 
-      <InventorySummaryCards products={filteredProducts} onFilterChange={handleFilterChange} activeFilter={activeFilter} />
+      <InventorySummaryCards products={products} onFilterChange={handleFilterChange} activeFilter={activeFilter} />
       
        <div className="grid gap-4 md:grid-cols-2">
         <Card>
