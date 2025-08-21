@@ -62,15 +62,12 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
 
     // Equity
     const shareCapital = capitalContributions
-        .filter(c => c.type !== 'Liability' && c.type !== 'Drawing' && new Date(c.date) <= endDate)
+        .filter(c => c.type !== 'Liability' && new Date(c.date) <= endDate)
         .reduce((sum, c) => sum + c.amount, 0);
 
-    const drawings = capitalContributions
-        .filter(c => c.type === 'Drawing' && new Date(c.date) <= endDate)
-        .reduce((sum, c) => sum + c.amount, 0);
         
     const retainedEarnings = 0; // Simplified - needs P&L calculation up to date
-    const totalEquity = shareCapital + retainedEarnings - drawings;
+    const totalEquity = shareCapital + retainedEarnings;
     
     const totalLiabilitiesAndEquity = totalLiabilities + totalEquity;
 

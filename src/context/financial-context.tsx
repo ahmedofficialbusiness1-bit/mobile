@@ -174,7 +174,7 @@ export interface CapitalContribution {
   shopId: string;
   date: Date;
   description: string;
-  type: 'Cash' | 'Bank' | 'Asset' | 'Liability' | 'Drawing';
+  type: 'Cash' | 'Bank' | 'Asset' | 'Liability';
   amount: number;
 }
 
@@ -559,11 +559,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         let mobile = 0;
 
         const relevantContributions = activeShopId 
-            ? capitalContributions.filter(c => c.shopId === activeShopId)
-            : capitalContributions;
+            ? allCapitalContributions.filter(c => c.shopId === activeShopId)
+            : allCapitalContributions;
         
         relevantContributions.forEach(c => {
-            // Safeguard against items without a type property
             if (c && c.type) {
                 if (c.type === 'Cash') cash += c.amount;
                 else if (c.type === 'Bank') bank += c.amount;
@@ -593,7 +592,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
         
         return { cash, bank, mobile };
-    }, [transactions, capitalContributions, expenses, prepayments, activeShopId]);
+    }, [transactions, allCapitalContributions, expenses, prepayments, activeShopId]);
 
     const addSale = async (saleData: SaleFormData) => {
         if (!user || !activeShopId) throw new Error("User not authenticated or no active shop selected.");
