@@ -73,7 +73,7 @@ export default function ShopsSettings() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {shops.length > 0 ? (
+                                {shops && shops.length > 0 ? (
                                     shops.map(shop => (
                                         <TableRow key={shop.id}>
                                             <TableCell className="font-medium">{shop.name}</TableCell>
