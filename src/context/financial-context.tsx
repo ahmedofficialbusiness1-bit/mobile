@@ -474,9 +474,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         let mobile = 0;
 
         capitalContributions.forEach(c => {
-            if (!c.type) return;
-            if (c.type === 'Cash') cash += c.amount;
-            else if (c.type === 'Bank') bank += c.amount;
+            if (c && c.type) { // Safeguard against null/undefined object or missing type
+                if (c.type === 'Cash') cash += c.amount;
+                else if (c.type === 'Bank') bank += c.amount;
+            }
         });
 
         transactions.forEach(t => {
@@ -489,6 +490,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         prepayments.forEach(p => {
             if (p.status === 'Active') {
+                // Assuming prepayments hit the bank
                 bank += p.prepaidAmount;
             }
         });
