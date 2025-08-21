@@ -558,16 +558,17 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         return initialProducts.map(product => {
             const stockByShop = product.stockByShop || {};
             const totalShopStock = Object.values(stockByShop).reduce((sum, qty) => sum + qty, 0);
+            const currentShopStock = activeShopId ? (stockByShop[activeShopId] || 0) : 0;
             
             // Determine the stock level to check for status
             const stockLevelForStatus = activeShopId 
-                ? (stockByShop[activeShopId] || 0) // Use specific shop stock if active
+                ? currentShopStock // Use specific shop stock if active
                 : product.mainStock + totalShopStock; // Use total stock if no shop is active (HQ view)
 
             return {
                 ...product,
                 shopStock: totalShopStock, // Total across all shops
-                currentStock: activeShopId ? (stockByShop[activeShopId] || 0) : 0, // Stock for the currently active shop
+                currentStock: currentShopStock, // Stock for the currently active shop
                 status: getProductStatus(product, stockLevelForStatus),
             }
         })
@@ -1521,4 +1522,3 @@ export const useFinancials = (): FinancialContextType => {
     }
     return context;
 };
-
