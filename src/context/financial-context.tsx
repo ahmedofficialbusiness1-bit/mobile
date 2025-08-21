@@ -865,7 +865,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             initialStock: productData.mainStock,
             shopStock: 0,
             stockByShop: {},
-            entryDate: new Date(),
+            entryDate: productData.entryDate || new Date(),
             lastUpdated: new Date(),
         };
         await addDoc(collection(db, 'products'), newProduct);
