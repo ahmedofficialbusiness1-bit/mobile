@@ -46,10 +46,10 @@ export default function ExpensesView() {
     setIsPaymentDialogOpen(true);
   }
 
-  const handleApproveExpense = (paymentData: { amount: number, paymentMethod: PaymentMethod }) => {
+  const handleApproveExpense = async (paymentData: { amount: number, paymentMethod: PaymentMethod }) => {
     if (!selectedExpense) return;
     try {
-        approveExpense(selectedExpense.id, paymentData);
+        await approveExpense(selectedExpense.id, paymentData);
         toast({
           title: "Tarakilishi Limethibitishwa",
           description: `Tarakilishi limelipwa kwa ${paymentData.paymentMethod} na litahesabiwa kwenye vitabu vya fedha.`,
