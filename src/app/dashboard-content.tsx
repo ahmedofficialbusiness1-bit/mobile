@@ -114,10 +114,10 @@ interface DashboardData {
 
 export default function DashboardPageContent() {
     const { 
-        transactions: allTransactions, 
-        payables: allPayables, 
-        prepayments: allPrepayments, 
-        products: allProducts,
+        transactions, 
+        payables, 
+        prepayments, 
+        products,
         userAccounts
     } = useFinancials();
     const { user } = useAuth();
@@ -162,20 +162,20 @@ export default function DashboardPageContent() {
         
         const dateRange = { start: fromDate, end: toDate };
 
-        const filteredTransactions = allTransactions.filter(t => isWithinInterval(t.date, dateRange));
+        const filteredTransactions = transactions.filter(t => isWithinInterval(t.date, dateRange));
         
         const totalRevenue = filteredTransactions
             .filter(t => t.status === 'Paid')
             .reduce((acc, t) => acc + t.amount, 0);
 
-        const originalSalesInPeriod = allTransactions.filter(t => 
+        const originalSalesInPeriod = transactions.filter(t => 
             isWithinInterval(t.date, dateRange) && (t.status === 'Paid' || t.status === 'Credit') && t.notes !== 'Debt Repayment'
         );
         
         const sales = originalSalesInPeriod.length;
 
         const customerPhonesInPeriod = new Set(originalSalesInPeriod.map(t => t.phone));
-        const pastTransactions = allTransactions.filter(t => t.date < fromDate);
+        const pastTransactions = transactions.filter(t => t.date < fromDate);
         const pastCustomerPhones = new Set(pastTransactions.map(t => t.phone));
         const newCustomers = Array.from(customerPhonesInPeriod).filter(phone => !pastCustomerPhones.has(phone)).length;
 
@@ -189,7 +189,7 @@ export default function DashboardPageContent() {
                 return acc;
             }, { cash: 0, mobile: 0, bank: 0, credit: 0 });
         
-        const creditTotal = allTransactions
+        const creditTotal = transactions
             .filter(t => t.status === 'Credit')
             .reduce((sum, t) => sum + t.amount, 0);
         paymentBreakdown.credit = creditTotal;
@@ -212,7 +212,7 @@ export default function DashboardPageContent() {
         });
 
         const threeMonthsAgo = subMonths(new Date(), 3);
-        const slowMovingProducts = allProducts
+        const slowMovingProducts = products
             .filter(p => p.entryDate < threeMonthsAgo)
             .map(p => {
                 const totalStock = p.mainStock + p.shopStock;
@@ -234,21 +234,21 @@ export default function DashboardPageContent() {
                 return acc;
             }, [] as ProductSales[]);
 
-        const accountsReceivable = allTransactions
+        const accountsReceivable = transactions
             .filter(t => t.status === 'Credit')
             .sort((a, b) => b.date.getTime() - a.date.getTime());
         
         const totalReceivable = accountsReceivable.reduce((acc, item) => acc + item.amount, 0);
             
-        const accountsPayable = allPayables.filter(p => p.status === 'Unpaid').sort((a, b) => b.date.getTime() - a.date.getTime());
+        const accountsPayable = payables.filter(p => p.status === 'Unpaid').sort((a, b) => b.date.getTime() - a.date.getTime());
 
         const totalPayable = accountsPayable.reduce((acc, item) => acc + item.amount, 0);
         
-        const activeCustomerPrepayments = allPrepayments.filter(p => p.status === 'Active').sort((a, b) => b.prepaidAmount - a.prepaidAmount);
+        const activeCustomerPrepayments = prepayments.filter(p => p.status === 'Active').sort((a, b) => b.prepaidAmount - a.prepaidAmount);
         
         const totalPrepayments = activeCustomerPrepayments.reduce((acc, item) => acc + item.prepaidAmount, 0);
         
-        const inventoryValue = allProducts.reduce((sum, product) => sum + ((product.mainStock + product.shopStock) * product.purchasePrice), 0);
+        const inventoryValue = products.reduce((sum, product) => sum + ((product.mainStock + product.shopStock) * product.purchasePrice), 0);
 
 
         setDashboardData({
@@ -268,7 +268,7 @@ export default function DashboardPageContent() {
             totalPayable,
             totalPrepayments,
         });
-    }, [date, allTransactions, allPayables, allPrepayments, allProducts]);
+    }, [date, transactions, payables, prepayments, products]);
 
     const handlePresetChange = (value: string) => {
         setSelectedPreset(value);
@@ -815,5 +815,7 @@ export default function DashboardPageContent() {
         </div>
       )
 }
+
+    
 
     
