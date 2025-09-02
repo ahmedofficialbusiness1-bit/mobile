@@ -592,7 +592,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const cashBalances = useMemo(() => {
         // User requested a cash reset
-        let cash = 1018850;
+        let cash = 0;
         let bank = 0;
         let mobile = 0;
 
@@ -602,8 +602,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         
         relevantContributions.forEach(c => {
             if (c && c.type) {
-                // Ignore the initial cash injection from the calculation logic
-                if (c.description === "Initial Capital Injection") return;
                 if (c.type === 'Cash') cash += c.amount;
                 else if (c.type === 'Bank') bank += c.amount;
             }
@@ -1488,6 +1486,26 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
         await addDoc(collection(db, 'fundTransfers'), { ...data, userId: user.uid, shopId: activeShopId });
     };
+
+    useEffect(() => {
+        const addInitialCapital = async () => {
+            if (user) {
+                const capQuery = query(collection(db, 'capitalContributions'), where('userId', '==', user.uid), where('description', '==', 'Additional Cash Injection'));
+                const capSnap = await getDocs(capQuery);
+                if (capSnap.empty) {
+                    await addDoc(collection(db, 'capitalContributions'), {
+                        userId: user.uid,
+                        shopId: defaultShopIdForMigration || 'default',
+                        date: new Date(),
+                        description: 'Additional Cash Injection',
+                        type: 'Cash',
+                        amount: 1566000
+                    });
+                }
+            }
+        };
+        addInitialCapital();
+    }, [user, defaultShopIdForMigration]);
 
 
     const contextValue: FinancialContextType = {
