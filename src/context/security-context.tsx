@@ -8,12 +8,11 @@ import { useAuth } from './auth-context';
 // For production, a more robust solution would be needed.
 
 interface SecurityContextType {
-  password: string | null;
-  setPassword: (password: string) => void;
-  checkPassword: (password: string) => boolean;
-  lockedItems: string[];
-  toggleLockedItem: (itemId: string) => void;
-  isItemLocked: (itemId: string) => boolean;
+  locks: Record<string, string>;
+  setLock: (itemId: string, password: string) => void;
+  removeLock: (itemId: string) => void;
+  checkPassword: (itemId: string, password: string) => boolean;
+  isItemLocked: (itemId: string, ignoreSessionUnlock?: boolean) => boolean;
   unlockItem: (itemId: string) => void;
 }
 
@@ -21,48 +20,52 @@ const SecurityContext = createContext<SecurityContextType | undefined>(undefined
 
 export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const [password, setPasswordState] = useState<string | null>(null);
-  const [lockedItems, setLockedItems] = useState<string[]>([]);
+  const [locks, setLocks] = useState<Record<string, string>>({});
   const [unlockedItems, setUnlockedItems] = useState<string[]>([]);
 
   // Load state from localStorage on mount
   useEffect(() => {
     if (user) {
         try {
-            const storedPassword = localStorage.getItem(`sp_${user.uid}`);
-            const storedLockedItems = localStorage.getItem(`sl_${user.uid}`);
-            if (storedPassword) setPasswordState(storedPassword);
-            if (storedLockedItems) setLockedItems(JSON.parse(storedLockedItems));
+            const storedLocks = localStorage.getItem(`sl2_${user.uid}`);
+            if (storedLocks) setLocks(JSON.parse(storedLocks));
         } catch (error) {
             console.error("Failed to load security settings from localStorage", error);
         }
     }
   }, [user]);
 
-  const setPassword = useCallback((newPassword: string) => {
+  const setLock = useCallback((itemId: string, password: string) => {
     if (user) {
-        setPasswordState(newPassword);
-        localStorage.setItem(`sp_${user.uid}`, newPassword);
+        setLocks(prev => {
+            const newLocks = { ...prev, [itemId]: password };
+            localStorage.setItem(`sl2_${user.uid}`, JSON.stringify(newLocks));
+            return newLocks;
+        });
     }
   }, [user]);
 
-  const checkPassword = (input: string) => {
-    return input === password;
-  };
-
-  const toggleLockedItem = useCallback((itemId: string) => {
+  const removeLock = useCallback((itemId: string) => {
     if (user) {
-        const newLockedItems = lockedItems.includes(itemId)
-          ? lockedItems.filter(id => id !== itemId)
-          : [...lockedItems, itemId];
-        setLockedItems(newLockedItems);
-        localStorage.setItem(`sl_${user.uid}`, JSON.stringify(newLockedItems));
+        setLocks(prev => {
+            const newLocks = { ...prev };
+            delete newLocks[itemId];
+            localStorage.setItem(`sl2_${user.uid}`, JSON.stringify(newLocks));
+            return newLocks;
+        });
     }
-  }, [lockedItems, user]);
+  }, [user]);
+
+  const checkPassword = (itemId: string, input: string) => {
+    return locks[itemId] === input;
+  };
   
-  const isItemLocked = (itemId: string) => {
-      // An item is locked if it's in the lockedItems list AND not in the session's unlockedItems list
-      return lockedItems.includes(itemId) && !unlockedItems.includes(itemId);
+  const isItemLocked = (itemId: string, ignoreSessionUnlock = false) => {
+      const hasPassword = !!locks[itemId];
+      if (ignoreSessionUnlock) return hasPassword;
+
+      const isUnlockedInSession = unlockedItems.includes(itemId);
+      return hasPassword && !isUnlockedInSession;
   }
 
   const unlockItem = (itemId: string) => {
@@ -73,7 +76,7 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
   }
 
   return (
-    <SecurityContext.Provider value={{ password, setPassword, checkPassword, lockedItems, toggleLockedItem, isItemLocked, unlockItem }}>
+    <SecurityContext.Provider value={{ locks, setLock, removeLock, checkPassword, isItemLocked, unlockItem }}>
       {children}
     </SecurityContext.Provider>
   );

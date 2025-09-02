@@ -130,7 +130,7 @@ export function AppHeader() {
                 <Button variant="outline">
                   {activeShop ? <Store className="mr-2 h-4 w-4" /> : <Building className="mr-2 h-4 w-4" />}
                   {activeShop ? activeShop.name : `${companyName} (All)`}
-                   {isItemLocked(activeShopId || 'hq') && <Lock className="ml-2 h-3 w-3 text-muted-foreground" />}
+                   {isItemLocked(activeShopId || 'hq', true) && <Lock className="ml-2 h-3 w-3 text-muted-foreground" />}
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -140,14 +140,14 @@ export function AppHeader() {
                 <DropdownMenuItem onClick={() => handleShopChange(null)}>
                    <Building className="mr-2 h-4 w-4" />
                    {companyName} (All Shops)
-                   {isItemLocked('hq') && <Lock className="ml-auto h-3 w-3 text-muted-foreground" />}
+                   {isItemLocked('hq', true) && <Lock className="ml-auto h-3 w-3 text-muted-foreground" />}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {shops.map(shop => (
                   <DropdownMenuItem key={shop.id} onClick={() => handleShopChange(shop.id)}>
                     <Store className="mr-2 h-4 w-4" />
                     {shop.name}
-                    {isItemLocked(shop.id) && <Lock className="ml-auto h-3 w-3 text-muted-foreground" />}
+                    {isItemLocked(shop.id, true) && <Lock className="ml-auto h-3 w-3 text-muted-foreground" />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -163,6 +163,7 @@ export function AppHeader() {
         isOpen={!!promptingFor}
         onClose={() => setPromptingFor(null)}
         onSuccess={handlePasswordSuccess}
+        itemIdToUnlock={promptingFor}
       />
     </>
   )

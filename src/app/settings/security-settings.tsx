@@ -2,28 +2,33 @@
 'use client'
 
 import * as React from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useSecurity } from '@/context/security-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancials } from '@/context/financial-context';
 import { Lock, Building, Store, Home, ShoppingCart, Users, FileText, Truck, Warehouse, Banknote, FilePlus2, BarChart2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
-const formSchema = z.object({
+const lockableItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
-  lockedItems: z.array(z.string()),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords do not match.",
   path: ["confirmPassword"],
 });
+
+const formSchema = z.object({
+  items: z.array(lockableItemSchema),
+});
+
 
 const pageItems = [
     { id: '/', name: 'Dashboard', icon: Home },
@@ -38,168 +43,139 @@ const pageItems = [
 ];
 
 export default function SecuritySettings() {
-    const { password, setPassword, lockedItems, toggleLockedItem } = useSecurity();
+    const { locks, setLock, removeLock, isItemLocked } = useSecurity();
     const { shops, companyName } = useFinancials();
     const { toast } = useToast();
+    
+    const shopItems = React.useMemo(() => [
+        { id: 'hq', name: `${companyName} (All Shops)`, icon: Building },
+        ...shops.map(shop => ({ id: shop.id, name: shop.name, icon: Store }))
+    ], [shops, companyName]);
+    
+    const allItems = React.useMemo(() => [...shopItems, ...pageItems], [shopItems]);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            password: '',
-            confirmPassword: '',
-            lockedItems: lockedItems,
+            items: allItems.map(item => ({
+                id: item.id,
+                name: item.name,
+                password: '',
+                confirmPassword: '',
+            }))
         },
     });
-
-    React.useEffect(() => {
-        form.setValue('lockedItems', lockedItems);
-    }, [lockedItems, form]);
+    
+    const { fields } = useFieldArray({
+        control: form.control,
+        name: "items"
+    });
 
     const onSubmit = (data: z.infer<typeof formSchema>) => {
-        if (data.password) {
-            if (data.password.length < 4) {
-                 form.setError("password", { message: "Password must be at least 4 characters."});
-                 return;
+        let changesMade = false;
+        data.items.forEach(item => {
+            if (item.password && item.password.length > 0) {
+                 if (item.password.length < 4) {
+                     form.setError(`items.${allItems.findIndex(i => i.id === item.id)}.password`, { message: "Password must be at least 4 characters."});
+                     return;
+                 }
+                setLock(item.id, item.password);
+                changesMade = true;
             }
-            setPassword(data.password);
-            toast({
-                title: "Password Updated",
-                description: "Your new password has been set successfully.",
-            });
-            form.reset({ password: '', confirmPassword: '', lockedItems: data.lockedItems });
-        } else {
+        });
+
+        if (form.formState.isDirty && changesMade) {
              toast({
-                title: "Settings Saved",
-                description: "Your lock settings have been updated.",
+                title: "Security Settings Updated",
+                description: "Your new password settings have been saved.",
+            });
+            form.reset({
+                 items: allItems.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    password: '',
+                    confirmPassword: '',
+                }))
             });
         }
     };
     
-    const shopItems = [
-        { id: 'hq', name: `${companyName} (All Shops)`, icon: Building },
-        ...shops.map(shop => ({ id: shop.id, name: shop.name, icon: Store }))
-    ];
-
+    const handleRemoveLock = (itemId: string) => {
+        removeLock(itemId);
+        toast({
+            title: "Lock Removed",
+            description: `The password for this item has been removed.`,
+            variant: 'destructive'
+        });
+    }
+    
+    const getItemIcon = (id: string) => {
+        const item = allItems.find(i => i.id === id);
+        return item?.icon || Lock;
+    }
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Access Security Settings</CardTitle>
                 <CardDescription>
-                    Set a password to lock access to specific shops or pages.
+                    Set a unique password for any page or shop view to restrict access. Leave password fields blank to make no changes.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                        <div>
-                            <h3 className="text-lg font-medium">Set/Change Password</h3>
-                            <p className="text-sm text-muted-foreground">
-                               {password ? "Enter a new password to update it. Leave blank to keep the current one." : "Set a password to enable locking features."}
-                            </p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                                <FormField
-                                    control={form.control}
-                                    name="password"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>New Password</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="confirmPassword"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Confirm New Password</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-                        </div>
-                        
-                        <Separator />
-
-                        <div>
-                            <h3 className="text-lg font-medium">Lock Management</h3>
-                            <p className="text-sm text-muted-foreground">
-                                Select which pages or shop views to protect with the password.
-                            </p>
-                            {!password && (
-                                <p className="text-sm text-destructive mt-4">You must set a password before you can lock any items.</p>
-                            )}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mt-4">
-                                 <div>
-                                    <h4 className="font-semibold mb-2">Shops / Branches</h4>
-                                     <div className="space-y-4">
-                                       {shopItems.map(item => (
-                                            <FormField
-                                                key={item.id}
-                                                control={form.control}
-                                                name="lockedItems"
-                                                render={() => (
-                                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                                                        <div className="space-y-0.5">
-                                                            <FormLabel className="flex items-center gap-2">
-                                                                <item.icon className="h-4 w-4" />
-                                                                {item.name}
-                                                            </FormLabel>
-                                                        </div>
-                                                        <FormControl>
-                                                           <Switch
-                                                                disabled={!password}
-                                                                checked={lockedItems.includes(item.id)}
-                                                                onCheckedChange={() => toggleLockedItem(item.id)}
-                                                            />
-                                                        </FormControl>
-                                                     </FormItem>
-                                                )}
-                                            />
-                                       ))}
+                        <div className="space-y-6">
+                            {fields.map((field, index) => {
+                                 const Icon = getItemIcon(field.id);
+                                 return (
+                                <div key={field.id}>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Icon className="h-5 w-5 text-muted-foreground" />
+                                            <h3 className="font-semibold">{field.name}</h3>
+                                            {isItemLocked(field.id, true) && <Lock className="h-4 w-4 text-primary" />}
+                                        </div>
+                                        {isItemLocked(field.id, true) && (
+                                            <Button type="button" variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => handleRemoveLock(field.id)}>
+                                                Remove Lock
+                                            </Button>
+                                        )}
                                     </div>
-                                 </div>
-                                 <div>
-                                    <h4 className="font-semibold mb-2">Pages / Menu Items</h4>
-                                     <div className="space-y-4">
-                                       {pageItems.map(item => (
-                                            <FormField
-                                                key={item.id}
-                                                control={form.control}
-                                                name="lockedItems"
-                                                render={() => (
-                                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                                                        <div className="space-y-0.5">
-                                                            <FormLabel className="flex items-center gap-2">
-                                                                <item.icon className="h-4 w-4" />
-                                                                {item.name}
-                                                            </FormLabel>
-                                                        </div>
-                                                        <FormControl>
-                                                           <Switch
-                                                                disabled={!password}
-                                                                checked={lockedItems.includes(item.id)}
-                                                                onCheckedChange={() => toggleLockedItem(item.id)}
-                                                            />
-                                                        </FormControl>
-                                                     </FormItem>
-                                                )}
-                                            />
-                                       ))}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 pl-7">
+                                        <FormField
+                                            control={form.control}
+                                            name={`items.${index}.password`}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>{isItemLocked(field.id, true) ? 'New Password' : 'Set Password'}</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="password" {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name={`items.${index}.confirmPassword`}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Confirm Password</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="password" {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
                                     </div>
-                                 </div>
-                            </div>
+                                    {index < fields.length -1 && <Separator className="mt-6"/>}
+                                </div>
+                            )})}
                         </div>
 
-                        <Button type="submit">Save Settings</Button>
+                        <Button type="submit">Save All Changes</Button>
                     </form>
                 </Form>
             </CardContent>

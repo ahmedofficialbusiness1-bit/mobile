@@ -54,6 +54,7 @@ export function PageGuard({ children }: PageGuardProps) {
             onClose={() => {}} // Prevent closing
             onSuccess={handleSuccess}
             isGlobalGuard={true}
+            itemIdToUnlock={itemToUnlock}
           />
       )
   }

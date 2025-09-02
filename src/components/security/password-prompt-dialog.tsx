@@ -19,7 +19,8 @@ import { useRouter } from 'next/navigation'
 interface PasswordPromptDialogProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: () => void;
+  itemIdToUnlock: string | null;
   isGlobalGuard?: boolean
 }
 
@@ -27,6 +28,7 @@ export function PasswordPromptDialog({
   isOpen,
   onClose,
   onSuccess,
+  itemIdToUnlock,
   isGlobalGuard = false,
 }: PasswordPromptDialogProps) {
   const [passwordInput, setPasswordInput] = React.useState('')
@@ -36,7 +38,8 @@ export function PasswordPromptDialog({
   const router = useRouter()
 
   const handleSubmit = () => {
-    if (checkPassword(passwordInput)) {
+    if (!itemIdToUnlock) return;
+    if (checkPassword(itemIdToUnlock, passwordInput)) {
       onSuccess()
       setPasswordInput('')
       setError('')
@@ -57,6 +60,14 @@ export function PasswordPromptDialog({
     }
     onClose();
   }
+  
+  // Clear state when dialog opens
+  React.useEffect(() => {
+      if (isOpen) {
+          setPasswordInput('');
+          setError('');
+      }
+  }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

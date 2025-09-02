@@ -69,7 +69,7 @@ export default function SelectShopPage() {
                 <p className="font-semibold">{companyName} (All Shops)</p>
                 <p className="text-sm text-muted-foreground">View consolidated data</p>
               </div>
-               {isItemLocked('hq') && <Lock className="h-4 w-4 text-muted-foreground" />}
+               {isItemLocked('hq', true) && <Lock className="h-4 w-4 text-muted-foreground" />}
             </Button>
             {shops.map((shop) => (
               <Button
@@ -83,7 +83,7 @@ export default function SelectShopPage() {
                     <p className="font-semibold">{shop.name}</p>
                     <p className="text-sm text-muted-foreground">{shop.location || 'Branch'}</p>
                 </div>
-                 {isItemLocked(shop.id) && <Lock className="h-4 w-4 text-muted-foreground" />}
+                 {isItemLocked(shop.id, true) && <Lock className="h-4 w-4 text-muted-foreground" />}
               </Button>
             ))}
           </CardContent>
@@ -93,6 +93,7 @@ export default function SelectShopPage() {
         isOpen={!!promptingFor}
         onClose={() => setPromptingFor(null)}
         onSuccess={handlePasswordSuccess}
+        itemIdToUnlock={promptingFor}
       />
     </>
   )

@@ -93,7 +93,7 @@ export function AppSidebar() {
                     <item.icon className="h-4 w-4" />
                     <span>{item.label}</span>
                   </div>
-                  {isItemLocked(item.href) && <Lock className="h-3 w-3 text-muted-foreground" />}
+                  {isItemLocked(item.href, true) && <Lock className="h-3 w-3 text-muted-foreground" />}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -113,7 +113,7 @@ export function AppSidebar() {
                                 <item.icon className="h-4 w-4" />
                                 <span>{item.label}</span>
                             </div>
-                            {isItemLocked(item.href) && <Lock className="h-3 w-3 text-muted-foreground" />}
+                            {isItemLocked(item.href, true) && <Lock className="h-3 w-3 text-muted-foreground" />}
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
