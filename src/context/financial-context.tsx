@@ -627,6 +627,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 else if (e.paymentMethod === 'Mobile') mobile -= e.amount;
             }
         });
+
+        payables.forEach(p => {
+            if (p.status === 'Paid' && p.paymentMethod) {
+                if (p.paymentMethod === 'Cash') cash -= p.amount;
+                else if (p.paymentMethod === 'Bank') bank -= p.amount;
+                else if (p.paymentMethod === 'Mobile') mobile -= p.amount;
+            }
+        });
         
         fundTransfers.forEach(ft => {
             if(ft.from === 'Cash') cash -= ft.amount;
@@ -638,7 +646,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
         
         return { cash, bank, mobile };
-    }, [transactions, allCapitalContributions, expenses, prepayments, fundTransfers, activeShopId]);
+    }, [transactions, allCapitalContributions, expenses, prepayments, payables, fundTransfers, activeShopId]);
 
     const addSale = async (saleData: SaleFormData) => {
         if (!user || !activeShopId) throw new Error("User not authenticated or no active shop selected.");
