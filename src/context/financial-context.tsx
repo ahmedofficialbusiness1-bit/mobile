@@ -606,7 +606,11 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
         });
 
-        transactions.forEach(t => {
+        const relevantTransactions = activeShopId
+            ? allTransactions.filter(t => t.shopId === activeShopId)
+            : allTransactions;
+
+        relevantTransactions.forEach(t => {
             if (t.status === 'Paid') {
                 if (t.paymentMethod === 'Cash') cash += t.amount;
                 else if (t.paymentMethod === 'Bank') bank += t.amount;
@@ -614,13 +618,21 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
         });
 
-        prepayments.forEach(p => {
+        const relevantPrepayments = activeShopId
+            ? allPrepayments.filter(p => p.shopId === activeShopId)
+            : allPrepayments;
+
+        relevantPrepayments.forEach(p => {
             if (p.status === 'Active') {
                 bank += p.prepaidAmount;
             }
         });
         
-        expenses.forEach(e => {
+        const relevantExpenses = activeShopId
+            ? allExpenses.filter(e => e.shopId === activeShopId)
+            : allExpenses;
+
+        relevantExpenses.forEach(e => {
             if (e.status === 'Approved' && e.paymentMethod) {
                 if (e.paymentMethod === 'Cash') cash -= e.amount;
                 else if (e.paymentMethod === 'Bank') bank -= e.amount;
@@ -628,7 +640,11 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
         });
         
-        fundTransfers.forEach(ft => {
+        const relevantFundTransfers = activeShopId
+            ? allFundTransfers.filter(ft => ft.shopId === activeShopId)
+            : allFundTransfers;
+
+        relevantFundTransfers.forEach(ft => {
             if(ft.from === 'Cash') cash -= ft.amount;
             if(ft.from === 'Bank') bank -= ft.amount;
             if(ft.from === 'Mobile') mobile -= ft.amount;
@@ -636,9 +652,31 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             if(ft.to === 'Bank') bank += ft.amount;
             if(ft.to === 'Mobile') mobile += ft.amount;
         });
+
+        const relevantPayables = activeShopId
+            ? allPayables.filter(p => p.shopId === activeShopId)
+            : allPayables;
+
+        relevantPayables.forEach(p => {
+            if (p.status === 'Paid' && p.paymentMethod) {
+                 if (p.paymentMethod === 'Cash') cash -= p.amount;
+                 else if (p.paymentMethod === 'Bank') bank -= p.amount;
+                 else if (p.paymentMethod === 'Mobile') mobile -= p.amount;
+            }
+        });
+
+        const relevantPayroll = activeShopId
+            ? allPayrollHistory.filter(pr => pr.shopId === activeShopId)
+            : allPayrollHistory;
+
+        relevantPayroll.forEach(pr => {
+             if (pr.paymentMethod === 'Cash') cash -= pr.netSalary;
+             else if (pr.paymentMethod === 'Bank') bank -= pr.netSalary;
+             else if (pr.paymentMethod === 'Mobile') mobile -= pr.netSalary;
+        });
         
         return { cash, bank, mobile };
-    }, [transactions, allCapitalContributions, expenses, prepayments, fundTransfers, activeShopId]);
+    }, [allTransactions, allCapitalContributions, allExpenses, allPrepayments, allFundTransfers, allPayables, allPayrollHistory, activeShopId]);
 
     const addSale = async (saleData: SaleFormData) => {
         if (!user || !activeShopId) throw new Error("User not authenticated or no active shop selected.");
@@ -766,7 +804,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const markPayableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
-        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
+        const currentShopId = activeShopId;
+        if (!user || !currentShopId) throw new Error("User not authenticated or no active shop.");
         if (paymentMethod === 'Credit' || paymentMethod === 'Prepaid') throw new Error("Invalid payment method for payables.");
         
         const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
@@ -783,14 +822,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             const remainingAmount = payableData.amount - amount;
 
             if (remainingAmount <= 0) {
-                 transaction.update(payableRef, { status: 'Paid', amount: 0 }); 
+                 transaction.update(payableRef, { status: 'Paid', amount: 0, paymentMethod: paymentMethod }); 
             } else {
                  transaction.update(payableRef, { amount: remainingAmount });
             }
 
             const newExpense = {
                 userId: user.uid,
-                shopId: activeShopId,
+                shopId: currentShopId,
                 description: `Payment for ${payableData.product} to ${payableData.supplierName}`,
                 category: 'Manunuzi Ofisi',
                 amount: amount,
