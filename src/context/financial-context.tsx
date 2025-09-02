@@ -591,7 +591,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [allCapitalContributions, activeShopId]);
 
     const cashBalances = useMemo(() => {
-        // User requested a cash reset
         let cash = 0;
         let bank = 0;
         let mobile = 0;
@@ -1490,14 +1489,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     useEffect(() => {
         const addInitialCapital = async () => {
             if (user) {
-                const capQuery = query(collection(db, 'capitalContributions'), where('userId', '==', user.uid), where('description', '==', 'Additional Cash Injection'));
+                const capQuery = query(collection(db, 'capitalContributions'), where('userId', '==', user.uid), where('description', '==', 'Second Cash Injection'));
                 const capSnap = await getDocs(capQuery);
                 if (capSnap.empty) {
                     await addDoc(collection(db, 'capitalContributions'), {
                         userId: user.uid,
                         shopId: defaultShopIdForMigration || 'default',
                         date: new Date(),
-                        description: 'Additional Cash Injection',
+                        description: 'Second Cash Injection',
                         type: 'Cash',
                         amount: 1566000
                     });
