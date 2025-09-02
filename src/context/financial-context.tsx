@@ -591,7 +591,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [allCapitalContributions, activeShopId]);
 
     const cashBalances = useMemo(() => {
-        let cash = 0;
+        // User requested a cash reset
+        let cash = 1018850;
         let bank = 0;
         let mobile = 0;
 
@@ -601,6 +602,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         
         relevantContributions.forEach(c => {
             if (c && c.type) {
+                // Ignore the initial cash injection from the calculation logic
+                if (c.description === "Initial Capital Injection") return;
                 if (c.type === 'Cash') cash += c.amount;
                 else if (c.type === 'Bank') bank += c.amount;
             }
