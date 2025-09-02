@@ -27,9 +27,11 @@ import {
   Shield,
   Settings,
   FilePlus2,
+  Lock,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuth } from '@/context/auth-context'
+import { useSecurity } from '@/context/security-context'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home, id: 'dashboard' },
@@ -53,6 +55,7 @@ export function AppSidebar() {
   const pathname = usePathname()
   const { setOpenMobile } = useSidebar()
   const { user, isAdmin } = useAuth()
+  const { isItemLocked } = useSecurity();
 
   const handleLinkClick = () => {
     // Close sidebar on link click on mobile
@@ -90,6 +93,7 @@ export function AppSidebar() {
                     <item.icon className="h-4 w-4" />
                     <span>{item.label}</span>
                   </div>
+                  {isItemLocked(item.href) && <Lock className="h-3 w-3 text-muted-foreground" />}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -109,6 +113,7 @@ export function AppSidebar() {
                                 <item.icon className="h-4 w-4" />
                                 <span>{item.label}</span>
                             </div>
+                            {isItemLocked(item.href) && <Lock className="h-3 w-3 text-muted-foreground" />}
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
