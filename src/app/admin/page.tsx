@@ -2,7 +2,6 @@
 'use client'
 
 import * as React from 'react'
-import { PageGuard } from '@/components/security/page-guard'
 import {
   MoreHorizontal,
   Search,
@@ -274,8 +273,6 @@ function AdminPageContent() {
 
 export default function AdminPage() {
     return (
-        <PageGuard tabId="admin">
-            <AdminPageContent />
-        </PageGuard>
+        <AdminPageContent />
     )
 }

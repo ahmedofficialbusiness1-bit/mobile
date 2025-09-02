@@ -2,7 +2,6 @@
 'use client'
 
 import * as React from 'react'
-import { PageGuard } from '@/components/security/page-guard'
 import {
   Tabs,
   TabsContent,
@@ -163,8 +162,6 @@ function ReportsPageContent() {
 
 export default function ReportsPage() {
     return (
-        <PageGuard tabId="reports">
-            <ReportsPageContent />
-        </PageGuard>
+        <ReportsPageContent />
     )
 }

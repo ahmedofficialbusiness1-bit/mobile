@@ -2,7 +2,6 @@
 'use client'
 
 import * as React from 'react'
-import { PageGuard } from '@/components/security/page-guard'
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
 import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, Trash2 } from 'lucide-react'
@@ -333,8 +332,6 @@ function PurchasesPageContent() {
 
 export default function PurchasesPage() {
     return (
-        <PageGuard tabId="purchases">
-            <PurchasesPageContent />
-        </PageGuard>
+        <PurchasesPageContent />
     )
 }

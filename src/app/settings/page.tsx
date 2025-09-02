@@ -2,17 +2,6 @@
 'use client'
 
 import * as React from 'react'
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useSecurity } from '@/context/security-context'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
-import { useToast } from '@/hooks/use-toast'
-import { PageGuard } from '@/components/security/page-guard'
 import {
   Tabs,
   TabsContent,
@@ -20,106 +9,9 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs'
 import ShopsSettings from './shops-settings'
-import { useFinancials } from '@/context/financial-context'
-
-
-const tabs = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'sales', label: 'Sales' },
-  { id: 'customers', label: 'Customers' },
-  { id: 'invoices', label: 'Invoices' },
-  { id: 'purchases', label: 'Purchases' },
-  { id: 'inventory', label: 'Inventory' },
-  { id: 'finance', label: 'Finance' },
-  { id: 'post-expense', label: 'Post Expense' },
-  { id: 'reports', label: 'Reports' },
-  { id: 'admin', label: 'Admin Panel' },
-  { id: 'settings', label: 'Settings' },
-]
-
-const formSchema = z.object({
-  password: z.string().min(4, 'Password must be at least 4 characters.'),
-})
-
-interface SecurityFormProps {
-  itemId: string
-  itemLabel: string
-  itemType: 'tab' | 'shop'
-}
-
-function SecurityForm({ itemId, itemLabel, itemType }: SecurityFormProps) {
-  const { lockItem, removeItemLock, lockedItems } = useSecurity()
-  const { toast } = useToast()
-  const isLocked = lockedItems.hasOwnProperty(itemId)
-  const [isEnabled, setIsEnabled] = React.useState(isLocked)
-  
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { password: '' },
-  })
-
-  React.useEffect(() => {
-    setIsEnabled(lockedItems.hasOwnProperty(itemId));
-  }, [lockedItems, itemId]);
-  
-  const handleToggle = (checked: boolean) => {
-    setIsEnabled(checked)
-    if (!checked) {
-      removeItemLock(itemId)
-      form.reset()
-      toast({ title: `Security disabled for ${itemLabel}` })
-    }
-  }
-
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    lockItem(itemId, values.password)
-    toast({ title: `Password set for ${itemLabel}` })
-    form.reset()
-  }
-
-  return (
-    <div className="flex flex-col sm:flex-row items-start justify-between gap-4 rounded-lg border p-4">
-      <div className="space-y-0.5">
-        <h3 className="font-medium">{itemLabel}</h3>
-        <p className="text-sm text-muted-foreground">
-          {isLocked
-            ? 'Security is enabled and password is set.'
-            : isEnabled
-            ? 'Security is enabled. Set a password.'
-            : 'Security is disabled.'}
-        </p>
-      </div>
-      <div className="w-full sm:w-auto flex flex-col items-end gap-4">
-        <Switch checked={isEnabled} onCheckedChange={handleToggle} />
-        {isEnabled && !isLocked && (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-2">
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="sr-only">Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="Enter password" {...field} />
-                    </FormControl>
-                    <FormMessage className="text-xs" />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit">Set Password</Button>
-            </form>
-          </Form>
-        )}
-      </div>
-    </div>
-  )
-}
 
 
 function SettingsPageContent() {
-    const { shops } = useFinancials();
-
     return (
         <div className="flex flex-col gap-8">
             <div className="text-left">
@@ -127,39 +19,16 @@ function SettingsPageContent() {
                 Settings
                 </h1>
                 <p className="text-muted-foreground mt-2 max-w-2xl">
-                Manage your application settings, shops, and security preferences.
+                Manage your application settings and shops.
                 </p>
             </div>
 
             <Tabs defaultValue="shops" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-1">
                     <TabsTrigger value="shops">Shops & Branches</TabsTrigger>
-                    <TabsTrigger value="security">Access Security</TabsTrigger>
                 </TabsList>
                 <TabsContent value="shops">
                     <ShopsSettings />
-                </TabsContent>
-                <TabsContent value="security">
-                     <Card>
-                        <CardHeader>
-                        <CardTitle>Access Security</CardTitle>
-                        <CardDescription>
-                            Set a password to restrict access to specific areas. Once set, a password cannot be changed, only removed by disabling security for that item.
-                        </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                           <h3 className="text-lg font-semibold mt-6 mb-2">Shop & Branch Access</h3>
-                            <SecurityForm itemId="headquarters" itemLabel="Headquarters (All Shops View)" itemType="shop" />
-                            {shops.map(shop => (
-                                 <SecurityForm key={shop.id} itemId={shop.id} itemLabel={shop.name} itemType="shop" />
-                            ))}
-
-                           <h3 className="text-lg font-semibold mt-8 mb-2">Page / Tab Access</h3>
-                            {tabs.map(tab => (
-                                <SecurityForm key={tab.id} itemId={tab.id} itemLabel={tab.label} itemType="tab" />
-                            ))}
-                        </CardContent>
-                    </Card>
                 </TabsContent>
             </Tabs>
         </div>
@@ -168,8 +37,6 @@ function SettingsPageContent() {
 
 export default function SettingsPage() {
     return (
-        <PageGuard tabId="settings">
-            <SettingsPageContent />
-        </PageGuard>
+        <SettingsPageContent />
     )
 }

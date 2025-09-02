@@ -4,7 +4,6 @@
 import * as React from 'react'
 import { useAuth } from '@/context/auth-context';
 import DashboardPageContent from './dashboard-content';
-import { PageGuard } from '@/components/security/page-guard';
 
 export default function DashboardPage() {
     const { user, loading } = useAuth();
@@ -24,8 +23,6 @@ export default function DashboardPage() {
     }
 
     return (
-        <PageGuard tabId="dashboard">
-            <DashboardPageContent />
-        </PageGuard>
+        <DashboardPageContent />
     );
 }

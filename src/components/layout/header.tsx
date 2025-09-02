@@ -34,8 +34,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
-import { useSecurity } from '@/context/security-context'
-import { PasswordPromptDialog } from '@/components/security/password-prompt-dialog'
 
 
 const navItems = [
@@ -83,34 +81,14 @@ export function AppHeader() {
   const title = getPageTitle(pathname)
   const { user } = useAuth();
   const { shops, activeShop, setActiveShopId, companyName } = useFinancials();
-  const { isItemLocked, verifyPassword, unlockItem } = useSecurity();
   
-  const [promptingFor, setPromptingFor] = React.useState<{id: string | null, name: string} | null>(null);
-
   const handleLogout = async () => {
     await signOut(auth);
     router.push('/login');
   }
 
-  const handleShopChange = (shopId: string | null, shopName: string) => {
-      const idToCheck = shopId === null ? 'headquarters' : shopId;
-      if (isItemLocked(idToCheck)) {
-          setPromptingFor({ id: idToCheck, name: shopName });
-      } else {
-          setActiveShopId(shopId);
-      }
-  }
-
-  const handlePasswordSubmit = (password: string) => {
-      if (!promptingFor) return;
-
-      if (verifyPassword(promptingFor.id!, password)) {
-          unlockItem(promptingFor.id!);
-          setActiveShopId(promptingFor.id === 'headquarters' ? null : promptingFor.id);
-          setPromptingFor(null);
-      } else {
-          alert('Incorrect password');
-      }
+  const handleShopChange = (shopId: string | null) => {
+    setActiveShopId(shopId);
   }
 
   if (!user) return null;
@@ -138,13 +116,13 @@ export function AppHeader() {
               <DropdownMenuContent>
                 <DropdownMenuLabel>Switch View</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleShopChange(null, 'Headquarters (All Shops)')}>
+                <DropdownMenuItem onClick={() => handleShopChange(null)}>
                    <Building className="mr-2 h-4 w-4" />
                    {companyName} (All Shops)
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {shops.map(shop => (
-                  <DropdownMenuItem key={shop.id} onClick={() => handleShopChange(shop.id, shop.name)}>
+                  <DropdownMenuItem key={shop.id} onClick={() => handleShopChange(shop.id)}>
                     <Store className="mr-2 h-4 w-4" />
                     {shop.name}
                   </DropdownMenuItem>
@@ -158,12 +136,6 @@ export function AppHeader() {
         </Button>
       </div>
     </header>
-     <PasswordPromptDialog
-        isOpen={!!promptingFor}
-        onClose={() => setPromptingFor(null)}
-        onSubmit={handlePasswordSubmit}
-        tabName={promptingFor?.name || ''}
-      />
     </>
   )
 }

@@ -2,7 +2,6 @@
 'use client'
 
 import * as React from 'react'
-import { PageGuard } from '@/components/security/page-guard'
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
 import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, FileText } from 'lucide-react'
@@ -258,8 +257,6 @@ function InvoicesPageContent() {
 
 export default function InvoicesPage() {
     return (
-        <PageGuard tabId="invoices">
-            <InvoicesPageContent />
-        </PageGuard>
+        <InvoicesPageContent />
     )
 }

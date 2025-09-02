@@ -2,7 +2,6 @@
 'use client'
 
 import * as React from 'react'
-import { PageGuard } from '@/components/security/page-guard'
 import { PlusCircle, MoreHorizontal, Search, Trash2 } from 'lucide-react'
 import {
   Card,
@@ -193,8 +192,6 @@ function CustomersPageContent() {
 
 export default function CustomersPage() {
     return (
-        <PageGuard tabId="customers">
-            <CustomersPageContent />
-        </PageGuard>
+        <CustomersPageContent />
     )
 }

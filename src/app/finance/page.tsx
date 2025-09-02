@@ -2,7 +2,6 @@
 'use client'
 
 import * as React from 'react'
-import { PageGuard } from '@/components/security/page-guard'
 import {
   Sheet,
   SheetContent,
@@ -119,8 +118,6 @@ function FinancePageContent() {
 
 export default function FinancePage() {
     return (
-        <PageGuard tabId="finance">
-            <FinancePageContent />
-        </PageGuard>
+        <FinancePageContent />
     )
 }

@@ -2,7 +2,6 @@
 'use client'
 
 import * as React from 'react'
-import { PageGuard } from '@/components/security/page-guard'
 import { PlusCircle, Search, Package, Clock, ShoppingCart, TrendingUp, X, Send } from 'lucide-react'
 import { useFinancials, type Product, type DamagedGood, type StockRequest } from '@/context/financial-context'
 import { Button } from '@/components/ui/button'
@@ -460,8 +459,6 @@ function InventoryPageContent() {
 
 export default function InventoryPage() {
     return (
-        <PageGuard tabId="inventory">
-            <InventoryPageContent />
-        </PageGuard>
+        <InventoryPageContent />
     )
 }

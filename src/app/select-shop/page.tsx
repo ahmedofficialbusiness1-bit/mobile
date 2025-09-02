@@ -4,11 +4,9 @@
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { useFinancials } from '@/context/financial-context'
-import { useSecurity } from '@/context/security-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Store, Building } from 'lucide-react'
-import { PasswordPromptDialog } from '@/components/security/password-prompt-dialog'
 import { useAuth } from '@/context/auth-context'
 import { Logo } from '@/components/logo'
 
@@ -16,32 +14,10 @@ export default function SelectShopPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const { shops, setActiveShopId, companyName } = useFinancials()
-  const { isItemLocked, verifyPassword, unlockItem } = useSecurity()
   
-  const [promptingFor, setPromptingFor] = React.useState<{id: string, name: string} | null>(null)
-
-  const handleShopSelection = (shopId: string | null, shopName: string) => {
-    const idToCheck = shopId === null ? 'headquarters' : shopId
-    if (isItemLocked(idToCheck)) {
-      setPromptingFor({ id: idToCheck, name: shopName })
-    } else {
-      setActiveShopId(shopId)
-      router.push('/')
-    }
-  }
-
-  const handlePasswordSubmit = (password: string) => {
-    if (!promptingFor) return
-
-    if (verifyPassword(promptingFor.id, password)) {
-      unlockItem(promptingFor.id)
-      const shopIdToSet = promptingFor.id === 'headquarters' ? null : promptingFor.id
-      setActiveShopId(shopIdToSet)
-      setPromptingFor(null)
-      router.push('/')
-    } else {
-      alert('Incorrect password')
-    }
+  const handleShopSelection = (shopId: string | null) => {
+    setActiveShopId(shopId)
+    router.push('/')
   }
 
   if (loading || !user) {
@@ -67,7 +43,7 @@ export default function SelectShopPage() {
             <Button
               variant="outline"
               className="w-full justify-start h-14 text-left"
-              onClick={() => handleShopSelection(null, `${companyName} (All Shops)`)}
+              onClick={() => handleShopSelection(null)}
             >
               <Building className="mr-4 h-6 w-6" />
               <div>
@@ -80,7 +56,7 @@ export default function SelectShopPage() {
                 key={shop.id}
                 variant="outline"
                 className="w-full justify-start h-14 text-left"
-                onClick={() => handleShopSelection(shop.id, shop.name)}
+                onClick={() => handleShopSelection(shop.id)}
               >
                 <Store className="mr-4 h-6 w-6" />
                  <div>
@@ -92,12 +68,6 @@ export default function SelectShopPage() {
           </CardContent>
         </Card>
       </div>
-      <PasswordPromptDialog
-        isOpen={!!promptingFor}
-        onClose={() => setPromptingFor(null)}
-        onSubmit={handlePasswordSubmit}
-        tabName={promptingFor?.name || ''}
-      />
     </>
   )
 }

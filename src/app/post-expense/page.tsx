@@ -2,7 +2,6 @@
 'use client'
 
 import * as React from 'react'
-import { PageGuard } from '@/components/security/page-guard'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -172,8 +171,6 @@ function PostExpensePageContent() {
 
 export default function PostExpensePage() {
     return (
-        <PageGuard tabId="post-expense">
-            <PostExpensePageContent />
-        </PageGuard>
+        <PostExpensePageContent />
     )
 }
