@@ -103,7 +103,7 @@ function PurchasesPageContent() {
         payPurchaseOrder(selectedPO.id, paymentData)
         toast({
             title: 'Payment Successful',
-            description: `Purchase order has been marked as paid via ${paymentData.paymentMethod}.`,
+            description: `A payment of TSh ${paymentData.amount.toLocaleString()} for the purchase order has been recorded.`,
         })
         setIsPaymentDialogOpen(false)
         setSelectedPO(null)
@@ -212,6 +212,7 @@ function PurchasesPageContent() {
                   <TableRow>
                     <TableHead>PO Number</TableHead>
                     <TableHead>Supplier</TableHead>
+                    <TableHead>Items</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead className="text-right">Total Amount</TableHead>
                     <TableHead className="text-center">Payment Status</TableHead>
@@ -225,6 +226,10 @@ function PurchasesPageContent() {
                       <TableRow key={po.id}>
                         <TableCell className="font-medium">{po.poNumber}</TableCell>
                         <TableCell>{po.supplierName}</TableCell>
+                        <TableCell>
+                          {po.items[0].description}
+                          {po.items.length > 1 && ` + ${po.items.length - 1} more`}
+                        </TableCell>
                         <TableCell>{format(po.purchaseDate, 'PPP')}</TableCell>
                         <TableCell className="text-right">
                           TSh{' '}
@@ -260,7 +265,7 @@ function PurchasesPageContent() {
                                 <DropdownMenuContent>
                                     <DropdownMenuItem onClick={() => handleEdit(po)}>Edit</DropdownMenuItem>
                                     {po.paymentStatus === 'Unpaid' && (
-                                        <DropdownMenuItem onClick={() => handleOpenPaymentDialog(po)}>Mark as Paid</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleOpenPaymentDialog(po)}>Make Payment</DropdownMenuItem>
                                     )}
                                     {po.receivingStatus !== 'Received' && (
                                         <DropdownMenuItem onClick={() => handleReceive(po.id)}>Mark as Received</DropdownMenuItem>
@@ -294,7 +299,7 @@ function PurchasesPageContent() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
+                      <TableCell colSpan={8} className="h-24 text-center">
                         No purchase orders found for the selected filters.
                       </TableCell>
                     </TableRow>
@@ -302,9 +307,8 @@ function PurchasesPageContent() {
                 </TableBody>
                 <TableFooter>
                     <TableRow>
-                        <TableCell colSpan={3} className="font-bold text-lg">Filtered Total</TableCell>
-                        <TableCell className="text-right font-bold text-lg">TSh {filteredTotal.toLocaleString()}</TableCell>
-                        <TableCell colSpan={3}></TableCell>
+                        <TableCell colSpan={4} className="font-bold text-lg">Filtered Total</TableCell>
+                        <TableCell className="text-right font-bold text-lg" colSpan={4}>TSh {filteredTotal.toLocaleString()}</TableCell>
                     </TableRow>
                 </TableFooter>
               </Table>
@@ -323,7 +327,7 @@ function PurchasesPageContent() {
         onClose={() => setIsPaymentDialogOpen(false)}
         onSubmit={handlePayment}
         title={`Pay Purchase Order #${selectedPO?.poNumber}`}
-        description={`Total amount is TSh ${selectedPO?.items.reduce((sum, item) => sum + item.totalPrice, 0).toLocaleString()}.`}
+        description={`Total amount due is TSh ${selectedPO?.items.reduce((sum, item) => sum + item.totalPrice, 0).toLocaleString()}.`}
         totalAmount={selectedPO?.items.reduce((sum, item) => sum + item.totalPrice, 0)}
       />
     </>

@@ -1319,9 +1319,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (!po) return;
 
         const batch = writeBatch(db);
-        const poRef = doc(db, 'purchaseOrders', poId);
-        batch.update(poRef, { paymentStatus: 'Paid', paymentMethod });
-
+        
         const payableQuery = query(
             collection(db, 'payables'), 
             where('product', '==', `From PO #${po.poNumber}`),
@@ -1330,22 +1328,37 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const payableSnap = await getDocs(payableQuery);
         
         if (!payableSnap.empty) {
-            const payableRef = doc(db, 'payables', payableSnap.docs[0].id);
-            batch.update(payableRef, { status: 'Paid', paymentMethod });
+            const payableDoc = payableSnap.docs[0];
+            const payableRef = doc(db, 'payables', payableDoc.id);
+            const payableData = payableDoc.data() as Payable;
+            
+            const remainingAmount = payableData.amount - amount;
+            if (remainingAmount <= 0) {
+                batch.update(payableRef, { status: 'Paid', amount: 0 });
+                const poRef = doc(db, 'purchaseOrders', poId);
+                batch.update(poRef, { paymentStatus: 'Paid', paymentMethod });
+            } else {
+                batch.update(payableRef, { amount: remainingAmount });
+            }
         } else {
-             const totalAmount = po.items.reduce((sum, item) => sum + item.totalPrice, 0);
-             const newExpense = {
-                userId: user.uid,
-                shopId: po.shopId,
-                description: `Payment for PO #${po.poNumber}`,
-                category: 'Manunuzi Ofisi',
-                amount: totalAmount,
-                date: new Date(),
-                status: 'Approved',
-                paymentMethod: paymentMethod,
-            };
-            batch.set(doc(collection(db, 'expenses')), newExpense);
+            // This case handles direct payment for a PO that wasn't on credit initially
+            const poRef = doc(db, 'purchaseOrders', poId);
+            batch.update(poRef, { paymentStatus: 'Paid', paymentMethod });
         }
+        
+        // Always record the expense for the payment made
+        const newExpense = {
+            userId: user.uid,
+            shopId: po.shopId,
+            description: `Payment for PO #${po.poNumber}`,
+            category: 'Manunuzi Ofisi',
+            amount: amount,
+            date: new Date(),
+            status: 'Approved',
+            paymentMethod: paymentMethod,
+        };
+        batch.set(doc(collection(db, 'expenses')), newExpense);
+
         await batch.commit();
     }
 
