@@ -627,14 +627,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 else if (e.paymentMethod === 'Mobile') mobile -= e.amount;
             }
         });
-
-        payables.forEach(p => {
-            if (p.status === 'Paid' && p.paymentMethod) {
-                if (p.paymentMethod === 'Cash') cash -= p.amount;
-                else if (p.paymentMethod === 'Bank') bank -= p.amount;
-                else if (p.paymentMethod === 'Mobile') mobile -= p.amount;
-            }
-        });
         
         fundTransfers.forEach(ft => {
             if(ft.from === 'Cash') cash -= ft.amount;
@@ -646,7 +638,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
         
         return { cash, bank, mobile };
-    }, [transactions, allCapitalContributions, expenses, prepayments, payables, fundTransfers, activeShopId]);
+    }, [transactions, allCapitalContributions, expenses, prepayments, fundTransfers, activeShopId]);
 
     const addSale = async (saleData: SaleFormData) => {
         if (!user || !activeShopId) throw new Error("User not authenticated or no active shop selected.");
@@ -1320,7 +1312,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const { amount, paymentMethod } = paymentData;
         const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
         if (cashBalances[balanceKey] < amount) {
-            throw new Error(`Insufficient funds in ${paymentMethod} account.`);
+            throw new Error(`Insufficient funds in ${paymentMethod} account. Required: ${amount}, Available: ${cashBalances[balanceKey].toLocaleString()}`);
         }
 
         const po = purchaseOrders.find(p => p.id === poId);
