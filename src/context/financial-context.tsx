@@ -804,8 +804,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const markPayableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
-        const currentShopId = activeShopId;
-        if (!user || !currentShopId) throw new Error("User not authenticated or no active shop.");
+        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
         if (paymentMethod === 'Credit' || paymentMethod === 'Prepaid') throw new Error("Invalid payment method for payables.");
         
         const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
@@ -829,7 +828,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
             const newExpense = {
                 userId: user.uid,
-                shopId: currentShopId,
+                shopId: activeShopId,
                 description: `Payment for ${payableData.product} to ${payableData.supplierName}`,
                 category: 'Manunuzi Ofisi',
                 amount: amount,
@@ -1489,17 +1488,36 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     useEffect(() => {
         const addInitialCapital = async () => {
             if (user) {
-                const capQuery = query(collection(db, 'capitalContributions'), where('userId', '==', user.uid), where('description', '==', 'Second Cash Injection'));
+                const capQuery = query(collection(db, 'capitalContributions'), where('userId', '==', user.uid));
                 const capSnap = await getDocs(capQuery);
                 if (capSnap.empty) {
-                    await addDoc(collection(db, 'capitalContributions'), {
+                    const batch = writeBatch(db);
+                    const capitalRef = collection(db, 'capitalContributions');
+                    batch.set(doc(capitalRef), {
                         userId: user.uid,
                         shopId: defaultShopIdForMigration || 'default',
-                        date: new Date(),
+                        date: new Date('2024-01-01'),
+                        description: 'Initial Capital Injection',
+                        type: 'Cash',
+                        amount: 1018850
+                    });
+                    batch.set(doc(capitalRef), {
+                        userId: user.uid,
+                        shopId: defaultShopIdForMigration || 'default',
+                        date: new Date('2024-01-02'),
                         description: 'Second Cash Injection',
                         type: 'Cash',
                         amount: 1566000
                     });
+                     batch.set(doc(capitalRef), {
+                        userId: user.uid,
+                        shopId: defaultShopIdForMigration || 'default',
+                        date: new Date('2024-01-03'),
+                        description: 'Third Cash Injection',
+                        type: 'Cash',
+                        amount: 1566000
+                    });
+                    await batch.commit();
                 }
             }
         };
@@ -1598,3 +1616,5 @@ export const useFinancials = (): FinancialContextType => {
     }
     return context;
 };
+
+    
