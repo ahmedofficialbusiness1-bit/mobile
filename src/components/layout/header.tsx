@@ -18,6 +18,7 @@ import {
   Store,
   ChevronDown,
   Building,
+  Lock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Menu } from 'lucide-react'
@@ -34,6 +35,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
+import { useSecurity } from '@/context/security-context'
+import { PasswordPromptDialog } from '@/components/security/password-prompt-dialog'
 
 
 const navItems = [
@@ -80,7 +83,9 @@ export function AppHeader() {
   const router = useRouter()
   const title = getPageTitle(pathname)
   const { user } = useAuth();
-  const { shops, activeShop, setActiveShopId, companyName } = useFinancials();
+  const { shops, activeShop, setActiveShopId, companyName, activeShopId } = useFinancials();
+  const { isItemLocked, unlockItem } = useSecurity();
+  const [promptingFor, setPromptingFor] = React.useState<string | null>(null);
   
   const handleLogout = async () => {
     await signOut(auth);
@@ -88,8 +93,23 @@ export function AppHeader() {
   }
 
   const handleShopChange = (shopId: string | null) => {
-    setActiveShopId(shopId);
+    const itemId = shopId || 'hq';
+    if (isItemLocked(itemId)) {
+        setPromptingFor(itemId);
+    } else {
+        setActiveShopId(shopId);
+    }
   }
+  
+  const handlePasswordSuccess = () => {
+    if (promptingFor) {
+        unlockItem(promptingFor);
+        const shopId = promptingFor === 'hq' ? null : promptingFor;
+        setActiveShopId(shopId);
+        setPromptingFor(null);
+    }
+  }
+
 
   if (!user) return null;
 
@@ -110,6 +130,7 @@ export function AppHeader() {
                 <Button variant="outline">
                   {activeShop ? <Store className="mr-2 h-4 w-4" /> : <Building className="mr-2 h-4 w-4" />}
                   {activeShop ? activeShop.name : `${companyName} (All)`}
+                   {isItemLocked(activeShopId || 'hq') && <Lock className="ml-2 h-3 w-3 text-muted-foreground" />}
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -119,12 +140,14 @@ export function AppHeader() {
                 <DropdownMenuItem onClick={() => handleShopChange(null)}>
                    <Building className="mr-2 h-4 w-4" />
                    {companyName} (All Shops)
+                   {isItemLocked('hq') && <Lock className="ml-auto h-3 w-3 text-muted-foreground" />}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {shops.map(shop => (
                   <DropdownMenuItem key={shop.id} onClick={() => handleShopChange(shop.id)}>
                     <Store className="mr-2 h-4 w-4" />
                     {shop.name}
+                    {isItemLocked(shop.id) && <Lock className="ml-auto h-3 w-3 text-muted-foreground" />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -136,6 +159,11 @@ export function AppHeader() {
         </Button>
       </div>
     </header>
+     <PasswordPromptDialog
+        isOpen={!!promptingFor}
+        onClose={() => setPromptingFor(null)}
+        onSuccess={handlePasswordSuccess}
+      />
     </>
   )
 }

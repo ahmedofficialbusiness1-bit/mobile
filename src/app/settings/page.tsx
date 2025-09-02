@@ -9,6 +9,7 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs'
 import ShopsSettings from './shops-settings'
+import SecuritySettings from './security-settings'
 
 
 function SettingsPageContent() {
@@ -24,11 +25,15 @@ function SettingsPageContent() {
             </div>
 
             <Tabs defaultValue="shops" className="w-full">
-                <TabsList className="grid w-full grid-cols-1">
+                <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="shops">Shops & Branches</TabsTrigger>
+                    <TabsTrigger value="security">Access Security</TabsTrigger>
                 </TabsList>
                 <TabsContent value="shops">
                     <ShopsSettings />
+                </TabsContent>
+                 <TabsContent value="security">
+                    <SecuritySettings />
                 </TabsContent>
             </Tabs>
         </div>
