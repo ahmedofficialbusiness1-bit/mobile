@@ -804,7 +804,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const markPayableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
-        if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
+        if (!user) throw new Error("User not authenticated.");
         if (paymentMethod === 'Credit' || paymentMethod === 'Prepaid') throw new Error("Invalid payment method for payables.");
         
         const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
@@ -818,6 +818,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             if (!payableDoc.exists()) throw new Error("Payable not found.");
 
             const payableData = payableDoc.data() as Payable;
+             if (!payableData.shopId) {
+                throw new Error("Payable is missing shop information.");
+            }
+
             const remainingAmount = payableData.amount - amount;
 
             if (remainingAmount <= 0) {
@@ -828,7 +832,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
             const newExpense = {
                 userId: user.uid,
-                shopId: activeShopId,
+                shopId: payableData.shopId,
                 description: `Payment for ${payableData.product} to ${payableData.supplierName}`,
                 category: 'Manunuzi Ofisi',
                 amount: amount,
