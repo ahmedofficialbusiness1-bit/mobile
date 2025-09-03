@@ -818,7 +818,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             if (!payableDoc.exists()) throw new Error("Payable not found.");
 
             const payableData = payableDoc.data() as Payable;
-             if (!payableData.shopId) {
+            if (!payableData.shopId) {
                 throw new Error("Payable is missing shop information.");
             }
 
@@ -842,6 +842,19 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             };
             const expenseRef = doc(collection(db, 'expenses'));
             transaction.set(expenseRef, newExpense);
+
+            // Link payment to PO if applicable
+            if (payableData.product.startsWith('From PO #')) {
+                const poNumber = payableData.product.replace('From PO #', '');
+                const poQuery = query(collection(db, 'purchaseOrders'), where('poNumber', '==', poNumber), where('userId', '==', user.uid));
+                const poSnap = await getDocs(poQuery);
+                if (!poSnap.empty) {
+                    const poRef = poSnap.docs[0].ref;
+                    if (remainingAmount <= 0) {
+                        transaction.update(poRef, { paymentStatus: 'Paid' });
+                    }
+                }
+            }
         });
     };
 
@@ -1622,3 +1635,4 @@ export const useFinancials = (): FinancialContextType => {
 };
 
     
+
