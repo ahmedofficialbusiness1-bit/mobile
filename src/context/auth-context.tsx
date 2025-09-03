@@ -15,14 +15,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const authRoutes = ['/login', '/signup', '/forgot-password'];
-const specialRoute = '/select-shop';
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const pathname = usePathname();
 
   const isAdmin = user?.email === 'ahmedofficialbusiness1@gmail.com';
 
@@ -34,21 +29,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (loading) return; // Wait until Firebase auth check is complete
-
-    const isAuthRoute = authRoutes.includes(pathname);
-
-    if (!user && !isAuthRoute) {
-      // If not logged in and not on an auth page, redirect to login
-      router.push('/login');
-    } else if (user && isAuthRoute) {
-      // If logged in and on an auth page, redirect to shop selection
-      router.push('/select-shop');
-    }
-  }, [user, loading, pathname, router]);
-
-
   if (loading) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
@@ -56,16 +36,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         <div className="text-muted-foreground">Loading application...</div>
       </div>
     );
-  }
-
-  // Prevent rendering protected pages before redirect
-  if (!user && !authRoutes.includes(pathname)) {
-    return null;
-  }
-  
-  // Prevent rendering auth pages before redirect
-  if (user && authRoutes.includes(pathname)) {
-      return null;
   }
 
   return (
