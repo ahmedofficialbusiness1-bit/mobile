@@ -20,10 +20,17 @@ const lockableItemSchema = z.object({
   name: z.string(),
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
-}).refine(data => data.password === data.confirmPassword, {
+}).refine(data => {
+    // Only validate if a new password is being set
+    if (data.password || data.confirmPassword) {
+        return data.password === data.confirmPassword;
+    }
+    return true;
+}, {
   message: "Passwords do not match.",
   path: ["confirmPassword"],
 });
+
 
 const formSchema = z.object({
   items: z.array(lockableItemSchema),
@@ -48,12 +55,11 @@ export default function SecuritySettings() {
     const { shops, companyName } = useFinancials();
     const { toast } = useToast();
     
-    const shopItems = React.useMemo(() => [
+    const allItems = React.useMemo(() => [
         { id: 'hq', name: `${companyName} (All Shops)`, icon: Building },
-        ...shops.map(shop => ({ id: shop.id, name: shop.name, icon: Store }))
+        ...shops.map(shop => ({ id: shop.id, name: shop.name, icon: Store })),
+        ...pageItems
     ], [shops, companyName]);
-    
-    const allItems = React.useMemo(() => [...shopItems, ...pageItems], [shopItems]);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -67,7 +73,7 @@ export default function SecuritySettings() {
         },
     });
     
-    const { fields, control } = useFieldArray({
+    const { fields, control, reset, setError } = useFieldArray({
         control: form.control,
         name: "items"
     });
@@ -77,11 +83,12 @@ export default function SecuritySettings() {
         let hasErrors = false;
 
         data.items.forEach((item, index) => {
+            // Only proceed if a new password has been entered
             if (item.password && item.password.length > 0) {
                  if (item.password.length < 4) {
-                     form.setError(`items.${index}.password`, { message: "Password must be at least 4 characters."});
+                     setError(`items.${index}.password`, { message: "Password must be at least 4 characters."});
                      hasErrors = true;
-                     return;
+                     return; // Skip this item
                  }
                 if (item.password === item.confirmPassword) {
                     setLock(item.id, item.password);
@@ -98,7 +105,7 @@ export default function SecuritySettings() {
                 description: "Your new password settings have been saved.",
             });
             // Reset the form to clear password fields after successful save
-            form.reset({
+            reset({
                  items: allItems.map(item => ({
                     id: item.id,
                     name: item.name,
@@ -106,7 +113,7 @@ export default function SecuritySettings() {
                     confirmPassword: '',
                 }))
             });
-        } else if (!form.formState.isDirty) {
+        } else {
              toast({
                 title: "No Changes",
                 description: "No new passwords were entered to save.",
@@ -121,12 +128,12 @@ export default function SecuritySettings() {
             description: `The password for this item has been removed.`,
             variant: 'destructive'
         });
-    }
+    };
     
     const getItemIcon = (id: string) => {
         const item = allItems.find(i => i.id === id);
         return item?.icon || Lock;
-    }
+    };
 
     return (
         <Card>
@@ -142,16 +149,17 @@ export default function SecuritySettings() {
                         <div className="space-y-6">
                             {fields.map((field, index) => {
                                  const Icon = getItemIcon(field.id);
+                                 const hasLock = isItemLocked(field.id, true);
                                  return (
                                 <div key={field.id}>
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <Icon className="h-5 w-5 text-muted-foreground" />
                                             <h3 className="font-semibold">{field.name}</h3>
-                                            {isItemLocked(field.id, true) && <Lock className="h-4 w-4 text-primary" />}
+                                            {hasLock && <Lock className="h-4 w-4 text-primary" />}
                                         </div>
-                                        {isItemLocked(field.id, true) && (
-                                            <Button type="button" variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => handleRemoveLock(field.id)}>
+                                        {hasLock && (
+                                            <Button type="button" variant="ghost" size="sm" className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleRemoveLock(field.id)}>
                                                 Remove Lock
                                             </Button>
                                         )}
@@ -162,9 +170,9 @@ export default function SecuritySettings() {
                                             name={`items.${index}.password`}
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>{isItemLocked(`items.${index}.id`, true) ? 'New Password' : 'Set Password'}</FormLabel>
+                                                    <FormLabel>{hasLock ? 'New Password' : 'Set Password'}</FormLabel>
                                                     <FormControl>
-                                                        <Input type="password" {...field} value={field.value || ''} />
+                                                        <Input type="password" {...field} value={field.value || ''} placeholder="Leave blank to keep current" />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -177,7 +185,7 @@ export default function SecuritySettings() {
                                                 <FormItem>
                                                     <FormLabel>Confirm Password</FormLabel>
                                                     <FormControl>
-                                                        <Input type="password" {...field} value={field.value || ''} />
+                                                        <Input type="password" {...field} value={field.value || ''} placeholder="Confirm new password" />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
