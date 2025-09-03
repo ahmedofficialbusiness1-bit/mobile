@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
+import { Logo } from '@/components/logo';
 
 interface AuthContextType {
   user: User | null;
@@ -14,7 +15,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const unprotectedRoutes = ['/login', '/signup', '/forgot-password'];
+const authRoutes = ['/login', '/signup', '/forgot-password'];
 const specialRoute = '/select-shop';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -30,40 +31,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(user);
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading) return; // Wait until Firebase auth check is complete
 
-    const isAuthRoute = unprotectedRoutes.includes(pathname);
-    const isSpecialRoute = pathname === specialRoute;
+    const isAuthRoute = authRoutes.includes(pathname);
 
     if (!user && !isAuthRoute) {
-      // If user is not logged in and not on an auth page, redirect to login.
+      // If not logged in and not on an auth page, redirect to login
       router.push('/login');
     } else if (user && isAuthRoute) {
-      // If user is logged in and on an auth page, redirect to shop selection.
+      // If logged in and on an auth page, redirect to shop selection
       router.push('/select-shop');
     }
   }, [user, loading, pathname, router]);
 
-  // Render a loading state while authentication is being checked, especially on protected routes.
-  if (loading && !unprotectedRoutes.includes(pathname)) {
-     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-xl font-semibold">Loading...</div>
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
+        <Logo />
+        <div className="text-muted-foreground">Loading application...</div>
       </div>
     );
   }
+
+  // Prevent rendering protected pages before redirect
+  if (!user && !authRoutes.includes(pathname)) {
+    return null;
+  }
   
-  // If the user is not authenticated and is trying to access a protected route,
-  // return null to prevent rendering the page content before the redirect happens.
-  if (!user && !unprotectedRoutes.includes(pathname)) {
+  // Prevent rendering auth pages before redirect
+  if (user && authRoutes.includes(pathname)) {
       return null;
   }
-
 
   return (
     <AuthContext.Provider value={{ user, loading, isAdmin }}>
