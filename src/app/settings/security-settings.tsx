@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancials } from '@/context/financial-context';
-import { Lock, Building, Store, Home, ShoppingCart, Users, FileText, Truck, Warehouse, Banknote, FilePlus2, BarChart2, Settings } from 'lucide-react';
+import { Lock, Building, Store, Home, ShoppingCart, Users, FileText, Truck, Warehouse, Banknote, FilePlus2, BarChart2, Settings, Compass } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 const lockableItemSchema = z.object({
@@ -72,7 +72,9 @@ export default function SecuritySettings() {
         },
     });
     
-    const { fields, control, reset, setError } = useFieldArray({
+    const { control, reset, setError } = form;
+
+    const { fields } = useFieldArray({
         control: form.control,
         name: "items"
     });
