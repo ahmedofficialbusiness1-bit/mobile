@@ -653,18 +653,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             if(ft.to === 'Mobile') mobile += ft.amount;
         });
 
-        const relevantPayables = activeShopId
-            ? allPayables.filter(p => p.shopId === activeShopId)
-            : allPayables;
-
-        relevantPayables.forEach(p => {
-            if (p.status === 'Paid' && p.paymentMethod) {
-                 if (p.paymentMethod === 'Cash') cash -= p.amount;
-                 else if (p.paymentMethod === 'Bank') bank -= p.amount;
-                 else if (p.paymentMethod === 'Mobile') mobile -= p.amount;
-            }
-        });
-
         const relevantPayroll = activeShopId
             ? allPayrollHistory.filter(pr => pr.shopId === activeShopId)
             : allPayrollHistory;
@@ -676,7 +664,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
         
         return { cash, bank, mobile };
-    }, [allTransactions, allCapitalContributions, allExpenses, allPrepayments, allFundTransfers, allPayables, allPayrollHistory, activeShopId]);
+    }, [allTransactions, allCapitalContributions, allExpenses, allPrepayments, allFundTransfers, allPayrollHistory, activeShopId]);
 
     const addSale = async (saleData: SaleFormData) => {
         if (!user || !activeShopId) throw new Error("User not authenticated or no active shop selected.");
@@ -818,7 +806,8 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             if (!payableDoc.exists()) throw new Error("Payable not found.");
 
             const payableData = payableDoc.data() as Payable;
-            if (!payableData.shopId) {
+            const payableShopId = payableData.shopId;
+            if (!payableShopId) {
                 throw new Error("Payable is missing shop information.");
             }
 
@@ -832,7 +821,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
             const newExpense = {
                 userId: user.uid,
-                shopId: payableData.shopId,
+                shopId: payableShopId,
                 description: `Payment for ${payableData.product} to ${payableData.supplierName}`,
                 category: 'Manunuzi Ofisi',
                 amount: amount,
@@ -845,12 +834,15 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
             // Link payment to PO if applicable
             if (payableData.product.startsWith('From PO #')) {
-                const poNumber = payableData.product.replace('From PO #', '');
+                const poNumber = payableData.product.replace('From PO #', '').trim();
                 const poQuery = query(collection(db, 'purchaseOrders'), where('poNumber', '==', poNumber), where('userId', '==', user.uid));
                 const poSnap = await getDocs(poQuery);
                 if (!poSnap.empty) {
                     const poRef = poSnap.docs[0].ref;
-                    if (remainingAmount <= 0) {
+                    const poData = poSnap.docs[0].data() as PurchaseOrder;
+                    const poTotal = poData.items.reduce((sum, item) => sum + item.totalPrice, 0);
+
+                    if (poTotal - amount <= 0) {
                         transaction.update(poRef, { paymentStatus: 'Paid' });
                     }
                 }
@@ -1635,4 +1627,5 @@ export const useFinancials = (): FinancialContextType => {
 };
 
     
+
 
