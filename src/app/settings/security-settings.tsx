@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancials } from '@/context/financial-context';
-import { Lock, Building, Store, Home, ShoppingCart, Users, FileText, Truck, Warehouse, Banknote, FilePlus2, BarChart2, Settings, Compass } from 'lucide-react';
+import { Lock, Building, Store, Home, ShoppingCart, Users, FileText, Truck, Warehouse, Banknote, FilePlus2, BarChart2, Settings, Compass, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 const lockableItemSchema = z.object({
@@ -53,6 +53,7 @@ export default function SecuritySettings() {
     const { setLock, removeLock, isItemLocked } = useSecurity();
     const { shops, companyName } = useFinancials();
     const { toast } = useToast();
+    const [isSaving, setIsSaving] = React.useState(false);
     
     const allItems = React.useMemo(() => [
         { id: 'hq', name: `${companyName} (All Shops)`, icon: Building },
@@ -91,9 +92,11 @@ export default function SecuritySettings() {
     }, [allItems, reset]);
 
 
-    const onSubmit = (data: z.infer<typeof formSchema>) => {
+    const onSubmit = async (data: z.infer<typeof formSchema>) => {
+        setIsSaving(true);
         let changesMade = false;
         let hasErrors = false;
+        const promises: Promise<void>[] = [];
 
         data.items.forEach((item, index) => {
             if (item.password && item.password.length > 0) {
@@ -103,43 +106,68 @@ export default function SecuritySettings() {
                      return;
                  }
                 if (item.password === item.confirmPassword) {
-                    setLock(item.id, item.password);
+                    promises.push(setLock(item.id, item.password));
                     changesMade = true;
                 }
             }
         });
 
-        if (hasErrors) return;
+        if (hasErrors) {
+            setIsSaving(false);
+            return;
+        }
 
-        if (changesMade) {
+        try {
+            await Promise.all(promises);
+            if (changesMade) {
+                toast({
+                    title: "Security Settings Updated",
+                    description: "Your new password settings have been saved to the database.",
+                });
+                reset({
+                     items: allItems.map(item => ({
+                        id: item.id,
+                        name: item.name,
+                        password: '',
+                        confirmPassword: '',
+                    }))
+                });
+            } else {
+                 toast({
+                    title: "No Changes Made",
+                    description: "Enter a new password in both fields to set or change a lock.",
+                    variant: "default"
+                });
+            }
+        } catch (error) {
              toast({
-                title: "Security Settings Updated",
-                description: "Your new password settings have been saved.",
+                title: "Error Saving Settings",
+                description: "Could not save security settings. Please try again.",
+                variant: "destructive"
             });
-            reset({
-                 items: allItems.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    password: '',
-                    confirmPassword: '',
-                }))
-            });
-        } else {
-             toast({
-                title: "No Changes Made",
-                description: "Enter a new password in both fields to set or change a lock.",
-                variant: "default"
-            });
+        } finally {
+            setIsSaving(false);
         }
     };
     
-    const handleRemoveLock = (itemId: string) => {
-        removeLock(itemId);
-        toast({
-            title: "Lock Removed",
-            description: `The password for this item has been removed.`,
-            variant: 'destructive'
-        });
+    const handleRemoveLock = async (itemId: string) => {
+        setIsSaving(true);
+        try {
+            await removeLock(itemId);
+            toast({
+                title: "Lock Removed",
+                description: `The password for this item has been removed from the database.`,
+                variant: 'destructive'
+            });
+        } catch (error) {
+             toast({
+                title: "Error Removing Lock",
+                description: "Could not remove lock. Please try again.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsSaving(false);
+        }
     };
     
     const getItemIcon = (id: string) => {
@@ -152,7 +180,7 @@ export default function SecuritySettings() {
             <CardHeader>
                 <CardTitle>Access Security Settings</CardTitle>
                 <CardDescription>
-                    Set a unique password for any page or shop view to restrict access. Leave password fields blank to make no changes. Use 'Remove Lock' to delete an existing password.
+                    Set a unique password for any page or shop view to restrict access. Passwords are saved to your account and apply across all devices.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -171,7 +199,7 @@ export default function SecuritySettings() {
                                             {hasLock && <Lock className="h-4 w-4 text-primary" />}
                                         </div>
                                         {hasLock && (
-                                            <Button type="button" variant="ghost" size="sm" className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleRemoveLock(field.id)}>
+                                            <Button type="button" variant="ghost" size="sm" className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleRemoveLock(field.id)} disabled={isSaving}>
                                                 Remove Lock
                                             </Button>
                                         )}
@@ -184,7 +212,7 @@ export default function SecuritySettings() {
                                                 <FormItem>
                                                     <FormLabel>{hasLock ? 'New Password' : 'Set Password'}</FormLabel>
                                                     <FormControl>
-                                                        <Input type="password" {...field} value={field.value || ''} placeholder="Leave blank to keep current" />
+                                                        <Input type="password" {...field} value={field.value || ''} placeholder="Leave blank for no changes" />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -209,7 +237,10 @@ export default function SecuritySettings() {
                             )})}
                         </div>
 
-                        <Button type="submit">Save All Changes</Button>
+                        <Button type="submit" disabled={isSaving}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save All Changes
+                        </Button>
                     </form>
                 </Form>
             </CardContent>

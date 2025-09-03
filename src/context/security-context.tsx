@@ -3,14 +3,13 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { useAuth } from './auth-context';
-
-// This is a simplified, client-side only security context.
-// For production, a more robust solution would be needed.
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 interface SecurityContextType {
   locks: Record<string, string>;
-  setLock: (itemId: string, password: string) => void;
-  removeLock: (itemId: string) => void;
+  setLock: (itemId: string, password: string) => Promise<void>;
+  removeLock: (itemId: string) => Promise<void>;
   checkPassword: (itemId: string, password: string) => boolean;
   isItemLocked: (itemId: string, ignoreSessionUnlock?: boolean) => boolean;
   unlockItem: (itemId: string) => void;
@@ -23,51 +22,58 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [locks, setLocks] = useState<Record<string, string>>({});
   const [unlockedItems, setUnlockedItems] = useState<string[]>([]);
 
-  // Load state from localStorage on mount or when user changes
   useEffect(() => {
-    if (user) {
-        try {
-            const storedLocks = localStorage.getItem(`sl_${user.uid}`);
-            if (storedLocks) {
-                setLocks(JSON.parse(storedLocks));
+    const fetchLocks = async () => {
+        if (user) {
+            const lockDocRef = doc(db, 'securityLocks', user.uid);
+            const docSnap = await getDoc(lockDocRef);
+            if (docSnap.exists()) {
+                setLocks(docSnap.data() || {});
             } else {
                 setLocks({});
             }
-        } catch (error) {
-            console.error("Failed to load security settings from localStorage", error);
+            // Reset session unlocks when user changes
+            setUnlockedItems([]);
+        } else {
+             // Clear all security state on logout
             setLocks({});
+            setUnlockedItems([]);
         }
-        // Reset session unlocks when user changes
-        setUnlockedItems([]);
-    } else {
-        // Clear all security state on logout
-        setLocks({});
-        setUnlockedItems([]);
-    }
+    };
+    fetchLocks();
   }, [user]);
-
-  const setLock = useCallback((itemId: string, password: string) => {
+  
+  const setLock = useCallback(async (itemId: string, password: string) => {
     if (user) {
-        setLocks(prev => {
-            const newLocks = { ...prev, [itemId]: password };
-            localStorage.setItem(`sl_${user.uid}`, JSON.stringify(newLocks));
-            return newLocks;
-        });
-    }
-  }, [user]);
+        const lockDocRef = doc(db, 'securityLocks', user.uid);
+        const newLocks = { ...locks, [itemId]: password };
 
-  const removeLock = useCallback((itemId: string) => {
-    if (user) {
-        setLocks(prev => {
-            const newLocks = { ...prev };
-            delete newLocks[itemId];
-            localStorage.setItem(`sl_${user.uid}`, JSON.stringify(newLocks));
-            return newLocks;
-        });
-        // Also remove it from the session's unlocked items
-        setUnlockedItems(prev => prev.filter(id => id !== itemId));
+        try {
+            await setDoc(lockDocRef, newLocks, { merge: true });
+            setLocks(newLocks);
+        } catch (error) {
+            console.error("Failed to set lock in Firestore:", error);
+        }
     }
-  }, [user]);
+  }, [user, locks]);
+
+  const removeLock = useCallback(async (itemId: string) => {
+    if (user) {
+        const newLocks = { ...locks };
+        delete newLocks[itemId];
+
+        const lockDocRef = doc(db, 'securityLocks', user.uid);
+        try {
+            await setDoc(lockDocRef, newLocks); // Overwrite with the new map
+            setLocks(newLocks);
+            // Also remove it from the session's unlocked items
+            setUnlockedItems(prev => prev.filter(id => id !== itemId));
+        } catch (error) {
+            console.error("Failed to remove lock in Firestore:", error);
+        }
+    }
+  }, [user, locks]);
+
 
   const checkPassword = (itemId: string, input: string) => {
     return locks[itemId] === input;
