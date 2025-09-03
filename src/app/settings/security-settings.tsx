@@ -67,29 +67,37 @@ export default function SecuritySettings() {
         },
     });
     
-    const { fields } = useFieldArray({
+    const { fields, control } = useFieldArray({
         control: form.control,
         name: "items"
     });
 
     const onSubmit = (data: z.infer<typeof formSchema>) => {
         let changesMade = false;
-        data.items.forEach(item => {
+        let hasErrors = false;
+
+        data.items.forEach((item, index) => {
             if (item.password && item.password.length > 0) {
                  if (item.password.length < 4) {
-                     form.setError(`items.${allItems.findIndex(i => i.id === item.id)}.password`, { message: "Password must be at least 4 characters."});
+                     form.setError(`items.${index}.password`, { message: "Password must be at least 4 characters."});
+                     hasErrors = true;
                      return;
                  }
-                setLock(item.id, item.password);
-                changesMade = true;
+                if (item.password === item.confirmPassword) {
+                    setLock(item.id, item.password);
+                    changesMade = true;
+                }
             }
         });
 
-        if (form.formState.isDirty && changesMade) {
+        if (hasErrors) return;
+
+        if (changesMade) {
              toast({
                 title: "Security Settings Updated",
                 description: "Your new password settings have been saved.",
             });
+            // Reset the form to clear password fields after successful save
             form.reset({
                  items: allItems.map(item => ({
                     id: item.id,
@@ -97,6 +105,11 @@ export default function SecuritySettings() {
                     password: '',
                     confirmPassword: '',
                 }))
+            });
+        } else if (!form.formState.isDirty) {
+             toast({
+                title: "No Changes",
+                description: "No new passwords were entered to save.",
             });
         }
     };
@@ -120,7 +133,7 @@ export default function SecuritySettings() {
             <CardHeader>
                 <CardTitle>Access Security Settings</CardTitle>
                 <CardDescription>
-                    Set a unique password for any page or shop view to restrict access. Leave password fields blank to make no changes.
+                    Set a unique password for any page or shop view to restrict access. Leave password fields blank to make no changes. Use 'Remove Lock' to delete a password.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -145,26 +158,26 @@ export default function SecuritySettings() {
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 pl-7">
                                         <FormField
-                                            control={form.control}
+                                            control={control}
                                             name={`items.${index}.password`}
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>{isItemLocked(field.id, true) ? 'New Password' : 'Set Password'}</FormLabel>
+                                                    <FormLabel>{isItemLocked(`items.${index}.id`, true) ? 'New Password' : 'Set Password'}</FormLabel>
                                                     <FormControl>
-                                                        <Input type="password" {...field} />
+                                                        <Input type="password" {...field} value={field.value || ''} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
                                         />
                                         <FormField
-                                            control={form.control}
+                                            control={control}
                                             name={`items.${index}.confirmPassword`}
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Confirm Password</FormLabel>
                                                     <FormControl>
-                                                        <Input type="password" {...field} />
+                                                        <Input type="password" {...field} value={field.value || ''} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
