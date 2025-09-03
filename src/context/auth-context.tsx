@@ -35,29 +35,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   useEffect(() => {
-    if (!loading) {
-      const isProtected = !unprotectedRoutes.includes(pathname) && pathname !== specialRoute;
-      
-      if (!user && isProtected) {
-        router.push('/login');
-      }
-      
-      if (user) {
-          if (unprotectedRoutes.includes(pathname)) {
-            router.push('/select-shop');
-          }
-      }
+    if (loading) return;
+
+    const isAuthRoute = unprotectedRoutes.includes(pathname);
+    const isSpecialRoute = pathname === specialRoute;
+
+    if (!user && !isAuthRoute) {
+      // If user is not logged in and not on an auth page, redirect to login.
+      router.push('/login');
+    } else if (user && isAuthRoute) {
+      // If user is logged in and on an auth page, redirect to shop selection.
+      router.push('/select-shop');
     }
   }, [user, loading, pathname, router]);
 
-
-  if (loading) {
+  // Render a loading state while authentication is being checked, especially on protected routes.
+  if (loading && !unprotectedRoutes.includes(pathname)) {
      return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-xl font-semibold">Loading...</div>
       </div>
     );
   }
+  
+  // If the user is not authenticated and is trying to access a protected route,
+  // return null to prevent rendering the page content before the redirect happens.
+  if (!user && !unprotectedRoutes.includes(pathname)) {
+      return null;
+  }
+
 
   return (
     <AuthContext.Provider value={{ user, loading, isAdmin }}>

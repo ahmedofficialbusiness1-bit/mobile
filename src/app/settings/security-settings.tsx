@@ -21,7 +21,6 @@ const lockableItemSchema = z.object({
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
 }).refine(data => {
-    // Only validate if a new password is being set
     if (data.password || data.confirmPassword) {
         return data.password === data.confirmPassword;
     }
@@ -51,7 +50,7 @@ const pageItems = [
 ];
 
 export default function SecuritySettings() {
-    const { locks, setLock, removeLock, isItemLocked } = useSecurity();
+    const { setLock, removeLock, isItemLocked } = useSecurity();
     const { shops, companyName } = useFinancials();
     const { toast } = useToast();
     
@@ -78,17 +77,28 @@ export default function SecuritySettings() {
         name: "items"
     });
 
+     React.useEffect(() => {
+        reset({
+            items: allItems.map(item => ({
+                id: item.id,
+                name: item.name,
+                password: '',
+                confirmPassword: '',
+            }))
+        });
+    }, [allItems, reset]);
+
+
     const onSubmit = (data: z.infer<typeof formSchema>) => {
         let changesMade = false;
         let hasErrors = false;
 
         data.items.forEach((item, index) => {
-            // Only proceed if a new password has been entered
             if (item.password && item.password.length > 0) {
                  if (item.password.length < 4) {
                      setError(`items.${index}.password`, { message: "Password must be at least 4 characters."});
                      hasErrors = true;
-                     return; // Skip this item
+                     return;
                  }
                 if (item.password === item.confirmPassword) {
                     setLock(item.id, item.password);
@@ -104,7 +114,6 @@ export default function SecuritySettings() {
                 title: "Security Settings Updated",
                 description: "Your new password settings have been saved.",
             });
-            // Reset the form to clear password fields after successful save
             reset({
                  items: allItems.map(item => ({
                     id: item.id,
@@ -115,8 +124,9 @@ export default function SecuritySettings() {
             });
         } else {
              toast({
-                title: "No Changes",
-                description: "No new passwords were entered to save.",
+                title: "No Changes Made",
+                description: "Enter a new password in both fields to set or change a lock.",
+                variant: "default"
             });
         }
     };
@@ -140,7 +150,7 @@ export default function SecuritySettings() {
             <CardHeader>
                 <CardTitle>Access Security Settings</CardTitle>
                 <CardDescription>
-                    Set a unique password for any page or shop view to restrict access. Leave password fields blank to make no changes. Use 'Remove Lock' to delete a password.
+                    Set a unique password for any page or shop view to restrict access. Leave password fields blank to make no changes. Use 'Remove Lock' to delete an existing password.
                 </CardDescription>
             </CardHeader>
             <CardContent>

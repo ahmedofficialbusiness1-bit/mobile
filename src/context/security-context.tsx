@@ -23,15 +23,26 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [locks, setLocks] = useState<Record<string, string>>({});
   const [unlockedItems, setUnlockedItems] = useState<string[]>([]);
 
-  // Load state from localStorage on mount
+  // Load state from localStorage on mount or when user changes
   useEffect(() => {
     if (user) {
         try {
-            const storedLocks = localStorage.getItem(`sl2_${user.uid}`);
-            if (storedLocks) setLocks(JSON.parse(storedLocks));
+            const storedLocks = localStorage.getItem(`sl_${user.uid}`);
+            if (storedLocks) {
+                setLocks(JSON.parse(storedLocks));
+            } else {
+                setLocks({});
+            }
         } catch (error) {
             console.error("Failed to load security settings from localStorage", error);
+            setLocks({});
         }
+        // Reset session unlocks when user changes
+        setUnlockedItems([]);
+    } else {
+        // Clear all security state on logout
+        setLocks({});
+        setUnlockedItems([]);
     }
   }, [user]);
 
@@ -39,7 +50,7 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
     if (user) {
         setLocks(prev => {
             const newLocks = { ...prev, [itemId]: password };
-            localStorage.setItem(`sl2_${user.uid}`, JSON.stringify(newLocks));
+            localStorage.setItem(`sl_${user.uid}`, JSON.stringify(newLocks));
             return newLocks;
         });
     }
@@ -50,9 +61,11 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
         setLocks(prev => {
             const newLocks = { ...prev };
             delete newLocks[itemId];
-            localStorage.setItem(`sl2_${user.uid}`, JSON.stringify(newLocks));
+            localStorage.setItem(`sl_${user.uid}`, JSON.stringify(newLocks));
             return newLocks;
         });
+        // Also remove it from the session's unlocked items
+        setUnlockedItems(prev => prev.filter(id => id !== itemId));
     }
   }, [user]);
 
