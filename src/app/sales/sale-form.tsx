@@ -137,6 +137,7 @@ export function SaleForm({ isOpen, onClose, onSave, products, customers }: SaleF
       customerName: saleCustomerName,
       customerPhone: saleCustomerPhone,
       vatRate: values.vatRate as VatRate,
+      unitPrice: values.unitPrice // Ensure the entered unit price is passed
     }
     onSave(saleData)
     form.reset({
