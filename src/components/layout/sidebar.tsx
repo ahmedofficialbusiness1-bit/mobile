@@ -28,6 +28,7 @@ import {
   Settings,
   FilePlus2,
   Lock,
+  Bolt,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuth } from '@/context/auth-context'
@@ -41,8 +42,12 @@ const navItems = [
   { href: '/purchases', label: 'Purchases', icon: Truck, id: 'purchases' },
   { href: '/inventory', label: 'Inventory', icon: Warehouse, id: 'inventory' },
   { href: '/finance', label: 'Finance', icon: Banknote, id: 'finance' },
-  { href: '/post-expense', label: 'Post Expense', icon: FilePlus2, id: 'post-expense' },
   { href: '/reports', label: 'Reports', icon: BarChart2, id: 'reports' },
+]
+
+const quickAccessItems = [
+    { href: '/quick-sale', label: 'Quick Sale', icon: Bolt, id: 'quick-sale' },
+    { href: '/post-expense', label: 'Post Expense', icon: FilePlus2, id: 'post-expense' },
 ]
 
 const bottomNavItems = [
@@ -78,6 +83,28 @@ export function AppSidebar() {
         </SidebarHeader>
         <SidebarMenu className="flex-1 p-2">
           {topNavItems.map((item) => (
+            <SidebarMenuItem key={item.href}>
+              <SidebarMenuButton
+                asChild
+                isActive={
+                  pathname.startsWith(item.href) &&
+                  (item.href !== '/' || pathname === '/')
+                }
+                className="font-headline"
+                onClick={handleLinkClick}
+              >
+                <Link href={item.href} className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </div>
+                  {isItemLocked(item.href, true) && <Lock className="h-3 w-3 text-muted-foreground" />}
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+           <SidebarSeparator />
+            {quickAccessItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 asChild

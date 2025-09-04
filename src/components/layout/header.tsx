@@ -49,6 +49,8 @@ const navItems = [
   { href: '/finance', label: 'Finance', icon: Banknote },
   { href: '/reports', label: 'Reports', icon: BarChart2 },
   { href: '/admin', label: 'Admin Panel', icon: Shield },
+  { href: '/quick-sale', label: 'Quick Sale' },
+  { href: '/post-expense', label: 'Post Expense' },
 ]
 
 const getPageTitle = (path: string) => {
