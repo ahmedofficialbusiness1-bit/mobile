@@ -6,7 +6,6 @@ import { useFinancials } from '@/context/financial-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
 import type { DateRange } from 'react-day-picker';
-import { isWithinInterval } from 'date-fns';
 
 
 const ReportRow = ({ label, value, isBold = false, isSub = false }) => (
@@ -22,7 +21,7 @@ interface ReportProps {
 
 
 export default function BalanceSheet({ dateRange }: ReportProps) {
-    const { assets, products, transactions, payables, cashBalances, capitalContributions, ownerLoans, companyName, expenses, purchaseOrders } = useFinancials();
+    const { assets, products, transactions, payables, cashBalances, capitalContributions, ownerLoans, companyName, expenses, purchaseOrders, activeShopId } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
@@ -40,7 +39,12 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
     
     // Simplified COGS for retained earnings
     const purchases = historicalPurchases.reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.totalPrice, 0), 0);
-    const closingInventoryForPL = products.reduce((sum, p) => sum + ((p.mainStock + p.shopStock) * p.purchasePrice), 0);
+    // Use currentStock for branch-specific, otherwise total for HQ
+    const closingInventoryForPL = products.reduce((sum, p) => {
+        const stockQuantity = activeShopId ? p.currentStock : (p.mainStock + p.shopStock);
+        return sum + (stockQuantity * p.purchasePrice);
+    }, 0);
+
     const costOfSales = purchases - closingInventoryForPL; // Simplified: Assumes 0 opening inventory at the very start
 
     const grossProfit = revenue - costOfSales;
@@ -53,7 +57,12 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
         .filter(a => new Date(a.acquisitionDate) <= endDate && a.status === 'Active')
         .reduce((sum, asset) => sum + asset.netBookValue, 0);
 
-    const inventory = products.reduce((sum, p) => sum + ((p.mainStock + p.shopStock) * p.purchasePrice), 0);
+    // Use currentStock for branch-specific, otherwise total for HQ view
+    const inventory = products.reduce((sum, p) => {
+        const stockQuantity = activeShopId ? p.currentStock : (p.mainStock + p.shopStock);
+        return sum + (stockQuantity * p.purchasePrice);
+    }, 0);
+
 
     const tradeReceivables = historicalTransactions
         .filter(t => t.status === 'Credit')

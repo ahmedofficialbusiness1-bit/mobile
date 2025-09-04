@@ -22,7 +22,7 @@ interface ReportProps {
 }
 
 export default function ProfitLossStatement({ dateRange }: ReportProps) {
-    const { transactions, expenses, products, purchaseOrders, companyName } = useFinancials();
+    const { transactions, expenses, products, purchaseOrders, companyName, activeShopId } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
@@ -51,7 +51,12 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
     const purchases = filteredPurchases
         .filter(po => po.receivingStatus === 'Received')
         .reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.totalPrice, 0), 0);
-    const closingInventory = products.reduce((sum, p) => sum + ((p.mainStock + p.shopStock) * p.purchasePrice), 0);
+    
+    const closingInventory = products.reduce((sum, p) => {
+        const stockQuantity = activeShopId ? p.currentStock : (p.mainStock + p.shopStock);
+        return sum + (stockQuantity * p.purchasePrice);
+    }, 0);
+
     const costOfSales = openingInventory + purchases - closingInventory;
     const grossProfit = revenue - costOfSales;
 
