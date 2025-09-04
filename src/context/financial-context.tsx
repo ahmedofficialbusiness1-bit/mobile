@@ -591,80 +591,77 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [allCapitalContributions, activeShopId]);
 
     const cashBalances = useMemo(() => {
-        let cash = 0;
-        let bank = 0;
-        let mobile = 0;
+        const calculateBalancesForShop = (shopId: string | null) => {
+            let cash = 0, bank = 0, mobile = 0;
 
-        const relevantContributions = activeShopId 
-            ? allCapitalContributions.filter(c => c.shopId === activeShopId)
-            : allCapitalContributions;
-        
-        relevantContributions.forEach(c => {
-            if (c && c.type) {
+            const filterByShop = (item: { shopId: string }) => !shopId || item.shopId === shopId;
+
+            // Apply capital contributions only at HQ level or for the specific branch
+            allCapitalContributions.filter(filterByShop).forEach(c => {
                 if (c.type === 'Cash') cash += c.amount;
-                else if (c.type === 'Bank') bank += c.amount;
-            }
-        });
+                if (c.type === 'Bank') bank += c.amount;
+            });
 
-        const relevantTransactions = activeShopId
-            ? allTransactions.filter(t => t.shopId === activeShopId)
-            : allTransactions;
+            allTransactions.filter(filterByShop).forEach(t => {
+                if (t.status === 'Paid') {
+                    if (t.paymentMethod === 'Cash') cash += t.amount;
+                    else if (t.paymentMethod === 'Bank') bank += t.amount;
+                    else if (t.paymentMethod === 'Mobile') mobile += t.amount;
+                }
+            });
 
-        relevantTransactions.forEach(t => {
-            if (t.status === 'Paid') {
-                if (t.paymentMethod === 'Cash') cash += t.amount;
-                else if (t.paymentMethod === 'Bank') bank += t.amount;
-                else if (t.paymentMethod === 'Mobile') mobile += t.amount;
-            }
-        });
+            allPrepayments.filter(filterByShop).forEach(p => {
+                if (p.status === 'Active') bank += p.prepaidAmount;
+            });
 
-        const relevantPrepayments = activeShopId
-            ? allPrepayments.filter(p => p.shopId === activeShopId)
-            : allPrepayments;
+            allExpenses.filter(filterByShop).forEach(e => {
+                if (e.status === 'Approved' && e.paymentMethod) {
+                    if (e.paymentMethod === 'Cash') cash -= e.amount;
+                    else if (e.paymentMethod === 'Bank') bank -= e.amount;
+                    else if (e.paymentMethod === 'Mobile') mobile -= e.amount;
+                }
+            });
 
-        relevantPrepayments.forEach(p => {
-            if (p.status === 'Active') {
-                bank += p.prepaidAmount;
-            }
-        });
-        
-        const relevantExpenses = activeShopId
-            ? allExpenses.filter(e => e.shopId === activeShopId)
-            : allExpenses;
+            allPayrollHistory.filter(filterByShop).forEach(pr => {
+                if (pr.paymentMethod === 'Cash') cash -= pr.netSalary;
+                else if (pr.paymentMethod === 'Bank') bank -= pr.netSalary;
+                else if (pr.paymentMethod === 'Mobile') mobile -= pr.netSalary;
+            });
 
-        relevantExpenses.forEach(e => {
-            if (e.status === 'Approved' && e.paymentMethod) {
-                if (e.paymentMethod === 'Cash') cash -= e.amount;
-                else if (e.paymentMethod === 'Bank') bank -= e.amount;
-                else if (e.paymentMethod === 'Mobile') mobile -= e.amount;
-            }
-        });
-        
-        const relevantFundTransfers = activeShopId
-            ? allFundTransfers.filter(ft => ft.shopId === activeShopId)
-            : allFundTransfers;
+            // Fund transfers affect both source and destination
+            allFundTransfers.forEach(ft => {
+                // If we're calculating for a specific shop, it must be either the source or destination
+                if (shopId && ft.shopId !== shopId) return;
 
-        relevantFundTransfers.forEach(ft => {
-            if(ft.from === 'Cash') cash -= ft.amount;
-            if(ft.from === 'Bank') bank -= ft.amount;
-            if(ft.from === 'Mobile') mobile -= ft.amount;
-            if(ft.to === 'Cash') cash += ft.amount;
-            if(ft.to === 'Bank') bank += ft.amount;
-            if(ft.to === 'Mobile') mobile += ft.amount;
-        });
+                if (ft.from === 'Cash') cash -= ft.amount;
+                if (ft.from === 'Bank') bank -= ft.amount;
+                if (ft.from === 'Mobile') mobile -= ft.amount;
 
-        const relevantPayroll = activeShopId
-            ? allPayrollHistory.filter(pr => pr.shopId === activeShopId)
-            : allPayrollHistory;
+                if (ft.to === 'Cash') cash += ft.amount;
+                if (ft.to === 'Bank') bank += ft.amount;
+                if (ft.to === 'Mobile') mobile += ft.amount;
+            });
 
-        relevantPayroll.forEach(pr => {
-             if (pr.paymentMethod === 'Cash') cash -= pr.netSalary;
-             else if (pr.paymentMethod === 'Bank') bank -= pr.netSalary;
-             else if (pr.paymentMethod === 'Mobile') mobile -= pr.netSalary;
-        });
-        
-        return { cash, bank, mobile };
-    }, [allTransactions, allCapitalContributions, allExpenses, allPrepayments, allFundTransfers, allPayrollHistory, activeShopId]);
+            return { cash, bank, mobile };
+        };
+
+        if (activeShopId) {
+            // If a specific shop is active, calculate its standalone balance
+            return calculateBalancesForShop(activeShopId);
+        } else {
+            // If HQ is active (all shops), calculate total balances
+            let totalCash = 0, totalBank = 0, totalMobile = 0;
+
+            // Start with HQ-level capital
+            const hqCapital = calculateBalancesForShop(null); // Assuming capital can be at HQ level
+            totalCash += hqCapital.cash;
+            totalBank += hqCapital.bank;
+            totalMobile += hqCapital.mobile;
+            
+            return { cash: totalCash, bank: totalBank, mobile: totalMobile };
+        }
+    }, [activeShopId, allCapitalContributions, allTransactions, allPrepayments, allExpenses, allPayrollHistory, allFundTransfers]);
+
 
     const addSale = async (saleData: SaleFormData) => {
         if (!user || !activeShopId) throw new Error("User not authenticated or no active shop selected.");
@@ -793,24 +790,22 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const markPayableAsPaid = async (id: string, amount: number, paymentMethod: PaymentMethod) => {
         if (!user) throw new Error("User not authenticated.");
-        if (paymentMethod === 'Credit' || paymentMethod === 'Prepaid') throw new Error("Invalid payment method for payables.");
         
-        const balanceKey = paymentMethod.toLowerCase() as keyof typeof cashBalances;
-        if (cashBalances[balanceKey] < amount) {
-            throw new Error(`Insufficient funds in ${paymentMethod}. Required: ${amount}, Available: ${cashBalances[balanceKey].toLocaleString()}`);
+        const payableRef = doc(db, 'payables', id);
+        const payableDoc = await getDoc(payableRef);
+        if (!payableDoc.exists()) throw new Error("Payable not found.");
+        const payableData = payableDoc.data() as Payable;
+        const payableShopId = payableData.shopId;
+
+        if (!payableShopId) throw new Error("Payable is missing shop information, cannot process payment.");
+
+        const shopBalances = cashBalances; // This now correctly reflects the active shop's balance
+        const balanceKey = paymentMethod.toLowerCase() as keyof typeof shopBalances;
+        if (shopBalances[balanceKey] < amount) {
+            throw new Error(`Insufficient funds in ${paymentMethod}. Required: ${amount}, Available: ${shopBalances[balanceKey].toLocaleString()}`);
         }
 
-        const payableRef = doc(db, 'payables', id);
         await runTransaction(db, async (transaction) => {
-            const payableDoc = await transaction.get(payableRef);
-            if (!payableDoc.exists()) throw new Error("Payable not found.");
-
-            const payableData = payableDoc.data() as Payable;
-            const payableShopId = payableData.shopId;
-            if (!payableShopId) {
-                throw new Error("Payable is missing shop information.");
-            }
-
             const remainingAmount = payableData.amount - amount;
 
             if (remainingAmount <= 0) {
@@ -832,7 +827,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             const expenseRef = doc(collection(db, 'expenses'));
             transaction.set(expenseRef, newExpense);
 
-            // Link payment to PO if applicable
             if (payableData.product.startsWith('From PO #')) {
                 const poNumber = payableData.product.replace('From PO #', '').trim();
                 const poQuery = query(collection(db, 'purchaseOrders'), where('poNumber', '==', poNumber), where('userId', '==', user.uid));
@@ -842,7 +836,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                     const poData = poSnap.docs[0].data() as PurchaseOrder;
                     const poTotal = poData.items.reduce((sum, item) => sum + item.totalPrice, 0);
 
-                    if (poTotal - amount <= 0) {
+                    if (poTotal - amount <= 0) { // This logic might need refinement for partial payments
                         transaction.update(poRef, { paymentStatus: 'Paid' });
                     }
                 }
@@ -1627,5 +1621,6 @@ export const useFinancials = (): FinancialContextType => {
 };
 
     
+
 
 
