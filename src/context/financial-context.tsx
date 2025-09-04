@@ -675,6 +675,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 throw new Error(`Not enough stock in shop for ${product.name}. Only ${shopStock} available.`);
             }
             
+            // **FIX**: Use the unit price from the form, not from the product object
             const grossAmount = saleData.unitPrice * saleData.quantity;
             const netAmount = grossAmount / (1 + saleData.vatRate);
             const vatAmount = grossAmount - netAmount;
@@ -761,19 +762,18 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             if (productId && productId !== 'invoice') {
                 const productRef = doc(db, 'products', productId);
                 const productDoc = await transaction.get(productRef);
-                if (!productDoc.exists()) {
-                    // If product doesn't exist, we can't adjust stock, so just move the sale record.
-                    console.warn(`Product with ID ${productId} not found. Moving sale record without stock adjustment.`);
-                } else {
-                    const product = productDoc.data() as Product;
-                    const fromShopStock = product.stockByShop?.[fromShopId] || 0;
-                    const toShopStock = product.stockByShop?.[toShopId] || 0;
+                const product = productDoc.exists() ? productDoc.data() as Product : null;
+                
+                const fromShopStock = product?.stockByShop?.[fromShopId] || 0;
+                const toShopStock = product?.stockByShop?.[toShopId] || 0;
 
-                    const updatedStockByShop = {
-                        ...(product.stockByShop || {}),
-                        [fromShopId]: fromShopStock + quantity,
-                        [toShopId]: toShopStock - quantity,
-                    };
+                const updatedStockByShop = {
+                    ...(product?.stockByShop || {}),
+                    [fromShopId]: fromShopStock + quantity,
+                    [toShopId]: toShopStock - quantity,
+                };
+                
+                if (product) {
                     transaction.update(productRef, { stockByShop: updatedStockByShop, lastUpdated: new Date() });
                 }
             }
@@ -1832,6 +1832,7 @@ export const useFinancials = (): FinancialContextType => {
 };
 
     
+
 
 
 
