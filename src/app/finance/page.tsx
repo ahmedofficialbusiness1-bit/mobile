@@ -8,7 +8,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { Menu, Briefcase, FileText, Banknote, Landmark, Users, PiggyBank, BookUser, Printer, Compass, FilePlus2, ShoppingCart, BarChart2, Settings, Home, Truck, Warehouse } from 'lucide-react'
+import { Menu, Briefcase, FileText, Banknote, Landmark, Users, PiggyBank, BookUser, Printer, Compass, FilePlus2, ShoppingCart, BarChart2, Settings, Home, Truck, Warehouse, Percent } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import AccountsView from './accounts-view'
 import ExpensesView from './expenses-view'
@@ -17,6 +17,7 @@ import AssetsView from './assets-view'
 import CashManagementView from './cash-management-view'
 import JournalView from './journal-view'
 import PayrollView from './payroll-view'
+import VatView from './vat-view'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -29,6 +30,7 @@ const financeNavItems = [
     { id: 'payroll', label: 'Payroll', icon: Users },
     { id: 'cash', label: 'Cash Management', icon: PiggyBank },
     { id: 'journal', label: 'Journal', icon: BookUser },
+    { id: 'vat', label: 'VAT', icon: Percent },
 ]
 
 function FinancePageContent() {
@@ -55,6 +57,8 @@ function FinancePageContent() {
                 return <CashManagementView />;
             case 'journal':
                 return <JournalView />;
+            case 'vat':
+                return <VatView />;
             default:
                 return <AccountsView />;
         }

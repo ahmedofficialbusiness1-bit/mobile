@@ -324,6 +324,7 @@ interface FinancialContextType {
     addSale: (saleData: SaleFormData) => Promise<void>;
     deleteSale: (saleId: string) => Promise<void>;
     transferSale: (saleId: string, toShopId: string) => Promise<void>;
+    adjustTransactionVat: (transactionId: string, newVatRate: VatRate) => Promise<void>;
     markReceivableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
     deleteReceivable: (receivableId: string) => Promise<void>;
     markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
@@ -779,6 +780,28 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
 
             // Update the shopId on the sale record
             transaction.update(saleRef, { shopId: toShopId });
+        });
+    };
+
+    const adjustTransactionVat = async (transactionId: string, newVatRate: VatRate) => {
+        if (!user) throw new Error("User not authenticated.");
+        const transactionRef = doc(db, 'transactions', transactionId);
+
+        await runTransaction(db, async (firestoreTransaction) => {
+            const transDoc = await firestoreTransaction.get(transactionRef);
+            if (!transDoc.exists()) {
+                throw new Error("Transaction not found.");
+            }
+            const currentTransaction = transDoc.data() as Transaction;
+            const grossAmount = currentTransaction.amount;
+            
+            const newNetAmount = grossAmount / (1 + newVatRate);
+            const newVatAmount = grossAmount - newNetAmount;
+
+            firestoreTransaction.update(transactionRef, {
+                netAmount: newNetAmount,
+                vatAmount: newVatAmount
+            });
         });
     };
 
@@ -1732,6 +1755,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         addSale,
         deleteSale,
         transferSale,
+        adjustTransactionVat,
         markReceivableAsPaid,
         deleteReceivable,
         markPayableAsPaid,
@@ -1808,6 +1832,7 @@ export const useFinancials = (): FinancialContextType => {
 };
 
     
+
 
 
 
