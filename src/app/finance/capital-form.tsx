@@ -1,6 +1,7 @@
 
 'use client'
 
+import * as React from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,19 +16,15 @@ import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Textarea } from '@/components/ui/textarea';
+import type { CapitalContribution } from '@/context/financial-context';
 
-export interface CapitalContribution {
-  id: string;
-  date: Date;
-  description: string;
-  type: 'Cash' | 'Bank' | 'Asset' | 'Liability' | 'Drawing';
-  amount: number;
-}
+type CapitalFormData = Omit<CapitalContribution, 'id' | 'userId' | 'shopId'>;
 
 interface CapitalFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Omit<CapitalContribution, 'id' | 'type' | 'shopId' | 'userId'> & { type: 'Cash' | 'Bank' | 'Asset' | 'Liability' }) => void;
+  onSave: (data: CapitalFormData) => void;
+  capital: CapitalContribution | null;
 }
 
 const formSchema = z.object({
@@ -41,7 +38,7 @@ const formSchema = z.object({
   }),
 });
 
-export function CapitalForm({ isOpen, onClose, onSave }: CapitalFormProps) {
+export function CapitalForm({ isOpen, onClose, onSave, capital }: CapitalFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -50,6 +47,25 @@ export function CapitalForm({ isOpen, onClose, onSave }: CapitalFormProps) {
       date: new Date(),
     },
   });
+
+  React.useEffect(() => {
+    if (capital) {
+      form.reset({
+        description: capital.description,
+        type: capital.type,
+        amount: capital.amount,
+        date: new Date(capital.date),
+      });
+    } else {
+      form.reset({
+        description: '',
+        amount: 0,
+        date: new Date(),
+        type: undefined,
+      });
+    }
+  }, [capital, form, isOpen]);
+
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     onSave(values);
@@ -61,9 +77,9 @@ export function CapitalForm({ isOpen, onClose, onSave }: CapitalFormProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Introduce New Capital</DialogTitle>
+          <DialogTitle>{capital ? 'Edit Capital Contribution' : 'Introduce New Capital'}</DialogTitle>
           <DialogDescription>
-            Record a new capital contribution to the business.
+            {capital ? "Update the details of this capital contribution." : "Record a new capital contribution to the business."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
