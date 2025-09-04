@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { VatAdjustmentDialog } from './vat-adjustment-dialog'
 import type { VatRate } from '@/app/sales/sale-form'
+import { Badge } from '@/components/ui/badge'
 
 export default function VatView() {
     const { transactions, adjustTransactionVat } = useFinancials()
@@ -130,6 +131,7 @@ export default function VatView() {
                                     <TableHead>Customer</TableHead>
                                     <TableHead>Product</TableHead>
                                     <TableHead>Date</TableHead>
+                                    <TableHead>Payment Status</TableHead>
                                     <TableHead className="text-right">Gross Amount</TableHead>
                                     <TableHead className="text-right">VAT Amount</TableHead>
                                     <TableHead className="text-right">Net Amount</TableHead>
@@ -146,6 +148,11 @@ export default function VatView() {
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap">{item.product}</TableCell>
                                             <TableCell className="whitespace-nowrap">{format(new Date(item.date), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={item.status === 'Paid' ? 'default' : 'secondary'}>
+                                                    {item.status}
+                                                </Badge>
+                                            </TableCell>
                                             <TableCell className="text-right whitespace-nowrap font-semibold">TSh {item.amount.toLocaleString()}</TableCell>
                                             <TableCell className="text-right whitespace-nowrap">TSh {item.vatAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</TableCell>
                                             <TableCell className="text-right whitespace-nowrap">TSh {item.netAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</TableCell>
@@ -159,13 +166,13 @@ export default function VatView() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center h-24">No sales transactions for the selected period.</TableCell>
+                                        <TableCell colSpan={8} className="text-center h-24">No sales transactions for the selected period.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
                              <TableFooter>
                                 <TableRow className="font-bold text-lg bg-muted">
-                                    <TableCell colSpan={3}>Filtered Totals</TableCell>
+                                    <TableCell colSpan={4}>Filtered Totals</TableCell>
                                     <TableCell className="text-right">TSh {totals.gross.toLocaleString()}</TableCell>
                                     <TableCell className="text-right">TSh {totals.vat.toLocaleString(undefined, {maximumFractionDigits: 2})}</TableCell>
                                     <TableCell className="text-right">TSh {totals.net.toLocaleString(undefined, {maximumFractionDigits: 2})}</TableCell>
