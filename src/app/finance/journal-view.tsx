@@ -15,6 +15,8 @@ import { useFinancials } from '@/context/financial-context'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface JournalEntry {
+  id: string; // Add ID for deletion
+  type: 'transaction' | 'expense'; // To know which delete function to call
   date: Date
   description: string
   debit?: number // Money out
@@ -22,7 +24,7 @@ interface JournalEntry {
 }
 
 export default function JournalView() {
-  const { transactions, expenses, capitalContributions, payrollHistory, payables, fundTransfers } = useFinancials()
+  const { transactions, expenses, capitalContributions, payrollHistory, payables, fundTransfers, deleteSale, deleteExpense } = useFinancials()
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -57,32 +59,19 @@ export default function JournalView() {
 
     // Credits (Money In)
     transactions.filter(t => t.status === 'Paid').forEach(t => {
-      allEntries.push({ date: t.date, description: `Sale: ${t.product} to ${t.name}`, credit: t.amount })
+      allEntries.push({ id: t.id, type: 'transaction', date: t.date, description: `Sale: ${t.product} to ${t.name}`, credit: t.amount })
     })
     capitalContributions.filter(c => c.type !== 'Liability').forEach(c => {
-      allEntries.push({ date: c.date, description: `Capital: ${c.description}`, credit: c.amount })
+      // Capital contributions are not directly deletable from journal view for now
     })
 
     // Debits (Money Out)
     expenses.filter(e => e.status === 'Approved').forEach(e => {
-      allEntries.push({ date: e.date, description: `Expense: ${e.description}`, debit: e.amount })
+      allEntries.push({ id: e.id, type: 'expense', date: e.date, description: `Expense: ${e.description}`, debit: e.amount })
     })
-    payrollHistory.forEach(p => {
-        allEntries.push({ date: p.date, description: `Payroll for ${p.month}`, debit: p.totalNet })
-    })
-    payables.filter(p => p.status === 'Paid').forEach(p => {
-        allEntries.push({ date: p.date, description: `Payable: ${p.product} to ${p.supplierName}`, debit: p.amount })
-    })
-    
-    // Fund Transfers
-    fundTransfers.forEach(ft => {
-        allEntries.push({ date: ft.date, description: `Transfer from ${ft.from} to ${ft.to}`, debit: ft.amount });
-        allEntries.push({ date: ft.date, description: `Transfer from ${ft.from} to ${ft.to}`, credit: ft.amount });
-    })
-
 
     return allEntries.sort((a, b) => b.date.getTime() - a.date.getTime())
-  }, [transactions, expenses, capitalContributions, payrollHistory, payables, fundTransfers])
+  }, [transactions, expenses, capitalContributions])
 
   const filteredEntries = journalEntries.filter(entry => {
     if (!date?.from || !date?.to) return true
