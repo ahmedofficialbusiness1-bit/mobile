@@ -4,7 +4,7 @@
 import * as React from 'react'
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
-import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, FileText } from 'lucide-react'
+import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, FileText, ArrowRightLeft } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -38,11 +38,13 @@ import { useFinancials, type Invoice } from '@/context/financial-context'
 import { InvoiceForm, type InvoiceFormData } from './invoice-form'
 import { useToast } from '@/hooks/use-toast'
 import { PaymentDialog } from '@/components/payment-dialog'
+import { TransferRecordDialog } from '@/components/transfer-record-dialog'
 
 function InvoicesPageContent() {
-  const { invoices, customers, addInvoice, payInvoice } = useFinancials()
+  const { invoices, customers, addInvoice, payInvoice, transferInvoice, shops } = useFinancials()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false)
+  const [isTransferOpen, setIsTransferOpen] = React.useState(false)
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
   const { toast } = useToast()
   
@@ -84,6 +86,30 @@ function InvoicesPageContent() {
     }
     setIsPaymentDialogOpen(false);
     setSelectedInvoice(null);
+  }
+
+  const handleOpenTransfer = (invoice: Invoice) => {
+      setSelectedInvoice(invoice);
+      setIsTransferOpen(true);
+  }
+
+  const handleTransfer = async (toShopId: string) => {
+      if (!selectedInvoice) return;
+      try {
+          await transferInvoice(selectedInvoice.id, toShopId);
+          toast({
+              title: "Invoice Transferred",
+              description: `Invoice #${selectedInvoice.invoiceNumber} has been moved to the new branch.`
+          });
+          setIsTransferOpen(false);
+          setSelectedInvoice(null);
+      } catch (error: any) {
+          toast({
+              variant: 'destructive',
+              title: "Transfer Failed",
+              description: error.message
+          });
+      }
   }
 
   const filteredInvoices = React.useMemo(() => {
@@ -211,6 +237,10 @@ function InvoicesPageContent() {
                                             Record Payment
                                         </DropdownMenuItem>
                                     )}
+                                     <DropdownMenuItem onClick={() => handleOpenTransfer(invoice)}>
+                                        <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                        Transfer to another Branch
+                                    </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </TableCell>
@@ -250,6 +280,14 @@ function InvoicesPageContent() {
         description={`The total amount due is TSh ${selectedInvoice?.totalAmount.toLocaleString()}.`}
         totalAmount={selectedInvoice?.totalAmount}
       />
+      <TransferRecordDialog
+        isOpen={isTransferOpen}
+        onClose={() => setIsTransferOpen(false)}
+        onSave={handleTransfer}
+        shops={shops}
+        currentShopId={selectedInvoice?.shopId}
+        recordType="Invoice"
+    />
     </>
   )
 }

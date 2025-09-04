@@ -323,6 +323,7 @@ interface FinancialContextType {
     cashBalances: { cash: number; bank: number; mobile: number };
     addSale: (saleData: SaleFormData) => Promise<void>;
     deleteSale: (saleId: string) => Promise<void>;
+    transferSale: (saleId: string, toShopId: string) => Promise<void>;
     markReceivableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
     deleteReceivable: (receivableId: string) => Promise<void>;
     markPayableAsPaid: (id: string, amount: number, paymentMethod: PaymentMethod) => Promise<void>;
@@ -364,8 +365,10 @@ interface FinancialContextType {
     deletePurchaseOrder: (poId: string) => Promise<void>;
     receivePurchaseOrder: (poId: string) => Promise<void>;
     payPurchaseOrder: (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => Promise<void>;
+    transferPurchaseOrder: (poId: string, toShopId: string) => Promise<void>;
     addInvoice: (invoiceData: InvoiceFormData) => Promise<void>;
     payInvoice: (invoiceId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => Promise<void>;
+    transferInvoice: (invoiceId: string, toShopId: string) => Promise<void>;
     addFundTransfer: (data: Omit<FundTransfer, 'id' | 'userId' | 'shopId'>) => Promise<void>;
 }
 
@@ -598,45 +601,34 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         const calculateBalancesForShop = (shopId: string) => {
             let cash = 0, bank = 0, mobile = 0;
 
-            const shopCapital = allCapitalContributions.filter(c => c.shopId === shopId);
-            const shopTransactions = allTransactions.filter(t => t.shopId === shopId);
-            const shopPrepayments = allPrepayments.filter(p => p.shopId === shopId);
-            const shopExpenses = allExpenses.filter(e => e.shopId === shopId);
-            const shopPayroll = allPayrollHistory.filter(p => p.shopId === shopId);
-            const shopTransfers = allFundTransfers.filter(ft => ft.shopId === shopId);
-
-            shopCapital.forEach(c => {
+            allCapitalContributions.filter(c => c.shopId === shopId).forEach(c => {
                 if (c.type === 'Cash') cash += c.amount;
                 if (c.type === 'Bank') bank += c.amount;
             });
 
-            shopTransactions.forEach(t => {
-                if (t.status === 'Paid') {
-                    if (t.paymentMethod === 'Cash') cash += t.amount;
-                    else if (t.paymentMethod === 'Bank') bank += t.amount;
-                    else if (t.paymentMethod === 'Mobile') mobile += t.amount;
-                }
+            allTransactions.filter(t => t.shopId === shopId && t.status === 'Paid').forEach(t => {
+                if (t.paymentMethod === 'Cash') cash += t.amount;
+                else if (t.paymentMethod === 'Bank') bank += t.amount;
+                else if (t.paymentMethod === 'Mobile') mobile += t.amount;
+            });
+            
+            allPrepayments.filter(p => p.shopId === shopId && p.status === 'Active').forEach(p => {
+                 bank += p.prepaidAmount;
             });
 
-            shopPrepayments.forEach(p => {
-                if (p.status === 'Active') bank += p.prepaidAmount;
+            allExpenses.filter(e => e.shopId === shopId && e.status === 'Approved' && e.paymentMethod).forEach(e => {
+                if (e.paymentMethod === 'Cash') cash -= e.amount;
+                else if (e.paymentMethod === 'Bank') bank -= e.amount;
+                else if (e.paymentMethod === 'Mobile') mobile -= e.amount;
             });
 
-            shopExpenses.forEach(e => {
-                if (e.status === 'Approved' && e.paymentMethod) {
-                    if (e.paymentMethod === 'Cash') cash -= e.amount;
-                    else if (e.paymentMethod === 'Bank') bank -= e.amount;
-                    else if (e.paymentMethod === 'Mobile') mobile -= e.amount;
-                }
-            });
-
-            shopPayroll.forEach(pr => {
+            allPayrollHistory.filter(p => p.shopId === shopId).forEach(pr => {
                 if (pr.paymentMethod === 'Cash') cash -= pr.netSalary;
                 else if (pr.paymentMethod === 'Bank') bank -= pr.netSalary;
                 else if (pr.paymentMethod === 'Mobile') mobile -= pr.netSalary;
             });
             
-            shopTransfers.forEach(ft => {
+            allFundTransfers.filter(ft => ft.shopId === shopId).forEach(ft => {
                 if (ft.from === 'Cash') cash -= ft.amount;
                 if (ft.from === 'Bank') bank -= ft.amount;
                 if (ft.from === 'Mobile') mobile -= ft.amount;
@@ -652,16 +644,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (activeShopId) {
             return calculateBalancesForShop(activeShopId);
         } else {
-            let totalCash = 0, totalBank = 0, totalMobile = 0;
-            
-            allShops.forEach(shop => {
+            // HQ View: Sum of all branches
+            return allShops.reduce((acc, shop) => {
                 const shopBalance = calculateBalancesForShop(shop.id);
-                totalCash += shopBalance.cash;
-                totalBank += shopBalance.bank;
-                totalMobile += shopBalance.mobile;
-            });
-            
-            return { cash: totalCash, bank: totalBank, mobile: totalMobile };
+                acc.cash += shopBalance.cash;
+                acc.bank += shopBalance.bank;
+                acc.mobile += shopBalance.mobile;
+                return acc;
+            }, { cash: 0, bank: 0, mobile: 0 });
         }
     }, [activeShopId, allShops, allCapitalContributions, allTransactions, allPrepayments, allExpenses, allPayrollHistory, allFundTransfers]);
 
@@ -746,6 +736,47 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
 
             transaction.delete(saleRef);
+        });
+    };
+
+    const transferSale = async (saleId: string, toShopId: string) => {
+        if (!user) throw new Error("User not authenticated.");
+        const saleRef = doc(db, 'transactions', saleId);
+
+        await runTransaction(db, async (transaction) => {
+            const saleDoc = await transaction.get(saleRef);
+            if (!saleDoc.exists()) throw new Error("Sale not found.");
+            
+            const saleToMove = saleDoc.data() as Transaction;
+            const fromShopId = saleToMove.shopId;
+            const { productId, quantity } = saleToMove;
+
+            if (fromShopId === toShopId) throw new Error("Cannot transfer to the same branch.");
+
+            // Reverse stock from old branch and apply to new branch
+            if (productId && productId !== 'invoice') {
+                const productRef = doc(db, 'products', productId);
+                const productDoc = await transaction.get(productRef);
+                if (!productDoc.exists()) throw new Error("Associated product not found.");
+
+                const product = productDoc.data() as Product;
+                const fromShopStock = product.stockByShop?.[fromShopId] || 0;
+                const toShopStock = product.stockByShop?.[toShopId] || 0;
+
+                if (toShopStock < quantity) {
+                    throw new Error(`Insufficient stock in destination branch. Available: ${toShopStock}`);
+                }
+
+                const updatedStockByShop = {
+                    ...(product.stockByShop || {}),
+                    [fromShopId]: fromShopStock + quantity,
+                    [toShopId]: toShopStock - quantity,
+                };
+                transaction.update(productRef, { stockByShop: updatedStockByShop, lastUpdated: new Date() });
+            }
+
+            // Update the shopId on the sale record
+            transaction.update(saleRef, { shopId: toShopId });
         });
     };
 
@@ -1422,6 +1453,11 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await batch.commit();
     }
 
+    const transferPurchaseOrder = async (poId: string, toShopId: string) => {
+        if (!user) throw new Error("User not authenticated.");
+        await updateDoc(doc(db, 'purchaseOrders', poId), { shopId: toShopId });
+    }
+
     const addInvoice = async (invoiceData: InvoiceFormData) => {
         if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
         const subtotal = invoiceData.items.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -1498,6 +1534,11 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await batch.commit();
     };
     
+    const transferInvoice = async (invoiceId: string, toShopId: string) => {
+        if (!user) throw new Error("User not authenticated.");
+        await updateDoc(doc(db, 'invoices', invoiceId), { shopId: toShopId });
+    }
+    
     const addFundTransfer = async (data: Omit<FundTransfer, 'id' | 'userId' | 'shopId'>) => {
         if (!user || !activeShopId) throw new Error("User not authenticated or no active shop.");
         const fromBalance = cashBalances[data.from.toLowerCase() as keyof typeof cashBalances];
@@ -1573,6 +1614,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         fundTransfers,
         addSale,
         deleteSale,
+        transferSale,
         markReceivableAsPaid,
         deleteReceivable,
         markPayableAsPaid,
@@ -1614,8 +1656,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         deletePurchaseOrder,
         receivePurchaseOrder,
         payPurchaseOrder,
+        transferPurchaseOrder,
         addInvoice,
         payInvoice,
+        transferInvoice,
         addFundTransfer
     };
 
@@ -1644,6 +1688,7 @@ export const useFinancials = (): FinancialContextType => {
 };
 
     
+
 
 
 

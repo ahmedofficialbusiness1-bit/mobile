@@ -2,7 +2,7 @@
 'use client'
 
 import * as React from 'react'
-import { PlusCircle, MoreHorizontal, DollarSign, Users, CreditCard, Calendar as CalendarIcon, Trash2 } from 'lucide-react'
+import { PlusCircle, MoreHorizontal, DollarSign, Users, CreditCard, Calendar as CalendarIcon, Trash2, ArrowRightLeft } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -38,11 +38,14 @@ import { Calendar } from '@/components/ui/calendar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+import { TransferRecordDialog } from '@/components/transfer-record-dialog'
 
 
 export default function SalesPageContent() {
-  const { transactions, products, addSale, customers, deleteSale } = useFinancials()
+  const { transactions, products, addSale, customers, deleteSale, transferSale, shops } = useFinancials()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
+  const [isTransferOpen, setIsTransferOpen] = React.useState(false)
+  const [selectedSale, setSelectedSale] = React.useState<Transaction | null>(null)
   const { toast } = useToast()
   
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -87,6 +90,30 @@ export default function SalesPageContent() {
             description: error.message,
         })
     }
+  }
+  
+  const handleOpenTransfer = (sale: Transaction) => {
+      setSelectedSale(sale);
+      setIsTransferOpen(true);
+  }
+  
+  const handleTransferSale = async (toShopId: string) => {
+      if (!selectedSale) return;
+      try {
+          await transferSale(selectedSale.id, toShopId);
+          toast({
+              title: "Sale Transferred",
+              description: `Sale has been successfully moved to the new branch.`
+          });
+          setIsTransferOpen(false);
+          setSelectedSale(null);
+      } catch (error: any) {
+          toast({
+              variant: 'destructive',
+              title: "Transfer Failed",
+              description: error.message
+          });
+      }
   }
 
   const filteredTransactions = React.useMemo(() => {
@@ -249,6 +276,10 @@ export default function SalesPageContent() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
                                     <DropdownMenuItem>Generate Receipt</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleOpenTransfer(sale)}>
+                                        <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                        Transfer to another Branch
+                                    </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
@@ -302,6 +333,14 @@ export default function SalesPageContent() {
         onSave={handleSaveSale}
         products={products}
         customers={customers}
+    />
+    <TransferRecordDialog
+        isOpen={isTransferOpen}
+        onClose={() => setIsTransferOpen(false)}
+        onSave={handleTransferSale}
+        shops={shops}
+        currentShopId={selectedSale?.shopId}
+        recordType="Sale"
     />
     </>
   )

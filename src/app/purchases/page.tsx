@@ -4,7 +4,7 @@
 import * as React from 'react'
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
-import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, Trash2 } from 'lucide-react'
+import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, Trash2, ArrowRightLeft } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -39,12 +39,14 @@ import { PurchaseOrderForm } from './purchase-order-form'
 import { useToast } from '@/hooks/use-toast'
 import { PaymentDialog } from '@/components/payment-dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+import { TransferRecordDialog } from '@/components/transfer-record-dialog'
 
 function PurchasesPageContent() {
-  const { purchaseOrders, addPurchaseOrder, receivePurchaseOrder, payPurchaseOrder, deletePurchaseOrder } = useFinancials()
+  const { purchaseOrders, addPurchaseOrder, receivePurchaseOrder, payPurchaseOrder, deletePurchaseOrder, transferPurchaseOrder, shops } = useFinancials()
   const { toast } = useToast()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false)
+  const [isTransferOpen, setIsTransferOpen] = React.useState(false)
   const [selectedPO, setSelectedPO] = React.useState<PurchaseOrder | null>(null)
 
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -114,6 +116,30 @@ function PurchasesPageContent() {
             description: error.message,
         })
     }
+  }
+
+  const handleOpenTransfer = (po: PurchaseOrder) => {
+      setSelectedPO(po);
+      setIsTransferOpen(true);
+  }
+
+  const handleTransfer = async (toShopId: string) => {
+      if (!selectedPO) return;
+      try {
+          await transferPurchaseOrder(selectedPO.id, toShopId);
+          toast({
+              title: "Purchase Order Transferred",
+              description: `PO #${selectedPO.poNumber} has been moved to the new branch.`
+          });
+          setIsTransferOpen(false);
+          setSelectedPO(null);
+      } catch (error: any) {
+          toast({
+              variant: 'destructive',
+              title: "Transfer Failed",
+              description: error.message
+          });
+      }
   }
 
   const filteredPurchaseOrders = React.useMemo(() => {
@@ -270,6 +296,10 @@ function PurchasesPageContent() {
                                     {po.receivingStatus !== 'Received' && (
                                         <DropdownMenuItem onClick={() => handleReceive(po.id)}>Mark as Received</DropdownMenuItem>
                                     )}
+                                    <DropdownMenuItem onClick={() => handleOpenTransfer(po)}>
+                                        <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                        Transfer to another Branch
+                                    </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
@@ -330,6 +360,14 @@ function PurchasesPageContent() {
         description={`Total amount due is TSh ${selectedPO?.items.reduce((sum, item) => sum + item.totalPrice, 0).toLocaleString()}.`}
         totalAmount={selectedPO?.items.reduce((sum, item) => sum + item.totalPrice, 0)}
       />
+      <TransferRecordDialog
+        isOpen={isTransferOpen}
+        onClose={() => setIsTransferOpen(false)}
+        onSave={handleTransfer}
+        shops={shops}
+        currentShopId={selectedPO?.shopId}
+        recordType="Purchase Order"
+    />
     </>
   )
 }
