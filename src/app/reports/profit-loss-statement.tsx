@@ -38,24 +38,28 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
     );
     
     const filteredPurchases = purchaseOrders.filter(po =>
-        dateRange?.from && dateRange?.to && isWithinInterval(po.purchaseDate, { start: dateRange.from, end: dateRange.to })
+        po.receivingStatus === 'Received' && dateRange?.from && dateRange?.to && isWithinInterval(po.purchaseDate, { start: dateRange.from, end: dateRange.to })
     );
 
-
-    // Use netAmount for revenue calculation (Sales After VAT)
+    // Revenue (Net of VAT) for the period
     const revenue = filteredTransactions
         .filter(t => t.status === 'Paid')
         .reduce((sum, t) => sum + t.netAmount, 0);
 
-    const openingInventory = 0; // Simplified for now
-    const purchases = filteredPurchases
-        .filter(po => po.receivingStatus === 'Received')
-        .reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.totalPrice, 0), 0);
+    // Purchases for the period
+    const purchases = filteredPurchases.reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.totalPrice, 0), 0);
     
+    // Closing Inventory at the end of the period
     const closingInventory = products.reduce((sum, p) => {
         const stockQuantity = activeShopId ? p.currentStock : (p.mainStock + p.shopStock);
         return sum + (stockQuantity * p.purchasePrice);
     }, 0);
+    
+    // Quantity sold in the period
+    const quantitySoldInPeriod = filteredTransactions.reduce((sum, t) => sum + t.quantity, 0);
+
+    // Opening Inventory = Closing Inventory - Purchases in Period + Quantity Sold in Period * Average Purchase Price (simplified)
+    const openingInventory = closingInventory - purchases + filteredTransactions.reduce((sum, t) => sum + (t.quantity * (products.find(p => p.id === t.productId)?.purchasePrice || 0)), 0);
 
     const costOfSales = openingInventory + purchases - closingInventory;
     const grossProfit = revenue - costOfSales;

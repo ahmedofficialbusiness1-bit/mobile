@@ -6,6 +6,7 @@ import { useFinancials } from '@/context/financial-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
 import type { DateRange } from 'react-day-picker';
+import { isWithinInterval } from 'date-fns';
 
 
 const ReportRow = ({ label, value, isBold = false, isSub = false }) => (
@@ -31,23 +32,28 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
     const endDate = dateRange?.to || new Date();
 
     // --- RETAINED EARNINGS CALCULATION (from P&L logic) ---
+    // All transactions up to the end date of the report
     const historicalTransactions = transactions.filter(t => new Date(t.date) <= endDate);
     const historicalExpenses = expenses.filter(e => e.status === 'Approved' && new Date(e.date) <= endDate);
     const historicalPurchases = purchaseOrders.filter(po => po.receivingStatus === 'Received' && new Date(po.purchaseDate) <= endDate);
 
     const revenue = historicalTransactions.reduce((sum, t) => sum + t.netAmount, 0);
     
-    // Simplified COGS for retained earnings
+    // Purchases up to end date
     const purchases = historicalPurchases.reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.totalPrice, 0), 0);
-    // Use currentStock for branch-specific, otherwise total for HQ
+    
+    // Closing inventory value at the end date
     const closingInventoryForPL = products.reduce((sum, p) => {
         const stockQuantity = activeShopId ? p.currentStock : (p.mainStock + p.shopStock);
         return sum + (stockQuantity * p.purchasePrice);
     }, 0);
 
-    const costOfSales = purchases - closingInventoryForPL; // Simplified: Assumes 0 opening inventory at the very start
+    const quantitySoldAllTime = historicalTransactions.reduce((sum, t) => sum + t.quantity, 0);
+    const openingInventoryAllTime = 0; // The very beginning is 0
+    const costOfSalesAllTime = openingInventoryAllTime + purchases - closingInventoryForPL;
 
-    const grossProfit = revenue - costOfSales;
+
+    const grossProfit = revenue - costOfSalesAllTime;
     const operatingExpenses = historicalExpenses.reduce((sum, e) => sum + e.amount, 0);
     const retainedEarnings = grossProfit - operatingExpenses;
 
