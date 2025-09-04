@@ -22,7 +22,7 @@ interface ReportProps {
 
 
 export default function BalanceSheet({ dateRange }: ReportProps) {
-    const { assets, products, transactions, payables, cashBalances, capitalContributions, ownerLoans, companyName, expenses, purchaseOrders, activeShopId } = useFinancials();
+    const { assets, products, transactions, payables, cashBalances, capitalContributions, ownerLoans, companyName, expenses, activeShopId } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
@@ -35,22 +35,18 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
     // All transactions up to the end date of the report
     const historicalTransactions = transactions.filter(t => new Date(t.date) <= endDate);
     const historicalExpenses = expenses.filter(e => e.status === 'Approved' && new Date(e.date) <= endDate);
-    const historicalPurchases = purchaseOrders.filter(po => po.receivingStatus === 'Received' && new Date(po.purchaseDate) <= endDate);
 
-    const revenue = historicalTransactions.reduce((sum, t) => sum + t.netAmount, 0);
+    const revenue = historicalTransactions
+        .filter(t => t.status === 'Paid' || t.status === 'Credit')
+        .reduce((sum, t) => sum + t.netAmount, 0);
     
-    // Purchases up to end date
-    const purchases = historicalPurchases.reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.totalPrice, 0), 0);
-    
-    // Closing inventory value at the end date
-    const closingInventoryForPL = products.reduce((sum, p) => {
-        const stockQuantity = activeShopId ? p.currentStock : (p.mainStock + p.shopStock);
-        return sum + (stockQuantity * p.purchasePrice);
+    // Direct Cost of Sales Calculation for all historical transactions
+    const costOfSalesAllTime = historicalTransactions.reduce((sum, t) => {
+        if (t.productId === 'invoice') return sum;
+        const product = products.find(p => p.id === t.productId);
+        const cost = product ? product.purchasePrice * t.quantity : 0;
+        return sum + cost;
     }, 0);
-
-    const quantitySoldAllTime = historicalTransactions.reduce((sum, t) => sum + t.quantity, 0);
-    const openingInventoryAllTime = 0; // The very beginning is 0
-    const costOfSalesAllTime = openingInventoryAllTime + purchases - closingInventoryForPL;
 
 
     const grossProfit = revenue - costOfSalesAllTime;
@@ -63,7 +59,7 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
         .filter(a => new Date(a.acquisitionDate) <= endDate && a.status === 'Active')
         .reduce((sum, asset) => sum + asset.netBookValue, 0);
 
-    // Use currentStock for branch-specific, otherwise total for HQ view
+    // Inventory value at the end date (approximated as current value for now)
     const inventory = products.reduce((sum, p) => {
         const stockQuantity = activeShopId ? p.currentStock : (p.mainStock + p.shopStock);
         return sum + (stockQuantity * p.purchasePrice);
