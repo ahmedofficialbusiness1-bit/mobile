@@ -8,7 +8,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { Menu, Briefcase, FileText, Banknote, Landmark, Users, PiggyBank, BookUser, Printer } from 'lucide-react'
+import { Menu, Briefcase, FileText, Banknote, Landmark, Users, PiggyBank, BookUser, Printer, Compass, FilePlus2, ShoppingCart, BarChart2, Settings, Home, Truck, Warehouse } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import AccountsView from './accounts-view'
 import PayrollView from './payroll-view'
@@ -17,6 +17,8 @@ import CapitalView from './capital-view'
 import AssetsView from './assets-view'
 import CashManagementView from './cash-management-view'
 import JournalView from './journal-view'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 
 const financeNavItems = [
@@ -30,6 +32,7 @@ const financeNavItems = [
 ]
 
 function FinancePageContent() {
+    const pathname = usePathname();
     const [activeView, setActiveView] = React.useState('accounts');
 
     const handlePrint = () => {
@@ -121,3 +124,5 @@ export default function FinancePage() {
         <FinancePageContent />
     )
 }
+
+    
