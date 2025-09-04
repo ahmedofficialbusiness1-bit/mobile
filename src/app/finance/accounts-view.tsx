@@ -119,10 +119,64 @@ export default function AccountsView() {
         <div className="space-y-8">
             <Card>
                 <CardHeader>
-                  <CardTitle>Accounts Receivable</CardTitle>
-                  <CardDescription>
-                    Customers you have sold to on credit. Click 'Mark as Paid' once they settle their debt.
-                  </CardDescription>
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div>
+                            <CardTitle>Accounts Receivable</CardTitle>
+                            <CardDescription>
+                                Customers you have sold to on credit. Click 'Mark as Paid' once they settle their debt.
+                            </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn(
+                                    "w-full justify-start text-left font-normal md:w-[260px]",
+                                    !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date?.from ? (
+                                    date.to ? (
+                                        <>
+                                        {format(date.from, "LLL dd, y")} -{" "}
+                                        {format(date.to, "LLL dd, y")}
+                                        </>
+                                    ) : (
+                                        format(date.from, "LLL dd, y")
+                                    )
+                                    ) : (
+                                    <span>Pick a date range</span>
+                                    )}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="end">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={date?.from}
+                                    selected={date}
+                                    onSelect={setDate}
+                                    numberOfMonths={2}
+                                />
+                                </PopoverContent>
+                            </Popover>
+                            <Select value={selectedPreset} onValueChange={handlePresetChange}>
+                                <SelectTrigger className="w-full md:w-[180px]">
+                                    <SelectValue placeholder="Select a preset" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="today">Today</SelectItem>
+                                    <SelectItem value="week">This Week</SelectItem>
+                                    <SelectItem value="month">This Month</SelectItem>
+                                    <SelectItem value="year">This Year</SelectItem>
+                                    <SelectItem value="all">All Time</SelectItem>
+                                </SelectContent>
+                                </Select>
+                        </div>
+                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
