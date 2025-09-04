@@ -2,7 +2,7 @@
 'use client'
 
 import * as React from 'react'
-import { PlusCircle, MoreHorizontal, DollarSign, Users, CreditCard, Calendar as CalendarIcon, Trash2, ArrowRightLeft } from 'lucide-react'
+import { PlusCircle, MoreHorizontal, DollarSign, Users, CreditCard, Calendar as CalendarIcon, Trash2, ArrowRightLeft, Search } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -39,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { TransferRecordDialog } from '@/components/transfer-record-dialog'
+import { Input } from '@/components/ui/input'
 
 
 export default function SalesPageContent() {
@@ -53,6 +54,7 @@ export default function SalesPageContent() {
     to: endOfMonth(new Date()),
   });
   const [paymentFilter, setPaymentFilter] = React.useState('All');
+  const [searchTerm, setSearchTerm] = React.useState('');
 
   const totalRevenue = transactions.reduce((sum, t) => sum + t.amount, 0)
   const todaySales = transactions.filter(t => format(t.date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')).length
@@ -126,8 +128,16 @@ export default function SalesPageContent() {
             if (paymentFilter === 'All') return true;
             if (paymentFilter === 'Credit') return t.status === 'Credit';
             return t.paymentMethod === paymentFilter && t.status === 'Paid';
+        })
+        .filter(t => {
+            if (searchTerm === '') return true;
+            const searchTermLower = searchTerm.toLowerCase();
+            return (
+                t.name.toLowerCase().includes(searchTermLower) ||
+                t.product.toLowerCase().includes(searchTermLower)
+            );
         });
-  }, [transactions, date, paymentFilter]);
+  }, [transactions, date, paymentFilter, searchTerm]);
   
   const filteredTotal = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
 
@@ -185,7 +195,16 @@ export default function SalesPageContent() {
         </CardHeader>
         <CardContent>
             <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-4">
-                <div className="flex gap-2 w-full sm:w-auto">
+                <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+                    <div className="relative w-full sm:max-w-xs">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search customer or product..."
+                            className="pl-8"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
