@@ -22,7 +22,7 @@ interface ReportProps {
 
 
 export default function BalanceSheet({ dateRange }: ReportProps) {
-    const { assets, products, transactions, payables, cashBalances, capitalContributions, ownerLoans, companyName } = useFinancials();
+    const { assets, products, transactions, payables, cashBalances, capitalContributions, ownerLoans, companyName, expenses, purchaseOrders } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
@@ -31,24 +31,40 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
 
     const endDate = dateRange?.to || new Date();
 
-    // Assets
+    // --- RETAINED EARNINGS CALCULATION (from P&L logic) ---
+    const historicalTransactions = transactions.filter(t => new Date(t.date) <= endDate);
+    const historicalExpenses = expenses.filter(e => e.status === 'Approved' && new Date(e.date) <= endDate);
+    const historicalPurchases = purchaseOrders.filter(po => po.receivingStatus === 'Received' && new Date(po.purchaseDate) <= endDate);
+
+    const revenue = historicalTransactions.reduce((sum, t) => sum + t.netAmount, 0);
+    
+    // Simplified COGS for retained earnings
+    const purchases = historicalPurchases.reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + item.totalPrice, 0), 0);
+    const closingInventoryForPL = products.reduce((sum, p) => sum + ((p.mainStock + p.shopStock) * p.purchasePrice), 0);
+    const costOfSales = purchases - closingInventoryForPL; // Simplified: Assumes 0 opening inventory at the very start
+
+    const grossProfit = revenue - costOfSales;
+    const operatingExpenses = historicalExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const retainedEarnings = grossProfit - operatingExpenses;
+
+
+    // --- ASSETS ---
     const nonCurrentAssets = assets
         .filter(a => new Date(a.acquisitionDate) <= endDate && a.status === 'Active')
-        .reduce((sum, asset) => sum + asset.netBookValue, 0); // Note: Depreciation should be calculated up to endDate
+        .reduce((sum, asset) => sum + asset.netBookValue, 0);
 
-    const inventory = products.reduce((sum, p) => sum + ((p.mainStock + p.shopStock) * p.purchasePrice), 0); // Snapshot at current time
+    const inventory = products.reduce((sum, p) => sum + ((p.mainStock + p.shopStock) * p.purchasePrice), 0);
 
-    const tradeReceivables = transactions
-        .filter(t => t.status === 'Credit' && new Date(t.date) <= endDate)
+    const tradeReceivables = historicalTransactions
+        .filter(t => t.status === 'Credit')
         .reduce((sum, t) => sum + t.amount, 0);
 
-    // Simplified cash calculation up to the period end. A real system needs historical balance.
     const cashAndEquivalents = cashBalances.cash + cashBalances.bank + cashBalances.mobile;
     
     const currentAssets = inventory + tradeReceivables + cashAndEquivalents;
     const totalAssets = nonCurrentAssets + currentAssets;
 
-    // Liabilities
+    // --- LIABILITIES ---
     const tradePayables = payables
         .filter(p => p.status === 'Unpaid' && new Date(p.date) <= endDate)
         .reduce((sum, p) => sum + p.amount, 0);
@@ -60,13 +76,11 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
 
     const totalLiabilities = currentLiabilities + nonCurrentLiabilities;
 
-    // Equity
+    // --- EQUITY ---
     const shareCapital = capitalContributions
         .filter(c => c.type !== 'Liability' && new Date(c.date) <= endDate)
         .reduce((sum, c) => sum + c.amount, 0);
 
-        
-    const retainedEarnings = 0; // Simplified - needs P&L calculation up to date
     const totalEquity = shareCapital + retainedEarnings;
     
     const totalLiabilitiesAndEquity = totalLiabilities + totalEquity;
@@ -89,15 +103,30 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
                     <TableBody>
                         <ReportRow label="ASSETS" isBold />
                         <ReportRow label="Non-current Assets" value={nonCurrentAssets} isSub />
-                        <ReportRow label="Current Assets" value={currentAssets} isSub />
+                        <ReportRow label="Current Assets" isBold />
+                        <ReportRow label="Inventory" value={inventory} isSub />
+                        <ReportRow label="Trade Receivables" value={tradeReceivables} isSub />
+                        <ReportRow label="Cash and Cash Equivalents" value={cashAndEquivalents} isSub />
+                        <ReportRow label="Total Current Assets" value={currentAssets} isBold />
                         <ReportRow label="Total Assets" value={totalAssets} isBold />
                         
+                        <TableRow><TableCell colSpan={2}>&nbsp;</TableCell></TableRow>
+
                         <ReportRow label="LIABILITIES & EQUITY" isBold />
+                        <ReportRow label="LIABILITIES" isBold />
                         <ReportRow label="Current Liabilities" value={currentLiabilities} isSub />
-                         <ReportRow label="Non-current Liabilities" value={nonCurrentLiabilities} isSub />
+                        <ReportRow label="Non-current Liabilities" value={nonCurrentLiabilities} isSub />
                         <ReportRow label="Total Liabilities" value={totalLiabilities} isBold />
                         
-                        <ReportRow label="Equity" value={totalEquity} isSub />
+                        <TableRow><TableCell colSpan={2}>&nbsp;</TableCell></TableRow>
+
+                        <ReportRow label="EQUITY" isBold />
+                        <ReportRow label="Share Capital" value={shareCapital} isSub />
+                        <ReportRow label="Retained Earnings" value={retainedEarnings} isSub />
+                        <ReportRow label="Total Equity" value={totalEquity} isBold />
+
+                        <TableRow><TableCell colSpan={2}>&nbsp;</TableCell></TableRow>
+
                         <ReportRow label="Total Liabilities and Equity" value={totalLiabilitiesAndEquity} isBold />
                     </TableBody>
                 </Table>
