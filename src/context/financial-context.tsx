@@ -591,18 +591,25 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [allCapitalContributions, activeShopId]);
 
     const cashBalances = useMemo(() => {
-        const calculateBalancesForShop = (shopId: string | null) => {
+        const calculateBalancesForShop = (shopId: string) => {
             let cash = 0, bank = 0, mobile = 0;
 
-            const filterByShop = (item: { shopId: string }) => !shopId || item.shopId === shopId;
+            // Filter all data for the specific shop
+            const shopCapital = allCapitalContributions.filter(c => c.shopId === shopId);
+            const shopTransactions = allTransactions.filter(t => t.shopId === shopId);
+            const shopPrepayments = allPrepayments.filter(p => p.shopId === shopId);
+            const shopExpenses = allExpenses.filter(e => e.shopId === shopId);
+            const shopPayroll = allPayrollHistory.filter(p => p.shopId === shopId);
+            const shopTransfers = allFundTransfers.filter(ft => ft.shopId === shopId);
 
-            // Apply capital contributions only at HQ level or for the specific branch
-            allCapitalContributions.filter(filterByShop).forEach(c => {
+            // [+] Capital Injections
+            shopCapital.forEach(c => {
                 if (c.type === 'Cash') cash += c.amount;
                 if (c.type === 'Bank') bank += c.amount;
             });
 
-            allTransactions.filter(filterByShop).forEach(t => {
+            // [+] Sales Revenue
+            shopTransactions.forEach(t => {
                 if (t.status === 'Paid') {
                     if (t.paymentMethod === 'Cash') cash += t.amount;
                     else if (t.paymentMethod === 'Bank') bank += t.amount;
@@ -610,11 +617,13 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 }
             });
 
-            allPrepayments.filter(filterByShop).forEach(p => {
-                if (p.status === 'Active') bank += p.prepaidAmount;
+            // [+] Prepayments/Deposits
+            shopPrepayments.forEach(p => {
+                if (p.status === 'Active') bank += p.prepaidAmount; // Assuming prepayments go to bank
             });
 
-            allExpenses.filter(filterByShop).forEach(e => {
+            // [-] Expenses & Payroll
+            shopExpenses.forEach(e => {
                 if (e.status === 'Approved' && e.paymentMethod) {
                     if (e.paymentMethod === 'Cash') cash -= e.amount;
                     else if (e.paymentMethod === 'Bank') bank -= e.amount;
@@ -622,17 +631,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 }
             });
 
-            allPayrollHistory.filter(filterByShop).forEach(pr => {
+            shopPayroll.forEach(pr => {
                 if (pr.paymentMethod === 'Cash') cash -= pr.netSalary;
                 else if (pr.paymentMethod === 'Bank') bank -= pr.netSalary;
                 else if (pr.paymentMethod === 'Mobile') mobile -= pr.netSalary;
             });
-
-            // Fund transfers affect both source and destination
-            allFundTransfers.forEach(ft => {
-                // If we're calculating for a specific shop, it must be either the source or destination
-                if (shopId && ft.shopId !== shopId) return;
-
+            
+            // [+/-] Fund Transfers
+            shopTransfers.forEach(ft => {
                 if (ft.from === 'Cash') cash -= ft.amount;
                 if (ft.from === 'Bank') bank -= ft.amount;
                 if (ft.from === 'Mobile') mobile -= ft.amount;
@@ -642,6 +648,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 if (ft.to === 'Mobile') mobile += ft.amount;
             });
 
+
             return { cash, bank, mobile };
         };
 
@@ -649,18 +656,19 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             // If a specific shop is active, calculate its standalone balance
             return calculateBalancesForShop(activeShopId);
         } else {
-            // If HQ is active (all shops), calculate total balances
+            // If HQ is active (all shops), sum up balances from all individual shops
             let totalCash = 0, totalBank = 0, totalMobile = 0;
-
-            // Start with HQ-level capital
-            const hqCapital = calculateBalancesForShop(null); // Assuming capital can be at HQ level
-            totalCash += hqCapital.cash;
-            totalBank += hqCapital.bank;
-            totalMobile += hqCapital.mobile;
+            
+            allShops.forEach(shop => {
+                const shopBalance = calculateBalancesForShop(shop.id);
+                totalCash += shopBalance.cash;
+                totalBank += shopBalance.bank;
+                totalMobile += shopBalance.mobile;
+            });
             
             return { cash: totalCash, bank: totalBank, mobile: totalMobile };
         }
-    }, [activeShopId, allCapitalContributions, allTransactions, allPrepayments, allExpenses, allPayrollHistory, allFundTransfers]);
+    }, [activeShopId, allShops, allCapitalContributions, allTransactions, allPrepayments, allExpenses, allPayrollHistory, allFundTransfers]);
 
 
     const addSale = async (saleData: SaleFormData) => {
@@ -1621,6 +1629,7 @@ export const useFinancials = (): FinancialContextType => {
 };
 
     
+
 
 
 
