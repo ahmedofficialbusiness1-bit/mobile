@@ -766,10 +766,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 const fromShopStock = product.stockByShop?.[fromShopId] || 0;
                 const toShopStock = product.stockByShop?.[toShopId] || 0;
 
-                if (toShopStock < quantity) {
-                    throw new Error(`Insufficient stock in destination branch. Available: ${toShopStock}`);
-                }
-
                 const updatedStockByShop = {
                     ...(product.stockByShop || {}),
                     [fromShopId]: fromShopStock + quantity,
@@ -827,7 +823,29 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     
     const deleteReceivable = async (receivableId: string) => {
         if (!user) throw new Error("User not authenticated.");
-        await deleteDoc(doc(db, 'transactions', receivableId));
+        const receivableRef = doc(db, 'transactions', receivableId);
+        
+        await runTransaction(db, async (transaction) => {
+            const receivableDoc = await transaction.get(receivableRef);
+            if (!receivableDoc.exists()) throw new Error("Receivable not found.");
+
+            const receivable = receivableDoc.data() as Transaction;
+            
+            if (receivable.productId && receivable.productId !== 'invoice') {
+                const productRef = doc(db, 'products', receivable.productId);
+                const productDoc = await transaction.get(productRef);
+                if (productDoc.exists()) {
+                    const product = productDoc.data() as Product;
+                    const currentShopStock = product.stockByShop?.[receivable.shopId] || 0;
+                    const updatedStockByShop = {
+                        ...(product.stockByShop || {}),
+                        [receivable.shopId]: currentShopStock + receivable.quantity,
+                    };
+                    transaction.update(productRef, { stockByShop: updatedStockByShop });
+                }
+            }
+            transaction.delete(receivableRef);
+        });
     }
 
 
@@ -1767,6 +1785,7 @@ export const useFinancials = (): FinancialContextType => {
 };
 
     
+
 
 
 
