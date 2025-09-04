@@ -599,6 +599,22 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [allProducts, activeShopId]);
 
 
+    const allOwnerLoans = useMemo(() => {
+        return allCapitalContributions
+            .filter(c => c.type === 'Liability')
+            .map(c => {
+                return {
+                    id: c.id,
+                    userId: c.userId,
+                    shopId: c.shopId,
+                    date: c.date,
+                    description: c.description,
+                    amount: c.amount,
+                    repaid: 0 
+                };
+            });
+    }, [allCapitalContributions]);
+
     const ownerLoans = useMemo(() => {
         const loans = activeShopId ? allCapitalContributions.filter(c => c.shopId === activeShopId) : allCapitalContributions;
         return loans
@@ -615,6 +631,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 };
             });
     }, [allCapitalContributions, activeShopId]);
+
 
     const cashBalances = useMemo(() => {
         const calculateBalancesForShop = (shopId: string) => {
@@ -1843,10 +1860,10 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [
         authLoading, allTransactions, allPayables, allPrepayments, allCustomers, userAccounts,
         allShops, activeShop, activeShopId, companyName, allProducts, allDamagedGoods, allStockRequests,
-        initialAssets, allCapitalContributions, allOwnerLoans, allExpenses, employees, allPayrollHistory,
+        initialAssets, allCapitalContributions, allExpenses, employees, allPayrollHistory,
         allPurchaseOrders, allInvoices, allFundTransfers, transactions, payables, prepayments, customers,
         shops, products, damagedGoods, stockRequests, assets, capitalContributions, ownerLoans,
-        expenses, payrollHistory, purchaseOrders, invoices, fundTransfers, cashBalances
+        expenses, payrollHistory, purchaseOrders, invoices, fundTransfers, cashBalances, allOwnerLoans
     ]);
 
 
@@ -1890,3 +1907,4 @@ export const useFinancials = (): FinancialContextType => {
 
 
     
+
