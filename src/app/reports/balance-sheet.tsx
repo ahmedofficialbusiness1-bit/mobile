@@ -22,7 +22,19 @@ interface ReportProps {
 
 
 export default function BalanceSheet({ dateRange }: ReportProps) {
-    const { assets, products, transactions, payables, cashBalances, capitalContributions, ownerLoans, companyName, expenses, activeShopId, purchaseOrders } = useFinancials();
+    const { 
+        initialAssets, 
+        allProducts, 
+        allTransactions, 
+        allPayables, 
+        cashBalances, 
+        allCapitalContributions, 
+        allOwnerLoans, 
+        companyName, 
+        allExpenses, 
+        activeShopId,
+        allPurchaseOrders 
+    } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
@@ -30,25 +42,34 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
     }, []);
 
     const endDate = dateRange?.to || new Date();
+    
+    const assets = activeShopId ? initialAssets.filter(a => a.shopId === activeShopId) : initialAssets;
+    const transactions = activeShopId ? allTransactions.filter(t => t.shopId === activeShopId) : allTransactions;
+    const payables = activeShopId ? allPayables.filter(p => p.shopId === activeShopId) : allPayables;
+    const capitalContributions = activeShopId ? allCapitalContributions.filter(c => c.shopId === activeShopId) : allCapitalContributions;
+    const ownerLoans = activeShopId ? allOwnerLoans.filter(l => l.shopId === activeShopId) : allOwnerLoans;
+    const expenses = activeShopId ? allExpenses.filter(e => e.shopId === activeShopId) : allExpenses;
+    const products = allProducts; // Products are global, but their stock value will be filtered
+    const purchaseOrders = activeShopId ? allPurchaseOrders.filter(po => po.shopId === activeShopId) : allPurchaseOrders;
+
 
     // RETAINED EARNINGS CALCULATION (from P&L logic)
-    // All transactions up to the end date of the report
     const historicalTransactions = transactions.filter(t => new Date(t.date) <= endDate);
     const historicalExpenses = expenses.filter(e => e.status === 'Approved' && new Date(e.date) <= endDate);
-    
+    const historicalPurchases = purchaseOrders.filter(po => new Date(po.purchaseDate) <= endDate);
+
     const revenue = historicalTransactions
         .filter(t => t.status === 'Paid' || t.status === 'Credit')
         .reduce((sum, t) => sum + t.netAmount, 0);
 
-    const costOfSalesAllTime = historicalTransactions.reduce((sum, t) => {
+    const costOfSalesHistorical = historicalTransactions.reduce((sum, t) => {
         if (t.productId === 'invoice') return sum;
         const product = products.find(p => p.id === t.productId);
         const cost = product ? product.purchasePrice * t.quantity : 0;
         return sum + cost;
     }, 0);
 
-
-    const grossProfit = revenue - costOfSalesAllTime;
+    const grossProfit = revenue - costOfSalesHistorical;
     const operatingExpenses = historicalExpenses.reduce((sum, e) => sum + e.amount, 0);
     const retainedEarnings = grossProfit - operatingExpenses;
 
@@ -58,9 +79,8 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
         .filter(a => new Date(a.acquisitionDate) <= endDate && a.status === 'Active')
         .reduce((sum, asset) => sum + asset.netBookValue, 0);
 
-    // Inventory value at the end date (approximated as current value for now)
     const inventory = products.reduce((sum, p) => {
-        const stockQuantity = activeShopId ? p.currentStock : (p.mainStock + p.shopStock);
+        const stockQuantity = activeShopId ? (p.stockByShop?.[activeShopId] ?? 0) : p.mainStock;
         return sum + (stockQuantity * p.purchasePrice);
     }, 0);
 
