@@ -34,7 +34,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react'
-import { Product, Customer } from '@/context/financial-context'
+import { Customer, Invoice } from '@/context/financial-context'
 import type { VatRate } from '@/app/sales/sale-form'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
@@ -76,11 +76,12 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-export function InvoiceForm({ isOpen, onClose, onSave, customers }: {
+export function InvoiceForm({ isOpen, onClose, onSave, customers, invoice }: {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: InvoiceFormData) => void
+  onSave: (data: InvoiceFormData, invoiceId?: string) => void
   customers: Customer[]
+  invoice: Invoice | null
 }) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -91,6 +92,27 @@ export function InvoiceForm({ isOpen, onClose, onSave, customers }: {
       vatRate: 0.18,
     },
   })
+  
+   React.useEffect(() => {
+    if (invoice) {
+      form.reset({
+        customerId: invoice.customerId,
+        issueDate: invoice.issueDate,
+        dueDate: invoice.dueDate,
+        items: invoice.items,
+        vatRate: invoice.totalAmount > 0 ? invoice.vatAmount / invoice.subtotal : 0.18,
+      });
+    } else {
+      form.reset({
+        issueDate: new Date(),
+        dueDate: addDays(new Date(), 30),
+        items: [{ description: '', quantity: 1, unitPrice: 0, totalPrice: 0 }],
+        vatRate: 0.18,
+        customerId: undefined,
+      });
+    }
+  }, [invoice, form, isOpen]);
+
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -129,8 +151,8 @@ export function InvoiceForm({ isOpen, onClose, onSave, customers }: {
     const customer = customers.find(c => c.id === values.customerId)
     if (!customer) return
 
-    const saleData: InvoiceFormData = {
-      invoiceNumber: `INV-${Date.now()}`,
+    const invoiceData: InvoiceFormData = {
+      invoiceNumber: invoice?.invoiceNumber || `INV-${Date.now()}`,
       customerId: customer.id,
       customerName: customer.name,
       customerPhone: customer.phone,
@@ -139,13 +161,8 @@ export function InvoiceForm({ isOpen, onClose, onSave, customers }: {
       items: values.items,
       vatRate: values.vatRate as VatRate,
     }
-    onSave(saleData)
-    form.reset({
-      issueDate: new Date(),
-      dueDate: addDays(new Date(), 30),
-      items: [{ description: '', quantity: 1, unitPrice: 0, totalPrice: 0 }],
-      vatRate: 0.18,
-    })
+    onSave(invoiceData, invoice?.id)
+    form.reset()
     onClose()
   }
 
@@ -153,9 +170,9 @@ export function InvoiceForm({ isOpen, onClose, onSave, customers }: {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Create New Invoice</DialogTitle>
+          <DialogTitle>{invoice ? 'Edit Invoice' : 'Create New Invoice'}</DialogTitle>
           <DialogDescription>
-            Fill in the details to generate a new invoice for a customer.
+            {invoice ? 'Update the details for this invoice.' : 'Fill in the details to generate a new invoice for a customer.'}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -323,7 +340,7 @@ export function InvoiceForm({ isOpen, onClose, onSave, customers }: {
                             render={({ field }) => (
                                 <FormItem className="flex justify-between items-center">
                                 <FormLabel>VAT</FormLabel>
-                                <Select onValueChange={(value) => field.onChange(parseFloat(value))} defaultValue={String(field.value)}>
+                                <Select onValueChange={(value) => field.onChange(parseFloat(value))} value={String(field.value)}>
                                     <FormControl>
                                     <SelectTrigger className="w-40">
                                         <SelectValue />

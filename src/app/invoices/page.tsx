@@ -4,7 +4,7 @@
 import * as React from 'react'
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
-import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, FileText, ArrowRightLeft } from 'lucide-react'
+import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, FileText, ArrowRightLeft, Trash2, Edit } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -29,6 +29,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
@@ -39,9 +40,11 @@ import { InvoiceForm, type InvoiceFormData } from './invoice-form'
 import { useToast } from '@/hooks/use-toast'
 import { PaymentDialog } from '@/components/payment-dialog'
 import { TransferRecordDialog } from '@/components/transfer-record-dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+
 
 function InvoicesPageContent() {
-  const { invoices, customers, addInvoice, payInvoice, transferInvoice, shops } = useFinancials()
+  const { invoices, customers, addInvoice, payInvoice, transferInvoice, shops, deleteInvoice, updateInvoice } = useFinancials()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false)
   const [isTransferOpen, setIsTransferOpen] = React.useState(false)
@@ -54,26 +57,48 @@ function InvoicesPageContent() {
   });
   const [statusFilter, setStatusFilter] = React.useState('All');
 
-  const handleSaveInvoice = (data: InvoiceFormData) => {
+  const handleSaveInvoice = (data: InvoiceFormData, invoiceId?: string) => {
     try {
-        addInvoice(data);
-        toast({
-            title: 'Invoice Created Successfully',
-            description: `Invoice #${data.invoiceNumber} for ${data.customerName} has been created.`,
-        });
+        if (invoiceId) {
+            updateInvoice(invoiceId, data);
+            toast({
+                title: 'Invoice Updated Successfully',
+                description: `Invoice #${data.invoiceNumber} has been updated.`,
+            });
+        } else {
+            addInvoice(data);
+            toast({
+                title: 'Invoice Created Successfully',
+                description: `Invoice #${data.invoiceNumber} for ${data.customerName} has been created.`,
+            });
+        }
         setIsFormOpen(false);
     } catch (error: any) {
         toast({
             variant: 'destructive',
-            title: 'Error Creating Invoice',
+            title: 'Error Saving Invoice',
             description: error.message,
         })
     }
+  }
+
+  const handleOpenEdit = (invoice: Invoice) => {
+      setSelectedInvoice(invoice);
+      setIsFormOpen(true);
   }
   
   const handleOpenPaymentDialog = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
     setIsPaymentDialogOpen(true);
+  }
+
+  const handleDelete = (invoice: Invoice) => {
+      deleteInvoice(invoice.id);
+      toast({
+          variant: 'destructive',
+          title: 'Invoice Deleted',
+          description: `Invoice #${invoice.invoiceNumber} and its associated transaction have been deleted.`
+      })
   }
   
   const handlePayment = (paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => {
@@ -134,7 +159,7 @@ function InvoicesPageContent() {
                 Create, send, and track the status of your customer invoices for the current shop.
               </CardDescription>
             </div>
-            <Button onClick={() => setIsFormOpen(true)}>
+            <Button onClick={() => { setSelectedInvoice(null); setIsFormOpen(true); }}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Create New Invoice
             </Button>
@@ -232,6 +257,9 @@ function InvoicesPageContent() {
                                     <DropdownMenuItem>
                                         <FileText className="mr-2 h-4 w-4" /> View Details
                                     </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleOpenEdit(invoice)}>
+                                        <Edit className="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
                                     {invoice.status !== 'Paid' && (
                                         <DropdownMenuItem onClick={() => handleOpenPaymentDialog(invoice)}>
                                             Record Payment
@@ -241,6 +269,28 @@ function InvoicesPageContent() {
                                         <ArrowRightLeft className="mr-2 h-4 w-4" />
                                         Transfer to another Branch
                                     </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                     <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                   This action will permanently delete invoice #{invoice.invoiceNumber} and its associated receivable. This cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDelete(invoice)} className="bg-destructive hover:bg-destructive/90">
+                                                    Delete
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </TableCell>
@@ -271,6 +321,7 @@ function InvoicesPageContent() {
         onClose={() => setIsFormOpen(false)}
         onSave={handleSaveInvoice}
         customers={customers}
+        invoice={selectedInvoice}
     />
      <PaymentDialog
         isOpen={isPaymentDialogOpen}
