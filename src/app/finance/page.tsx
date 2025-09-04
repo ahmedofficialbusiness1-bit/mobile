@@ -16,6 +16,7 @@ import CapitalView from './capital-view'
 import AssetsView from './assets-view'
 import CashManagementView from './cash-management-view'
 import JournalView from './journal-view'
+import PayrollView from './payroll-view'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -25,6 +26,7 @@ const financeNavItems = [
     { id: 'expenses', label: 'Expenses', icon: FileText },
     { id: 'capital', label: 'Capital', icon: Landmark },
     { id: 'assets', label: 'Assets', icon: Banknote },
+    { id: 'payroll', label: 'Payroll', icon: Users },
     { id: 'cash', label: 'Cash Management', icon: PiggyBank },
     { id: 'journal', label: 'Journal', icon: BookUser },
 ]
@@ -47,6 +49,8 @@ function FinancePageContent() {
                 return <CapitalView />;
             case 'assets':
                 return <AssetsView />;
+            case 'payroll':
+                return <PayrollView />;
             case 'cash':
                 return <CashManagementView />;
             case 'journal':
@@ -120,5 +124,3 @@ export default function FinancePage() {
         <FinancePageContent />
     )
 }
-
-    

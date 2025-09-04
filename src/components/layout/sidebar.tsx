@@ -29,6 +29,10 @@ import {
   FilePlus2,
   Lock,
   Bolt,
+  Briefcase,
+  PiggyBank,
+  BookUser,
+  Compass
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuth } from '@/context/auth-context'
@@ -43,7 +47,6 @@ const navItems = [
   { href: '/inventory', label: 'Inventory', icon: Warehouse, id: 'inventory' },
   { href: '/finance', label: 'Finance', icon: Banknote, id: 'finance' },
   { href: '/reports', label: 'Reports', icon: BarChart2, id: 'reports' },
-  { href: '/hr', label: 'HR & Payroll', icon: Users, id: 'hr' },
 ]
 
 const quickAccessItems = [
