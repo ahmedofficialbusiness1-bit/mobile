@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button'
 import { Menu, Briefcase, FileText, Banknote, Landmark, Users, PiggyBank, BookUser, Printer, Compass, FilePlus2, ShoppingCart, BarChart2, Settings, Home, Truck, Warehouse } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import AccountsView from './accounts-view'
-import PayrollView from './payroll-view'
 import ExpensesView from './expenses-view'
 import CapitalView from './capital-view'
 import AssetsView from './assets-view'
@@ -23,7 +22,6 @@ import { usePathname } from 'next/navigation'
 
 const financeNavItems = [
     { id: 'accounts', label: 'Accounts', icon: Briefcase },
-    { id: 'payroll', label: 'Payroll', icon: Users },
     { id: 'expenses', label: 'Expenses', icon: FileText },
     { id: 'capital', label: 'Capital', icon: Landmark },
     { id: 'assets', label: 'Assets', icon: Banknote },
@@ -43,8 +41,6 @@ function FinancePageContent() {
         switch (activeView) {
             case 'accounts':
                 return <AccountsView />;
-            case 'payroll':
-                return <PayrollView />;
             case 'expenses':
                 return <ExpensesView />;
             case 'capital':

@@ -148,7 +148,7 @@ export function AppSidebar() {
               <SidebarMenuButton
                 asChild
                 isActive={pathname.startsWith(item.href)}
-                className="font-headline text-muted-foreground"
+                className="font-headline"
                 onClick={handleLinkClick}
               >
                 <Link href={item.href} className="flex items-center justify-between w-full">
@@ -156,6 +156,7 @@ export function AppSidebar() {
                     <item.icon className="h-4 w-4" />
                     <span>{item.label}</span>
                   </div>
+                   {isItemLocked(item.href, true) && <Lock className="h-3 w-3 text-muted-foreground" />}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
