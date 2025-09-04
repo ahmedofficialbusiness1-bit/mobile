@@ -31,22 +31,26 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { Product, Shop } from '@/context/financial-context'
+import { useFinancials } from '@/context/financial-context'
 
 interface TransferStockFormProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (quantity: number, toShopId: string) => void
+  onSave: (quantity: number, fromShopId: string | null, toShopId: string) => void
   product: Product | null
   shops: Shop[]
 }
 
 export function TransferStockForm({ isOpen, onClose, onSave, product, shops }: TransferStockFormProps) {
-  
+  const { activeShopId, activeShop } = useFinancials();
+
+  const availableStock = activeShopId ? product?.currentStock || 0 : product?.mainStock || 0;
+
   const formSchema = z.object({
     quantity: z.coerce
       .number()
       .min(1, 'Quantity must be at least 1.')
-      .max(product?.mainStock || 0, `Cannot transfer more than available stock (${product?.mainStock || 0}).`),
+      .max(availableStock, `Cannot transfer more than available stock (${availableStock}).`),
     toShopId: z.string({ required_error: 'Please select a destination shop.' }),
   })
 
@@ -64,25 +68,30 @@ export function TransferStockForm({ isOpen, onClose, onSave, product, shops }: T
   }, [product, form, isOpen]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    onSave(values.quantity, values.toShopId)
+    onSave(values.quantity, activeShopId, values.toShopId)
     form.reset()
     onClose()
   }
+  
+  const fromLocation = activeShop ? activeShop.name : "Main Inventory (HQ)";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Transfer Stock to Shop</DialogTitle>
+          <DialogTitle>Transfer Stock</DialogTitle>
           <DialogDescription>
-            Transfer <span className="font-bold">{product?.name}</span> from Main Inventory to a specific Shop.
+            Transfer <span className="font-bold">{product?.name}</span> to another location.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div>
                 <p className="text-sm">
-                    Available in Main Inventory: <span className="font-bold">{product?.mainStock.toLocaleString()} {product?.uom}</span>
+                    From: <span className="font-bold">{fromLocation}</span>
+                </p>
+                <p className="text-sm">
+                    Available Stock: <span className="font-bold">{availableStock.toLocaleString()} {product?.uom}</span>
                 </p>
             </div>
             <FormField
@@ -98,7 +107,7 @@ export function TransferStockForm({ isOpen, onClose, onSave, product, shops }: T
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {shops.map(shop => (
+                          {shops.filter(shop => shop.id !== activeShopId).map(shop => (
                             <SelectItem key={shop.id} value={shop.id}>
                               {shop.name}
                             </SelectItem>

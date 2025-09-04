@@ -193,13 +193,13 @@ function InventoryPageContent() {
     setIsDamageFormOpen(true);
   }
 
-  const handleSaveTransfer = (quantity: number, toShopId: string) => {
+  const handleSaveTransfer = (quantity: number, fromShopId: string | null, toShopId: string) => {
     if (selectedProduct) {
-        transferStock(selectedProduct.id, quantity, toShopId)
+        transferStock(selectedProduct.id, quantity, fromShopId, toShopId)
             .then(() => {
                 toast({
                     title: 'Stock Transferred',
-                    description: `${quantity} units of ${selectedProduct.name} moved to shop inventory.`,
+                    description: `${quantity} units of ${selectedProduct.name} moved successfully.`,
                 });
                 setIsTransferFormOpen(false);
                 setSelectedProduct(null);
@@ -410,7 +410,8 @@ function InventoryPageContent() {
                     products={filteredProducts.filter(p => p.currentStock > 0)}
                     onEdit={handleEditClick} 
                     onDelete={handleDeleteClick}
-                     onDamage={handleDamageClick}
+                    onTransfer={handleTransferClick}
+                    onDamage={handleDamageClick}
                     inventoryType="shop"
                 />
             </TabsContent>

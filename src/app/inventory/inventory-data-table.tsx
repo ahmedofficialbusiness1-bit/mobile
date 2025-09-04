@@ -28,7 +28,7 @@ interface InventoryDataTableProps {
   products: Product[]
   onEdit: (product: Product) => void
   onDelete: (product: Product) => void
-  onTransfer?: (product: Product) => void
+  onTransfer: (product: Product) => void
   onDamage: (product: Product) => void
   inventoryType: 'main' | 'shop'
 }
@@ -74,12 +74,12 @@ export function InventoryDataTable({ products, onEdit, onDelete, onTransfer, onD
                 <TableCell className="font-medium">{product.name}</TableCell>
                 <TableCell>{product.category}</TableCell>
                 <TableCell className="text-right font-medium">
-                  {(inventoryType === 'main' ? product.mainStock : product.shopStock).toLocaleString()} {product.uom}
+                  {(inventoryType === 'main' ? product.mainStock : product.currentStock).toLocaleString()} {product.uom}
                 </TableCell>
                 <TableCell className="text-right">{product.reorderLevel.toLocaleString()}</TableCell>
                 <TableCell className="text-right font-semibold">
                   {(
-                    (inventoryType === 'main' ? product.mainStock : product.shopStock) * product.purchasePrice
+                    (inventoryType === 'main' ? product.mainStock : product.currentStock) * product.purchasePrice
                   ).toLocaleString()}
                 </TableCell>
                 <TableCell className="text-center">
@@ -101,15 +101,11 @@ export function InventoryDataTable({ products, onEdit, onDelete, onTransfer, onD
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                            {inventoryType === 'main' && onTransfer && (
-                                <>
-                                <DropdownMenuItem onClick={() => onTransfer(product)}>
-                                    <ArrowRightLeft className="mr-2 h-4 w-4" />
-                                    Transfer to Shop
-                                </DropdownMenuItem>
-                                 <DropdownMenuSeparator />
-                                </>
-                            )}
+                            <DropdownMenuItem onClick={() => onTransfer(product)}>
+                                <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                Transfer Stock
+                            </DropdownMenuItem>
+                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => onEdit(product)}>Edit Details</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => onDamage(product)}>
                                 <ShieldAlert className="mr-2 h-4 w-4" />
