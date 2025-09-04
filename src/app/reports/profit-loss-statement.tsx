@@ -22,35 +22,49 @@ interface ReportProps {
 }
 
 export default function ProfitLossStatement({ dateRange }: ReportProps) {
-    const { transactions, expenses, products, companyName } = useFinancials();
+    const { transactions, expenses, products, companyName, activeShopId, purchaseOrders } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
         setCurrentDate(new Date().toLocaleDateString('en-GB'));
     }, []);
 
+    // Filter transactions and purchases for the selected period
     const filteredTransactions = transactions.filter(t => 
         dateRange?.from && dateRange?.to && isWithinInterval(t.date, { start: dateRange.from, end: dateRange.to })
+    );
+    const filteredPurchases = purchaseOrders.filter(po => 
+        dateRange?.from && dateRange?.to && isWithinInterval(po.purchaseDate, { start: dateRange.from, end: dateRange.to })
     );
 
     const filteredExpenses = expenses.filter(e =>
         e.status === 'Approved' && dateRange?.from && dateRange?.to && isWithinInterval(e.date, { start: dateRange.from, end: dateRange.to })
     );
     
-    // Revenue (Net of VAT) for the period
-    const revenue = filteredTransactions
+    const netSales = filteredTransactions
         .filter(t => t.status === 'Paid' || t.status === 'Credit')
         .reduce((sum, t) => sum + t.netAmount, 0);
 
-    // Direct Cost of Sales Calculation for the period
-    const costOfSales = filteredTransactions.reduce((sum, t) => {
-        if (t.productId === 'invoice') return sum; // Exclude service invoices from COGS
-        const product = products.find(p => p.id === t.productId);
-        const cost = product ? product.purchasePrice * t.quantity : 0;
-        return sum + cost;
+    // Cost of Sales Calculation using the correct formula
+    const closingInventory = products.reduce((sum, p) => {
+        const stock = activeShopId ? p.currentStock : (p.mainStock + p.shopStock);
+        return sum + (stock * p.purchasePrice);
     }, 0);
 
-    const grossProfit = revenue - costOfSales;
+    const purchases = filteredPurchases.reduce((sum, po) => 
+        sum + po.items.reduce((itemSum, item) => itemSum + item.totalPrice, 0), 0);
+    
+    const salesQuantityCost = filteredTransactions.reduce((sum, t) => {
+        if (t.productId === 'invoice') return sum;
+        const product = products.find(p => p.id === t.productId);
+        return sum + (product ? product.purchasePrice * t.quantity : 0);
+    }, 0);
+
+    const openingInventory = closingInventory - purchases + salesQuantityCost;
+
+    const costOfSales = openingInventory + purchases - closingInventory;
+
+    const grossProfit = netSales - costOfSales;
 
     const operatingExpenses = filteredExpenses
         .reduce((sum, e) => sum + e.amount, 0);
@@ -74,7 +88,7 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
             <CardContent>
                 <Table>
                     <TableBody>
-                        <ReportRow label="Revenue (Net of VAT)" value={revenue} isBold />
+                        <ReportRow label="Net Sales" value={netSales} isBold />
                         
                         <ReportRow label="Cost of Sales" value={costOfSales} isNegative isBold />
                         

@@ -22,7 +22,7 @@ interface ReportProps {
 
 
 export default function BalanceSheet({ dateRange }: ReportProps) {
-    const { assets, products, transactions, payables, cashBalances, capitalContributions, ownerLoans, companyName, expenses, activeShopId } = useFinancials();
+    const { assets, products, transactions, payables, cashBalances, capitalContributions, ownerLoans, companyName, expenses, activeShopId, purchaseOrders } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
@@ -31,16 +31,15 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
 
     const endDate = dateRange?.to || new Date();
 
-    // --- RETAINED EARNINGS CALCULATION (from P&L logic) ---
+    // RETAINED EARNINGS CALCULATION (from P&L logic)
     // All transactions up to the end date of the report
     const historicalTransactions = transactions.filter(t => new Date(t.date) <= endDate);
     const historicalExpenses = expenses.filter(e => e.status === 'Approved' && new Date(e.date) <= endDate);
-
+    
     const revenue = historicalTransactions
         .filter(t => t.status === 'Paid' || t.status === 'Credit')
         .reduce((sum, t) => sum + t.netAmount, 0);
-    
-    // Direct Cost of Sales Calculation for all historical transactions
+
     const costOfSalesAllTime = historicalTransactions.reduce((sum, t) => {
         if (t.productId === 'invoice') return sum;
         const product = products.find(p => p.id === t.productId);
