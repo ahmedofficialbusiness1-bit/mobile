@@ -30,7 +30,7 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
     }, []);
 
     const filteredTransactions = transactions.filter(t => 
-        dateRange?.from && dateRange?.to && isWithinInterval(t.date, { start: dateRange.from, end: date.to })
+        dateRange?.from && dateRange?.to && isWithinInterval(t.date, { start: dateRange.from, end: dateRange.to })
     );
 
     const filteredExpenses = expenses.filter(e =>
