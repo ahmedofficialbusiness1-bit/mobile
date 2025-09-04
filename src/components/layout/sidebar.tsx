@@ -29,7 +29,6 @@ import {
   FilePlus2,
   Lock,
   Bolt,
-  Compass,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuth } from '@/context/auth-context'
@@ -44,6 +43,7 @@ const navItems = [
   { href: '/inventory', label: 'Inventory', icon: Warehouse, id: 'inventory' },
   { href: '/finance', label: 'Finance', icon: Banknote, id: 'finance' },
   { href: '/reports', label: 'Reports', icon: BarChart2, id: 'reports' },
+  { href: '/hr', label: 'HR & Payroll', icon: Users, id: 'hr' },
 ]
 
 const quickAccessItems = [
@@ -54,19 +54,6 @@ const quickAccessItems = [
 const bottomNavItems = [
     { href: '/settings', label: 'Settings', icon: Settings, id: 'settings' },
 ]
-
-const otherModules = [
-    { href: '/co-pilot', label: 'AI Co-pilot', icon: Compass },
-    { href: '/hr', label: 'HR & Payroll', icon: Users },
-    { href: '/production', label: 'Production', icon: Settings },
-    { href: '/projects', label: 'Projects', icon: FileText },
-    { href: '/crm', label: 'CRM', icon: Users },
-    { href: '/procurement', label: 'Procurement', icon: ShoppingCart },
-    { href: '/bi', label: 'BI & Forecasting', icon: BarChart2 },
-    { href: '/tax', label: 'Tax & Compliance', icon: Banknote },
-    { href: '/grc', label: 'GRC', icon: Shield },
-    { href: '/integrations', label: 'Integrations', icon: Bolt },
-];
 
 const adminNavItem = { href: '/admin', label: 'Admin Panel', icon: Shield, id: 'admin' }
 
@@ -139,28 +126,6 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
-           <SidebarSeparator />
-            <SidebarMenuItem>
-                 <span className="px-2 text-xs font-semibold text-muted-foreground">Other Modules</span>
-            </SidebarMenuItem>
-           {otherModules.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname.startsWith(item.href)}
-                className="font-headline"
-                onClick={handleLinkClick}
-              >
-                <Link href={item.href} className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </div>
-                   {isItemLocked(item.href, true) && <Lock className="h-3 w-3 text-muted-foreground" />}
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
         </SidebarMenu>
         <SidebarMenu className="p-2">
             {bottomNavItems.map((item) => (
@@ -209,5 +174,3 @@ export function AppSidebar() {
     </Sidebar>
   )
 }
-
-    
