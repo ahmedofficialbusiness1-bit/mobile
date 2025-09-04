@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
@@ -298,16 +297,33 @@ export interface FundTransfer {
 
 // --- Context Definition ---
 interface FinancialContextType {
-    transactions: Transaction[];
-    payables: Payable[];
-    prepayments: CustomerPrepayment[];
-    customers: Customer[];
+    allTransactions: Transaction[];
+    allPayables: Payable[];
+    allPrepayments: CustomerPrepayment[];
+    allCustomers: Customer[];
     userAccounts: UserAccount[];
-    shops: Shop[];
+    allShops: Shop[];
     activeShop: Shop | null;
     setActiveShopId: (shopId: string | null) => void;
     activeShopId: string | null;
     companyName: string;
+    allProducts: Product[];
+    allDamagedGoods: DamagedGood[];
+    allStockRequests: StockRequest[];
+    initialAssets: Asset[];
+    allCapitalContributions: CapitalContribution[];
+    allOwnerLoans: OwnerLoan[];
+    allExpenses: Expense[];
+    employees: Employee[];
+    allPayrollHistory: PayrollRun[];
+    allPurchaseOrders: PurchaseOrder[];
+    allInvoices: Invoice[];
+    allFundTransfers: FundTransfer[];
+    transactions: Transaction[];
+    payables: Payable[];
+    prepayments: CustomerPrepayment[];
+    customers: Customer[];
+    shops: Shop[];
     products: Product[];
     damagedGoods: DamagedGood[];
     stockRequests: StockRequest[];
@@ -315,7 +331,6 @@ interface FinancialContextType {
     capitalContributions: CapitalContribution[];
     ownerLoans: OwnerLoan[];
     expenses: Expense[];
-    employees: Employee[];
     payrollHistory: PayrollRun[];
     purchaseOrders: PurchaseOrder[];
     invoices: Invoice[];
@@ -675,7 +690,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 throw new Error(`Not enough stock in shop for ${product.name}. Only ${shopStock} available.`);
             }
             
-            // **FIX**: Use the unit price from the form, not from the product object
             const grossAmount = saleData.unitPrice * saleData.quantity;
             const netAmount = grossAmount / (1 + saleData.vatRate);
             const vatAmount = grossAmount - netAmount;
@@ -1728,86 +1742,115 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [user, defaultShopIdForMigration]);
 
 
-    const contextValue: FinancialContextType = {
-        transactions,
-        payables,
-        prepayments,
-        customers,
-        userAccounts,
-        shops,
-        activeShop,
-        setActiveShopId,
-        activeShopId,
-        companyName,
-        products,
-        damagedGoods,
-        stockRequests,
-        assets,
-        capitalContributions,
-        ownerLoans,
-        expenses,
-        employees,
-        payrollHistory,
-        cashBalances,
-        purchaseOrders,
-        invoices,
-        fundTransfers,
-        addSale,
-        deleteSale,
-        transferSale,
-        adjustTransactionVat,
-        markReceivableAsPaid,
-        deleteReceivable,
-        markPayableAsPaid,
-        deletePayable,
-        markPrepaymentAsUsed,
-        markPrepaymentAsRefunded,
-        addCustomer,
-        updateCustomer,
-        deleteCustomer,
-        addUserAccount,
-        deleteUserAccount,
-        addShop,
-        updateShop,
-        deleteShop,
-        addProduct,
-        updateProduct,
-        deleteProduct,
-        transferStock,
-        reportDamage,
-        createStockRequest,
-        approveStockRequest,
-        rejectStockRequest,
-        addAsset,
-        sellAsset,
-        writeOffAsset,
-        addCapitalContribution,
-        updateCapitalContribution,
-        deleteCapitalContribution,
-        repayOwnerLoan,
-        addExpense,
-        approveExpense,
-        deleteExpense,
-        addEmployee,
-        updateEmployee,
-        deleteEmployee,
-        processPayroll,
-        paySingleEmployee,
-        addPurchaseOrder,
-        updatePurchaseOrder,
-        deletePurchaseOrder,
-        receivePurchaseOrder,
-        payPurchaseOrder,
-        transferPurchaseOrder,
-        addInvoice,
-        updateInvoice,
-        deleteInvoice,
-        payInvoice,
-        transferInvoice,
-        addFundTransfer
-    };
+    const contextValue: FinancialContextType | undefined = useMemo(() => {
+        if (authLoading) {
+            return undefined;
+        }
+        return {
+            allTransactions,
+            allPayables,
+            allPrepayments,
+            allCustomers,
+            userAccounts,
+            allShops,
+            activeShop,
+            setActiveShopId,
+            activeShopId,
+            companyName,
+            allProducts,
+            allDamagedGoods,
+            allStockRequests,
+            initialAssets,
+            allCapitalContributions,
+            allOwnerLoans,
+            allExpenses,
+            employees,
+            allPayrollHistory,
+            allPurchaseOrders,
+            allInvoices,
+            allFundTransfers,
+            transactions,
+            payables,
+            prepayments,
+            customers,
+            shops,
+            products,
+            damagedGoods,
+            stockRequests,
+            assets,
+            capitalContributions,
+            ownerLoans,
+            expenses,
+            payrollHistory,
+            purchaseOrders,
+            invoices,
+            fundTransfers,
+            cashBalances,
+            addSale,
+            deleteSale,
+            transferSale,
+            adjustTransactionVat,
+            markReceivableAsPaid,
+            deleteReceivable,
+            markPayableAsPaid,
+            deletePayable,
+            markPrepaymentAsUsed,
+            markPrepaymentAsRefunded,
+            addCustomer,
+            updateCustomer,
+            deleteCustomer,
+            addUserAccount,
+            deleteUserAccount,
+            addShop,
+            updateShop,
+            deleteShop,
+            addProduct,
+            updateProduct,
+            deleteProduct,
+            transferStock,
+            reportDamage,
+            createStockRequest,
+            approveStockRequest,
+            rejectStockRequest,
+            addAsset,
+            sellAsset,
+            writeOffAsset,
+            addCapitalContribution,
+            updateCapitalContribution,
+            deleteCapitalContribution,
+            repayOwnerLoan,
+            addExpense,
+            approveExpense,
+            deleteExpense,
+            addEmployee,
+            updateEmployee,
+            deleteEmployee,
+            processPayroll,
+            paySingleEmployee,
+            addPurchaseOrder,
+            updatePurchaseOrder,
+            deletePurchaseOrder,
+            receivePurchaseOrder,
+            payPurchaseOrder,
+            transferPurchaseOrder,
+            addInvoice,
+            updateInvoice,
+            deleteInvoice,
+            payInvoice,
+            transferInvoice,
+            addFundTransfer
+        };
+    }, [
+        authLoading, allTransactions, allPayables, allPrepayments, allCustomers, userAccounts,
+        allShops, activeShop, activeShopId, companyName, allProducts, allDamagedGoods, allStockRequests,
+        initialAssets, allCapitalContributions, allOwnerLoans, allExpenses, employees, allPayrollHistory,
+        allPurchaseOrders, allInvoices, allFundTransfers, transactions, payables, prepayments, customers,
+        shops, products, damagedGoods, stockRequests, assets, capitalContributions, ownerLoans,
+        expenses, payrollHistory, purchaseOrders, invoices, fundTransfers, cashBalances
+    ]);
 
-    if (authLoading) {
+
+    if (authLoading || !contextValue) {
         return (
             <div className="flex items-center justify-center h-screen">
                 <div className="text-xl font-semibold">Loading Financial Data...</div>
@@ -1844,3 +1887,6 @@ export const useFinancials = (): FinancialContextType => {
 
 
 
+
+
+    
