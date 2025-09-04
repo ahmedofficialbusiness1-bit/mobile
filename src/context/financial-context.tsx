@@ -362,11 +362,14 @@ interface FinancialContextType {
     processPayroll: (paymentData: { amount: number, paymentMethod: PaymentMethod }, employeesToPay: { employeeId: string; grossSalary: number; netSalary: number }[]) => Promise<void>;
     paySingleEmployee: (data: { employeeId: string; grossSalary: number; netSalary: number; paymentMethod: PaymentMethod; }) => Promise<void>;
     addPurchaseOrder: (data: Omit<PurchaseOrder, 'id' | 'userId' | 'shopId'>) => Promise<void>;
+    updatePurchaseOrder: (poId: string, data: Omit<PurchaseOrder, 'id' | 'userId' | 'shopId'>) => Promise<void>;
     deletePurchaseOrder: (poId: string) => Promise<void>;
     receivePurchaseOrder: (poId: string) => Promise<void>;
     payPurchaseOrder: (poId: string, paymentData: { amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile' }) => Promise<void>;
     transferPurchaseOrder: (poId: string, toShopId: string) => Promise<void>;
     addInvoice: (invoiceData: InvoiceFormData) => Promise<void>;
+    updateInvoice: (invoiceId: string, invoiceData: InvoiceFormData) => Promise<void>;
+    deleteInvoice: (invoiceId: string) => Promise<void>;
     payInvoice: (invoiceId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => Promise<void>;
     transferInvoice: (invoiceId: string, toShopId: string) => Promise<void>;
     addFundTransfer: (data: Omit<FundTransfer, 'id' | 'userId' | 'shopId'>) => Promise<void>;
@@ -1317,6 +1320,11 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await batch.commit();
     }
     
+    const updatePurchaseOrder = async (poId: string, data: Omit<PurchaseOrder, 'id' | 'userId' | 'shopId'>) => {
+        if (!user) throw new Error("User not authenticated.");
+        await updateDoc(doc(db, 'purchaseOrders', poId), data);
+    }
+
     const deletePurchaseOrder = async (poId: string) => {
         if (!user) throw new Error("User not authenticated.");
 
@@ -1504,6 +1512,74 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         
         await batch.commit();
     };
+    
+    const updateInvoice = async (invoiceId: string, invoiceData: InvoiceFormData) => {
+        if (!user) throw new Error("User not authenticated.");
+        const subtotal = invoiceData.items.reduce((sum, item) => sum + item.totalPrice, 0);
+        const vatAmount = subtotal * invoiceData.vatRate;
+        const totalAmount = subtotal + vatAmount;
+
+        const batch = writeBatch(db);
+        
+        const updatedInvoiceData = {
+            // Note: userId and shopId are not updated
+            invoiceNumber: invoiceData.invoiceNumber,
+            customerId: invoiceData.customerId,
+            customerName: invoiceData.customerName,
+            issueDate: invoiceData.issueDate,
+            dueDate: invoiceData.dueDate,
+            items: invoiceData.items,
+            subtotal,
+            vatAmount,
+            totalAmount,
+        };
+        const invoiceRef = doc(db, 'invoices', invoiceId);
+        batch.update(invoiceRef, updatedInvoiceData);
+
+        const transactionQuery = query(
+            collection(db, 'transactions'),
+            where('product', '==', `Invoice #${invoiceData.invoiceNumber}`),
+            where('userId', '==', user.uid)
+        );
+        const transactionSnap = await getDocs(transactionQuery);
+        if (!transactionSnap.empty) {
+            const transactionRef = doc(db, 'transactions', transactionSnap.docs[0].id);
+            batch.update(transactionRef, {
+                name: invoiceData.customerName,
+                phone: invoiceData.customerPhone,
+                amount: totalAmount,
+                netAmount: subtotal,
+                vatAmount: vatAmount,
+                date: invoiceData.issueDate,
+            });
+        }
+        
+        await batch.commit();
+    }
+
+    const deleteInvoice = async (invoiceId: string) => {
+        if (!user) throw new Error("User not authenticated.");
+        const batch = writeBatch(db);
+        const invoice = invoices.find(inv => inv.id === invoiceId);
+        if (!invoice) return;
+
+        const invoiceRef = doc(db, 'invoices', invoiceId);
+        batch.delete(invoiceRef);
+
+        const transactionQuery = query(
+            collection(db, 'transactions'),
+            where('product', '==', `Invoice #${invoice.invoiceNumber}`),
+            where('userId', '==', user.uid)
+        );
+        const transactionSnap = await getDocs(transactionQuery);
+        if (!transactionSnap.empty) {
+            const transactionRef = doc(db, 'transactions', transactionSnap.docs[0].id);
+            batch.delete(transactionRef);
+        }
+
+        await batch.commit();
+    }
+
 
     const payInvoice = async (invoiceId: string, amount: number, paymentMethod: 'Cash' | 'Bank' | 'Mobile') => {
         if (!user) throw new Error("User not authenticated.");
@@ -1653,11 +1729,14 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         processPayroll,
         paySingleEmployee,
         addPurchaseOrder,
+        updatePurchaseOrder,
         deletePurchaseOrder,
         receivePurchaseOrder,
         payPurchaseOrder,
         transferPurchaseOrder,
         addInvoice,
+        updateInvoice,
+        deleteInvoice,
         payInvoice,
         transferInvoice,
         addFundTransfer
@@ -1688,6 +1767,7 @@ export const useFinancials = (): FinancialContextType => {
 };
 
     
+
 
 
 

@@ -46,7 +46,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 interface PurchaseOrderFormProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: Omit<PurchaseOrder, 'id' | 'userId' | 'shopId'>) => void
+  onSave: (data: Omit<PurchaseOrder, 'id' | 'userId' | 'shopId'>, poId?: string) => void
   purchaseOrder: PurchaseOrder | null
 }
 
@@ -96,35 +96,61 @@ export function PurchaseOrderForm({
 }: PurchaseOrderFormProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: purchaseOrder
-      ? { ...purchaseOrder }
-      : {
-          poNumber: `PO-${Date.now()}`,
-          purchaseDate: new Date(),
-          supplierName: '',
-          contactInformation: '',
-          referenceNumber: '',
-          items: [
-            {
-              description: '',
-              modelNo: '',
-              quantity: 1,
-              unitPrice: 0,
-              uom: 'pcs',
-              totalPrice: 0,
-            },
-          ],
-          paymentTerms: 'Credit 30 days',
-          paymentStatus: 'Unpaid',
-          paymentMethod: 'Credit',
-          invoiceNumber: '',
-          shippingMethod: '',
-          receivingStatus: 'Pending',
-          shippingCost: 0,
-          taxes: 0,
-          otherCharges: 0,
-        },
+    defaultValues: {
+        poNumber: `PO-${Date.now()}`,
+        purchaseDate: new Date(),
+        supplierName: '',
+        contactInformation: '',
+        referenceNumber: '',
+        items: [
+          {
+            description: '',
+            modelNo: '',
+            quantity: 1,
+            unitPrice: 0,
+            uom: 'pcs',
+            totalPrice: 0,
+          },
+        ],
+        paymentTerms: 'Credit 30 days',
+        paymentStatus: 'Unpaid',
+        paymentMethod: 'Credit',
+        invoiceNumber: '',
+        shippingMethod: '',
+        receivingStatus: 'Pending',
+        shippingCost: 0,
+        taxes: 0,
+        otherCharges: 0,
+      }
   })
+
+  React.useEffect(() => {
+    if (purchaseOrder) {
+        form.reset({
+            ...purchaseOrder,
+            purchaseDate: new Date(purchaseOrder.purchaseDate),
+            expectedDeliveryDate: purchaseOrder.expectedDeliveryDate ? new Date(purchaseOrder.expectedDeliveryDate) : undefined,
+        });
+    } else {
+        form.reset({
+            poNumber: `PO-${Date.now()}`,
+            purchaseDate: new Date(),
+            supplierName: '',
+            contactInformation: '',
+            referenceNumber: '',
+            items: [{ description: '', modelNo: '', quantity: 1, unitPrice: 0, uom: 'pcs', totalPrice: 0 }],
+            paymentTerms: 'Credit 30 days',
+            paymentStatus: 'Unpaid',
+            paymentMethod: 'Credit',
+            invoiceNumber: '',
+            shippingMethod: '',
+            receivingStatus: 'Pending',
+            shippingCost: 0,
+            taxes: 0,
+            otherCharges: 0,
+        });
+    }
+  }, [purchaseOrder, form, isOpen]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -139,7 +165,7 @@ export function PurchaseOrderForm({
         totalPrice: (item.quantity || 0) * (item.unitPrice || 0)
       }))
     };
-    onSave(finalValues);
+    onSave(finalValues, purchaseOrder?.id);
     form.reset();
     onClose();
   }
@@ -289,7 +315,7 @@ export function PurchaseOrderForm({
                                     <FormItem>
                                     <FormLabel>Model No. (Optional)</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="e.g. T-45" {...field} />
+                                        <Input placeholder="e.g. T-45" {...field} value={field.value || ''}/>
                                     </FormControl>
                                     <FormMessage />
                                     </FormItem>

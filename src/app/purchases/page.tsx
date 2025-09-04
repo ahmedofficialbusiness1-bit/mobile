@@ -4,7 +4,7 @@
 import * as React from 'react'
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
-import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, Trash2, ArrowRightLeft } from 'lucide-react'
+import { PlusCircle, MoreHorizontal, Calendar as CalendarIcon, Trash2, ArrowRightLeft, Edit } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -42,7 +42,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { TransferRecordDialog } from '@/components/transfer-record-dialog'
 
 function PurchasesPageContent() {
-  const { purchaseOrders, addPurchaseOrder, receivePurchaseOrder, payPurchaseOrder, deletePurchaseOrder, transferPurchaseOrder, shops } = useFinancials()
+  const { purchaseOrders, addPurchaseOrder, updatePurchaseOrder, receivePurchaseOrder, payPurchaseOrder, deletePurchaseOrder, transferPurchaseOrder, shops } = useFinancials()
   const { toast } = useToast()
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false)
@@ -57,12 +57,20 @@ function PurchasesPageContent() {
   const [receivingStatusFilter, setReceivingStatusFilter] = React.useState('All');
 
 
-  const handleSavePO = (data: Omit<PurchaseOrder, 'id'>) => {
-    addPurchaseOrder(data)
-    toast({
-        title: 'Purchase Order Created',
-        description: `PO #${data.poNumber} for ${data.supplierName} has been created.`,
-    })
+  const handleSavePO = (data: Omit<PurchaseOrder, 'id'>, poId?: string) => {
+    if (poId) {
+        updatePurchaseOrder(poId, data);
+        toast({
+            title: 'Purchase Order Updated',
+            description: `PO #${data.poNumber} has been updated.`,
+        });
+    } else {
+        addPurchaseOrder(data)
+        toast({
+            title: 'Purchase Order Created',
+            description: `PO #${data.poNumber} for ${data.supplierName} has been created.`,
+        })
+    }
     setIsFormOpen(false)
     setSelectedPO(null)
   }
@@ -289,7 +297,9 @@ function PurchasesPageContent() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                    <DropdownMenuItem onClick={() => handleEdit(po)}>Edit</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleEdit(po)}>
+                                      <Edit className="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
                                     {po.paymentStatus === 'Unpaid' && (
                                         <DropdownMenuItem onClick={() => handleOpenPaymentDialog(po)}>Make Payment</DropdownMenuItem>
                                     )}
