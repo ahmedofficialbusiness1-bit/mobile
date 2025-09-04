@@ -341,7 +341,7 @@ interface FinancialContextType {
     addProduct: (productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock' | 'stockByShop'>) => Promise<void>;
     updateProduct: (id: string, productData: Omit<Product, 'id' | 'status' | 'userId' | 'lastUpdated' | 'initialStock' | 'entryDate' | 'shopStock' | 'currentStock' | 'stockByShop'>) => Promise<void>;
     deleteProduct: (id: string) => Promise<void>;
-    transferStock: (productId: string, quantity: number, toShopId: string) => Promise<void>;
+    transferStock: (productId: string, quantity: number, fromShopId: string | null, toShopId: string) => Promise<void>;
     reportDamage: (productId: string, quantity: number, reason: string) => Promise<void>;
     createStockRequest: (productId: string, productName: string, quantity: number, notes: string) => Promise<void>;
     approveStockRequest: (requestId: string) => Promise<void>;
@@ -569,7 +569,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             const stockByShop = product.stockByShop || {};
             const totalShopStock = Object.values(stockByShop).reduce((sum, qty) => sum + qty, 0);
             
-            const currentShopStock = activeShopId ? (stockByShop[activeShopId] || 0) : 0;
+            const currentShopStock = activeShopId ? (stockByShop[activeShopId] || 0) : product.mainStock;
             
             const stockLevelForStatus = activeShopId ? currentShopStock : (product.mainStock || 0);
 
@@ -760,18 +760,21 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             if (productId && productId !== 'invoice') {
                 const productRef = doc(db, 'products', productId);
                 const productDoc = await transaction.get(productRef);
-                if (!productDoc.exists()) throw new Error("Associated product not found.");
+                if (!productDoc.exists()) {
+                    // If product doesn't exist, we can't adjust stock, so just move the sale record.
+                    console.warn(`Product with ID ${productId} not found. Moving sale record without stock adjustment.`);
+                } else {
+                    const product = productDoc.data() as Product;
+                    const fromShopStock = product.stockByShop?.[fromShopId] || 0;
+                    const toShopStock = product.stockByShop?.[toShopId] || 0;
 
-                const product = productDoc.data() as Product;
-                const fromShopStock = product.stockByShop?.[fromShopId] || 0;
-                const toShopStock = product.stockByShop?.[toShopId] || 0;
-
-                const updatedStockByShop = {
-                    ...(product.stockByShop || {}),
-                    [fromShopId]: fromShopStock + quantity,
-                    [toShopId]: toShopStock - quantity,
-                };
-                transaction.update(productRef, { stockByShop: updatedStockByShop, lastUpdated: new Date() });
+                    const updatedStockByShop = {
+                        ...(product.stockByShop || {}),
+                        [fromShopId]: fromShopStock + quantity,
+                        [toShopId]: toShopStock - quantity,
+                    };
+                    transaction.update(productRef, { stockByShop: updatedStockByShop, lastUpdated: new Date() });
+                }
             }
 
             // Update the shopId on the sale record
@@ -999,7 +1002,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         await deleteDoc(doc(db, 'products', id));
     };
 
-    const transferStock = async (productId: string, quantity: number, toShopId: string) => {
+    const transferStock = async (productId: string, quantity: number, fromShopId: string | null, toShopId: string) => {
         if (!user) throw new Error("User not authenticated.");
         const productRef = doc(db, 'products', productId);
 
@@ -1008,13 +1011,33 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             if (!productDoc.exists()) throw new Error("Product not found");
 
             const product = productDoc.data() as Product;
-            if (product.mainStock < quantity) {
-                throw new Error(`Insufficient stock in main inventory. Available: ${product.mainStock}`);
+            const currentStockByShop = product.stockByShop || {};
+            let newMainStock = product.mainStock;
+            let fromShopStock = 0;
+            
+            // Determine source stock and validate
+            if (fromShopId === null) { // From Main Inventory (HQ)
+                if (product.mainStock < quantity) {
+                    throw new Error(`Insufficient stock in main inventory. Available: ${product.mainStock}`);
+                }
+                newMainStock = product.mainStock - quantity;
+            } else { // From another shop
+                fromShopStock = currentStockByShop[fromShopId] || 0;
+                if (fromShopStock < quantity) {
+                    throw new Error(`Insufficient stock in the source shop. Available: ${fromShopStock}`);
+                }
             }
 
-            const newMainStock = product.mainStock - quantity;
-            const currentShopStock = product.stockByShop?.[toShopId] || 0;
-            const updatedStockByShop = { ...(product.stockByShop || {}), [toShopId]: currentShopStock + quantity };
+            // Prepare updated stock levels for all involved shops
+            const toShopStock = currentStockByShop[toShopId] || 0;
+            const updatedStockByShop = { 
+                ...currentStockByShop,
+                [toShopId]: toShopStock + quantity
+            };
+
+            if (fromShopId !== null) {
+                updatedStockByShop[fromShopId] = fromShopStock - quantity;
+            }
             
             transaction.update(productRef, {
                 mainStock: newMainStock,
@@ -1084,7 +1107,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
              // For new products, just mark as approved. HQ needs to add it manually.
              await updateDoc(doc(db, 'stockRequests', requestId), { status: 'Approved' });
         } else {
-            await transferStock(request.productId, request.quantity, request.shopId);
+            await transferStock(request.productId, request.quantity, null, request.shopId);
             await updateDoc(doc(db, 'stockRequests', requestId), { status: 'Approved' });
         }
     };
@@ -1785,6 +1808,7 @@ export const useFinancials = (): FinancialContextType => {
 };
 
     
+
 
 
 
