@@ -529,7 +529,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     const allPrepayments = useFirestoreCollection<CustomerPrepayment>('prepayments', ['date'], defaultShopIdForMigration);
     const allCustomers = useFirestoreCollection<Customer>('customers', [], defaultShopIdForMigration);
     const userAccounts = useFirestoreUserAccounts();
-    const initialProducts = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
+    const allProducts = useFirestoreCollection<Product>('products', ['entryDate', 'expiryDate', 'lastUpdated']);
     const allDamagedGoods = useFirestoreCollection<DamagedGood>('damagedGoods', ['date'], defaultShopIdForMigration);
     const allStockRequests = useFirestoreCollection<StockRequest>('stockRequests', ['requestDate']);
     const employees = useFirestoreCollection<Employee>('employees');
@@ -581,7 +581,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [assetsData]);
 
     const products = useMemo(() => {
-        return initialProducts.map(product => {
+        return allProducts.map(product => {
             const stockByShop = product.stockByShop || {};
             const totalShopStock = Object.values(stockByShop).reduce((sum, qty) => sum + qty, 0);
             
@@ -596,7 +596,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
                 status: getProductStatus(product, stockLevelForStatus),
             }
         })
-    }, [initialProducts, activeShopId]);
+    }, [allProducts, activeShopId]);
 
 
     const ownerLoans = useMemo(() => {
