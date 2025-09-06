@@ -1,7 +1,7 @@
 
 'use client'
 
-import * as React from 'react';
+import React, { useMemo } from 'react';
 import { useFinancials } from '@/context/financial-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
@@ -61,7 +61,6 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
     const capitalContributions = activeShopId ? allCapitalContributions.filter(c => c.shopId === activeShopId) : allCapitalContributions;
     const ownerLoans = activeShopId ? allOwnerLoans.filter(l => l.shopId === activeShopId) : allOwnerLoans;
     const expenses = activeShopId ? allExpenses.filter(e => e.shopId === activeShopId) : allExpenses;
-    const products = allProducts; // Use all products for inventory calculation base
     const purchaseOrders = activeShopId ? allPurchaseOrders.filter(po => po.shopId === activeShopId) : allPurchaseOrders;
     const assets = activeShopId ? initialAssets.filter(a => a.shopId === activeShopId) : initialAssets;
 
@@ -79,45 +78,6 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
     const nonCurrentAssets = assets
         .filter(a => new Date(a.acquisitionDate) <= endDate && a.status === 'Active')
         .reduce((sum, asset) => sum + asset.netBookValue, 0);
-
-    const inventoryValueAtDate = (targetDate: Date) => {
-        return products.reduce((totalValue, product) => {
-            const stockTransactions = allTransactions.filter(t =>
-                t.productId === product.id &&
-                new Date(t.date) <= targetDate
-            );
-            const stockPurchases = allPurchaseOrders.filter(po =>
-                 po.receivingStatus === 'Received' && new Date(po.purchaseDate) <= targetDate &&
-                 po.items.some(item => item.description === product.name)
-            );
-
-            let stockLevel = product.initialStock;
-
-            // Add all purchases into main stock
-            stockPurchases.forEach(po => {
-                const item = po.items.find(i => i.description === product.name);
-                if (item) stockLevel += item.quantity;
-            });
-            
-            // Subtract sales from the correct shop/main stock
-            stockTransactions.forEach(t => {
-                stockLevel -= t.quantity; // Simplified: assumes all sales reduce a central stock pool.
-            });
-            
-            let finalStockForValue = 0;
-            if (activeShopId) {
-                 const shopSales = stockTransactions.filter(t => t.shopId === activeShopId).reduce((sum, t) => sum + t.quantity, 0);
-                 const shopPurchases = stockPurchases.filter(p => p.shopId === activeShopId).reduce((sum, p) => sum + p.items.find(i=>i.description === product.name)!.quantity, 0);
-                 const initialShopStock = 0; // Simplified assumption
-                 finalStockForValue = initialShopStock + shopPurchases - shopSales;
-
-            } else {
-                 finalStockForValue = (product.mainStock || 0) + Object.values(product.stockByShop || {}).reduce((a, b) => a + b, 0);
-            }
-
-            return totalValue + (Math.max(0, finalStockForValue) * product.purchasePrice);
-        }, 0);
-    };
     
     const inventoryValue = useMemo(() => {
         return allProducts.reduce((totalValue, product) => {
