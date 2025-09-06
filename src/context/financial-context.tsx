@@ -599,22 +599,6 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [allProducts, activeShopId]);
 
 
-    const allOwnerLoans = useMemo(() => {
-        return allCapitalContributions
-            .filter(c => c.type === 'Liability')
-            .map(c => {
-                return {
-                    id: c.id,
-                    userId: c.userId,
-                    shopId: c.shopId,
-                    date: c.date,
-                    description: c.description,
-                    amount: c.amount,
-                    repaid: 0 
-                };
-            });
-    }, [allCapitalContributions]);
-
     const ownerLoans = useMemo(() => {
         const loans = activeShopId ? allCapitalContributions.filter(c => c.shopId === activeShopId) : allCapitalContributions;
         return loans
@@ -632,15 +616,21 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             });
     }, [allCapitalContributions, activeShopId]);
 
-
     const cashBalances = useMemo(() => {
+        // Find the shop ID for "Mlandege home store 2"
+        const mlandegeStore2 = allShops.find(s => s.name === "Mlandege home store 2");
+        const mlandegeStore2Id = mlandegeStore2 ? mlandegeStore2.id : null;
+
         const calculateBalancesForShop = (shopId: string) => {
             let cash = 0, bank = 0, mobile = 0;
-
-            allCapitalContributions.filter(c => c.shopId === shopId).forEach(c => {
-                if (c.type === 'Cash') cash += c.amount;
-                if (c.type === 'Bank') bank += c.amount;
-            });
+            
+            // Special rule: Do not include capital for Mlandege home store 2
+            if (shopId !== mlandegeStore2Id) {
+                allCapitalContributions.filter(c => c.shopId === shopId).forEach(c => {
+                    if (c.type === 'Cash') cash += c.amount;
+                    if (c.type === 'Bank') bank += c.amount;
+                });
+            }
 
             allTransactions.filter(t => t.shopId === shopId && t.status === 'Paid').forEach(t => {
                 if (t.paymentMethod === 'Cash') cash += t.amount;
@@ -680,7 +670,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (activeShopId) {
             return calculateBalancesForShop(activeShopId);
         } else {
-            // HQ View: Sum of all branches
+            // HQ View: Sum of all branches, respecting the special rule for Mlandege
             return allShops.reduce((acc, shop) => {
                 const shopBalance = calculateBalancesForShop(shop.id);
                 acc.cash += shopBalance.cash;
@@ -1779,7 +1769,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             allStockRequests,
             initialAssets,
             allCapitalContributions,
-            allOwnerLoans,
+            ownerLoans: allCapitalContributions.filter(c => c.type === 'Liability').map(c => ({ id: c.id, userId: c.userId, shopId: c.shopId, date: c.date, description: c.description, amount: c.amount, repaid: 0 })),
             allExpenses,
             employees,
             allPayrollHistory,
@@ -1863,7 +1853,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         initialAssets, allCapitalContributions, allExpenses, employees, allPayrollHistory,
         allPurchaseOrders, allInvoices, allFundTransfers, transactions, payables, prepayments, customers,
         shops, products, damagedGoods, stockRequests, assets, capitalContributions, ownerLoans,
-        expenses, payrollHistory, purchaseOrders, invoices, fundTransfers, cashBalances, allOwnerLoans
+        expenses, payrollHistory, purchaseOrders, invoices, fundTransfers, cashBalances
     ]);
 
 
@@ -1907,4 +1897,5 @@ export const useFinancials = (): FinancialContextType => {
 
 
     
+
 
