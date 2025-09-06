@@ -6,31 +6,33 @@ import { useFinancials } from '@/context/financial-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow, TableFooter } from '@/components/ui/table';
 import type { DateRange } from 'react-day-picker';
-import { isWithinInterval, startOfDay, subDays } from 'date-fns';
+import { isWithinInterval, startOfDay } from 'date-fns';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 
-const ReportRow = ({ label, value, isBold = false, isSub = false, isNegative = false }) => (
-    <TableRow className={isBold ? 'font-bold' : ''}>
-        <TableCell className={isSub ? 'pl-8' : ''}>{label}</TableCell>
-        <TableCell className={`text-right ${isNegative ? 'text-red-600' : ''}`}>
+const ReportRow = ({ label, value, isBold = false, isSub = false, isNegative = false, isFooter = false }) => (
+    <TableRow className={cn(isBold ? 'font-bold' : '', isFooter ? 'bg-muted text-lg' : '')}>
+        <TableCell className={cn(isSub ? 'pl-8' : '', isFooter ? 'font-bold' : '')}>{label}</TableCell>
+        <TableCell className={cn('text-right', isNegative ? 'text-red-600' : '', isFooter ? 'font-bold' : '')}>
             {value != null ? `TSh ${value.toLocaleString()}` : '---'}
         </TableCell>
     </TableRow>
 );
+
 
 interface ReportProps {
     dateRange?: DateRange;
 }
 
 export default function ProfitLossStatement({ dateRange }: ReportProps) {
-    const { allTransactions, allExpenses, allProducts, companyName, activeShopId, allPurchaseOrders } = useFinancials();
+    const { allTransactions, allExpenses, allProducts, companyName, activeShopId } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
         setCurrentDate(new Date().toLocaleDateString('en-GB'));
     }, []);
 
-    // Guard against undefined data during initial render
-    if (!allTransactions || !allExpenses || !allPurchaseOrders || !allProducts) {
+    if (!allTransactions || !allExpenses || !allProducts) {
         return (
             <Card>
                 <CardHeader>
@@ -52,93 +54,99 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
         fromDate && toDate && isWithinInterval(t.date, { start: fromDate, end: toDate })
     );
 
-    const purchasesForPeriod = allPurchaseOrders.filter(po => 
-        (activeShopId ? po.shopId === activeShopId : true) &&
-        fromDate && toDate && isWithinInterval(po.purchaseDate, { start: fromDate, end: toDate })
-    );
-
     const expensesForPeriod = allExpenses.filter(e =>
         (activeShopId ? e.shopId === activeShopId : true) &&
         e.status === 'Approved' && fromDate && toDate && isWithinInterval(e.date, { start: fromDate, end: toDate })
     );
     
-    const calculateInventoryValueAtDate = (targetDate: Date) => {
-        return allProducts.reduce((totalValue, product) => {
-            const stockTransactions = allTransactions.filter(t =>
-                (activeShopId ? t.shopId === activeShopId : true) &&
-                t.productId === product.id &&
-                t.date <= targetDate
-            );
-
-            const stockPurchases = allPurchaseOrders.filter(po =>
-                 (activeShopId ? po.shopId === activeShopId : true) &&
-                 po.receivingStatus === 'Received' && po.purchaseDate <= targetDate &&
-                 po.items.some(item => item.description === product.name)
-            );
-
-            const salesQty = stockTransactions.reduce((sum, t) => sum + t.quantity, 0);
-            const purchaseQty = stockPurchases.reduce((sum, po) => 
-                sum + po.items.find(i => i.description === product.name)!.quantity, 0);
-
-            const currentStockLevel = (product.initialStock + purchaseQty) - salesQty;
-            
-            return totalValue + (Math.max(0, currentStockLevel) * product.purchasePrice);
-        }, 0);
-    };
-
-
-    const openingInventory = fromDate ? calculateInventoryValueAtDate(subDays(fromDate, 1)) : 0;
-    const closingInventory = toDate ? calculateInventoryValueAtDate(toDate) : 0;
-
-    const netSales = transactionsForPeriod
+    // Revenue (Net Sales)
+    const revenue = transactionsForPeriod
         .filter(t => t.status === 'Paid' || t.status === 'Credit')
         .reduce((sum, t) => sum + t.netAmount, 0);
 
-    const purchases = purchasesForPeriod.reduce((sum, po) => 
-        sum + po.items.reduce((itemSum, item) => itemSum + item.totalPrice, 0), 0);
-    
-    const costOfSales = openingInventory + purchases - closingInventory;
+    // Cost of Goods Sold (COGS)
+    const costOfSales = transactionsForPeriod
+        .filter(t => t.productId !== 'invoice') // Exclude services/invoices from COGS
+        .reduce((sum, t) => {
+            const product = allProducts.find(p => p.id === t.productId);
+            return sum + ((product?.purchasePrice || 0) * t.quantity);
+        }, 0);
 
-    const grossProfit = netSales - costOfSales;
+    // Gross Profit
+    const grossProfit = revenue - costOfSales;
 
+    // Operating Expenses
     const operatingExpenses = expensesForPeriod.reduce((sum, e) => sum + e.amount, 0);
 
+    // Operating Profit
     const operatingProfit = grossProfit - operatingExpenses;
+
+    // Other Income / Expenses
+    const otherIncome = 0; // Placeholder
+    const otherExpenses = 0; // Placeholder
+    const ebit = operatingProfit + otherIncome - otherExpenses;
+
+    // Finance Costs
+    const financeCosts = 0; // Placeholder, can be calculated from interest expenses
+
+    // Profit Before Tax
+    const profitBeforeTax = ebit - financeCosts;
     
-    const financeCosts = 0;
-    const otherIncome = 0;
-    const profitBeforeTax = operatingProfit - financeCosts + otherIncome;
-    const taxExpense = 0; 
+    // Tax (Assuming 30% corporate tax rate)
+    const taxExpense = profitBeforeTax > 0 ? profitBeforeTax * 0.30 : 0; 
+    
+    // Net Profit
     const netProfit = profitBeforeTax - taxExpense;
+
+    const chartData = [
+        { name: 'Revenue', value: revenue },
+        { name: 'Gross Profit', value: grossProfit },
+        { name: 'Net Profit', value: netProfit },
+    ];
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle>{companyName}</CardTitle>
-                <CardDescription>Profit and Loss Statement</CardDescription>
+                <CardDescription>Profit and Loss Statement (Income Statement)</CardDescription>
                 <CardDescription>For the period ending {currentDate}</CardDescription>
             </CardHeader>
             <CardContent>
-                <Table>
+                <ChartContainer config={{ value: { label: "Amount (TSh)" } }}>
+                    <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: 5, left: 20 }}>
+                            <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `TSh ${Math.floor(Number(value) / 1000)}k`} />
+                            <Tooltip content={<ChartTooltipContent formatter={(value) => `TSh ${Number(value).toLocaleString()}`} />} cursor={{ fill: 'hsl(var(--muted))' }} />
+                            <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </ChartContainer>
+
+                <Table className="mt-8">
                     <TableBody>
-                        <ReportRow label="Net Sales" value={netSales} isBold />
-                        <ReportRow label="Cost of Sales" value={costOfSales} isNegative isBold />
+                        <ReportRow label="Revenue (Net Sales)" value={revenue} isBold />
+                        <ReportRow label="Cost of Goods Sold (COGS)" value={costOfSales} isNegative />
                         <ReportRow label="Gross Profit" value={grossProfit} isBold />
+                        
+                        <TableRow><TableCell colSpan={2}>&nbsp;</TableCell></TableRow>
+                        
                         <ReportRow label="Operating Expenses" value={operatingExpenses} isNegative isBold />
-                        <ReportRow label="Operating Profit" value={operatingProfit} isBold />
-                        <ReportRow label="Other Income" value={otherIncome} />
+                        <ReportRow label="Operating Profit (EBITDA)" value={operatingProfit} isBold />
+                        
+                        <TableRow><TableCell colSpan={2}>&nbsp;</TableCell></TableRow>
+
                         <ReportRow label="Finance Costs" value={financeCosts} isNegative />
                         <ReportRow label="Profit Before Tax" value={profitBeforeTax} isBold />
                         <ReportRow label="Tax Expense" value={taxExpense} isNegative />
                     </TableBody>
                     <TableFooter>
-                        <TableRow className="font-bold text-lg bg-muted">
-                            <TableCell>Net Profit for the Period</TableCell>
-                            <TableCell className="text-right">TSh {netProfit.toLocaleString()}</TableCell>
-                        </TableRow>
+                       <ReportRow label="Net Profit for the Period" value={netProfit} isFooter />
                     </TableFooter>
                 </Table>
             </CardContent>
         </Card>
     );
 }
+
+    
