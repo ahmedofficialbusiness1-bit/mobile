@@ -4,12 +4,14 @@
 import * as React from 'react';
 import { useFinancials } from '@/context/financial-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableRow, TableFooter } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableRow, TableFooter, TableHead, TableHeader } from '@/components/ui/table';
 import type { DateRange } from 'react-day-picker';
 import { isWithinInterval, startOfDay } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { cn } from '@/lib/utils';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+
 
 const ReportRow = ({ label, value, isBold = false, isSub = false, isNegative = false, isFooter = false }) => (
     <TableRow className={cn(isBold ? 'font-bold' : '', isFooter ? 'bg-muted text-lg' : '')}>
@@ -60,11 +62,6 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
         e.status === 'Approved' && fromDate && toDate && isWithinInterval(e.date, { start: fromDate, end: toDate })
     );
     
-    const purchaseOrdersForPeriod = allPurchaseOrders.filter(po =>
-        (activeShopId ? po.shopId === activeShopId : true) &&
-        po.receivingStatus === 'Received' && fromDate && toDate && isWithinInterval(po.purchaseDate, { start: fromDate, end: toDate })
-    );
-
     // Revenue (Net Sales)
     const revenue = transactionsForPeriod
         .filter(t => t.status === 'Paid' || t.status === 'Credit')
@@ -77,6 +74,23 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
             const product = allProducts.find(p => p.id === t.productId);
             return sum + ((product?.purchasePrice || 0) * t.quantity);
         }, 0);
+
+    // COGS Breakdown by product
+    const cogsBreakdown = transactionsForPeriod
+        .filter(t => t.productId !== 'invoice')
+        .reduce((acc, t) => {
+            const product = allProducts.find(p => p.id === t.productId);
+            if (product) {
+                if (!acc[product.name]) {
+                    acc[product.name] = { productName: product.name, totalQuantity: 0, totalCost: 0 };
+                }
+                acc[product.name].totalQuantity += t.quantity;
+                acc[product.name].totalCost += (product.purchasePrice || 0) * t.quantity;
+            }
+            return acc;
+        }, {} as Record<string, { productName: string; totalQuantity: number; totalCost: number }>);
+
+    const cogsBreakdownArray = Object.values(cogsBreakdown).sort((a,b) => b.totalCost - a.totalCost);
 
     // Gross Profit
     const grossProfit = revenue - costOfSales;
@@ -132,7 +146,40 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
                 <Table className="mt-8">
                     <TableBody>
                         <ReportRow label="Revenue (Net Sales)" value={revenue} isBold />
-                        <ReportRow label="Cost of Goods Sold (COGS)" value={costOfSales} isNegative />
+                        <TableRow>
+                            <TableCell colSpan={2} className="p-0">
+                                <Accordion type="single" collapsible>
+                                    <AccordionItem value="cogs" className="border-b-0">
+                                        <AccordionTrigger className="flex w-full justify-between p-4 font-normal hover:no-underline">
+                                            <span>Cost of Goods Sold (COGS)</span>
+                                            <span className="text-right text-red-600">TSh {costOfSales.toLocaleString()}</span>
+                                        </AccordionTrigger>
+                                        <AccordionContent className="px-4 pb-4">
+                                            <div className="border rounded-lg">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Product</TableHead>
+                                                        <TableHead className="text-right">Quantity Sold</TableHead>
+                                                        <TableHead className="text-right">Cost</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {cogsBreakdownArray.map(item => (
+                                                        <TableRow key={item.productName}>
+                                                            <TableCell>{item.productName}</TableCell>
+                                                            <TableCell className="text-right">{item.totalQuantity.toLocaleString()}</TableCell>
+                                                            <TableCell className="text-right">TSh {item.totalCost.toLocaleString()}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                            </div>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                </Accordion>
+                            </TableCell>
+                        </TableRow>
                         <ReportRow label="Gross Profit" value={grossProfit} isBold />
                         
                         <TableRow><TableCell colSpan={2}>&nbsp;</TableCell></TableRow>
@@ -154,5 +201,3 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
         </Card>
     );
 }
-
-    
