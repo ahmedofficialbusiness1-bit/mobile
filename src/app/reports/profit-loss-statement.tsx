@@ -9,6 +9,7 @@ import type { DateRange } from 'react-day-picker';
 import { isWithinInterval, startOfDay } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import { cn } from '@/lib/utils';
 
 const ReportRow = ({ label, value, isBold = false, isSub = false, isNegative = false, isFooter = false }) => (
     <TableRow className={cn(isBold ? 'font-bold' : '', isFooter ? 'bg-muted text-lg' : '')}>
@@ -25,14 +26,14 @@ interface ReportProps {
 }
 
 export default function ProfitLossStatement({ dateRange }: ReportProps) {
-    const { allTransactions, allExpenses, allProducts, companyName, activeShopId } = useFinancials();
+    const { allTransactions, allExpenses, allProducts, allPurchaseOrders, companyName, activeShopId } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
 
     React.useEffect(() => {
         setCurrentDate(new Date().toLocaleDateString('en-GB'));
     }, []);
 
-    if (!allTransactions || !allExpenses || !allProducts) {
+    if (!allTransactions || !allExpenses || !allProducts || !allPurchaseOrders) {
         return (
             <Card>
                 <CardHeader>
@@ -59,6 +60,11 @@ export default function ProfitLossStatement({ dateRange }: ReportProps) {
         e.status === 'Approved' && fromDate && toDate && isWithinInterval(e.date, { start: fromDate, end: toDate })
     );
     
+    const purchaseOrdersForPeriod = allPurchaseOrders.filter(po =>
+        (activeShopId ? po.shopId === activeShopId : true) &&
+        po.receivingStatus === 'Received' && fromDate && toDate && isWithinInterval(po.purchaseDate, { start: fromDate, end: toDate })
+    );
+
     // Revenue (Net Sales)
     const revenue = transactionsForPeriod
         .filter(t => t.status === 'Paid' || t.status === 'Credit')
