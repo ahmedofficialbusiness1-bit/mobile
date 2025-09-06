@@ -42,7 +42,7 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
     }, []);
 
     // Guard against undefined data during initial render
-    if (!allTransactions || !allExpenses || !allPurchaseOrders || !allProducts || !allPayables || !allCapitalContributions || !initialAssets) {
+    if (!allTransactions || !allExpenses || !allPurchaseOrders || !allProducts || !allPayables || !allCapitalContributions || !initialAssets || !allOwnerLoans) {
         return (
             <Card>
                 <CardHeader>
@@ -85,10 +85,7 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
             const purchaseQty = stockPurchases.reduce((sum, po) => 
                 sum + po.items.find(i => i.description === product.name)!.quantity, 0);
 
-            const stockLevel = (product.initialStock + purchaseQty) - salesQty;
-
-            const currentStockLevel = activeShopId ? (product.stockByShop?.[activeShopId] || 0) : stockLevel;
-
+            const currentStockLevel = (product.initialStock + purchaseQty) - salesQty;
             
             return totalValue + (Math.max(0, currentStockLevel) * product.purchasePrice);
         }, 0);
