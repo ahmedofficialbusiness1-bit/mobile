@@ -23,13 +23,13 @@ interface ReportProps {
 
 export default function BalanceSheet({ dateRange }: ReportProps) {
     const { 
-        assets,
+        initialAssets,
         allProducts, 
         allTransactions, 
         allPayables, 
         cashBalances, 
         allCapitalContributions, 
-        allOwnerLoans, 
+        allOwnerLoans,
         companyName, 
         allExpenses, 
         activeShopId,
@@ -41,8 +41,7 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
         setCurrentDate(new Date().toLocaleDateString('en-GB'));
     }, []);
 
-    // Guard against undefined data during initial render
-    if (!allTransactions || !allExpenses || !allPurchaseOrders || !allProducts || !allPayables || !allCapitalContributions || !assets || !allOwnerLoans) {
+    if (!allTransactions || !allExpenses || !allPurchaseOrders || !allProducts || !allPayables || !allCapitalContributions || !initialAssets || !allOwnerLoans) {
         return (
             <Card>
                 <CardHeader>
@@ -64,6 +63,8 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
     const expenses = activeShopId ? allExpenses.filter(e => e.shopId === activeShopId) : allExpenses;
     const products = allProducts;
     const purchaseOrders = activeShopId ? allPurchaseOrders.filter(po => po.shopId === activeShopId) : allPurchaseOrders;
+    const assets = activeShopId ? initialAssets.filter(a => a.shopId === activeShopId) : initialAssets;
+
 
     // RETAINED EARNINGS CALCULATION
     const historicalTransactions = transactions.filter(t => new Date(t.date) <= endDate);
@@ -153,7 +154,9 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
                         <ReportRow label="Current Assets" isBold />
                         <ReportRow label="Inventory" value={inventory} isSub />
                         <ReportRow label="Trade Receivables" value={tradeReceivables} isSub />
-                        <ReportRow label="Cash and Cash Equivalents" value={cashAndEquivalents} isSub />
+                        <ReportRow label="Cash on Hand" value={cashBalances.cash} isSub />
+                        <ReportRow label="Bank Balance" value={cashBalances.bank} isSub />
+                        <ReportRow label="Mobile Money" value={cashBalances.mobile} isSub />
                         <ReportRow label="Total Current Assets" value={currentAssets} isBold />
                         <ReportRow label="Total Assets" value={totalAssets} isBold />
                         
