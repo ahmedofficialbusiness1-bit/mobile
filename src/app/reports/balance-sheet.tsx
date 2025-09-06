@@ -42,7 +42,7 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
     }, []);
 
     // Guard against undefined data during initial render
-    if (!allTransactions || !allExpenses || !allPurchaseOrders || !allProducts || !allPayables || !allCapitalContributions) {
+    if (!allTransactions || !allExpenses || !allPurchaseOrders || !allProducts || !allPayables || !allCapitalContributions || !initialAssets) {
         return (
             <Card>
                 <CardHeader>
@@ -85,22 +85,26 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
             const purchaseQty = stockPurchases.reduce((sum, po) => 
                 sum + po.items.find(i => i.description === product.name)!.quantity, 0);
 
-            const currentStockLevel = (product.initialStock + purchaseQty) - salesQty;
+            const stockLevel = (product.initialStock + purchaseQty) - salesQty;
+
+            const currentStockLevel = activeShopId ? (product.stockByShop?.[activeShopId] || 0) : stockLevel;
+
             
             return totalValue + (Math.max(0, currentStockLevel) * product.purchasePrice);
         }, 0);
     };
+    
+    const costOfSalesHistorical = historicalTransactions
+        .filter(t => t.productId !== 'invoice')
+        .reduce((sum, t) => {
+            const product = products.find(p => p.id === t.productId);
+            return sum + ((product?.purchasePrice || 0) * t.quantity);
+        }, 0);
+
 
     const revenue = historicalTransactions
         .filter(t => t.status === 'Paid' || t.status === 'Credit')
         .reduce((sum, t) => sum + t.netAmount, 0);
-
-    const openingInventory = calculateInventoryValueAtDate(subDays(new Date('2020-01-01'), 1));
-    const closingInventory = calculateInventoryValueAtDate(endDate);
-    const historicalPurchases = purchaseOrders.filter(po => po.purchaseDate <= endDate).reduce((sum, po) => 
-        sum + po.items.reduce((itemSum, item) => itemSum + item.totalPrice, 0), 0);
-
-    const costOfSalesHistorical = openingInventory + historicalPurchases - closingInventory;
 
     const grossProfit = revenue - costOfSalesHistorical;
     const operatingExpenses = historicalExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -112,7 +116,7 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
         .filter(a => new Date(a.acquisitionDate) <= endDate && a.status === 'Active')
         .reduce((sum, asset) => sum + asset.netBookValue, 0);
 
-    const inventory = closingInventory;
+    const inventory = calculateInventoryValueAtDate(endDate);
 
     const tradeReceivables = historicalTransactions
         .filter(t => t.status === 'Credit')
