@@ -1769,7 +1769,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             allStockRequests,
             initialAssets,
             allCapitalContributions,
-            ownerLoans: allCapitalContributions.filter(c => c.type === 'Liability').map(c => ({ id: c.id, userId: c.userId, shopId: c.shopId, date: c.date, description: c.description, amount: c.amount, repaid: 0 })),
+            allOwnerLoans: allCapitalContributions.filter(c => c.type === 'Liability').map(c => ({ id: c.id, userId: c.userId, shopId: c.shopId, date: c.date, description: c.description, amount: c.amount, repaid: 0 })),
             allExpenses,
             employees,
             allPayrollHistory,
@@ -1786,7 +1786,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
             stockRequests,
             assets,
             capitalContributions,
-            ownerLoans,
+            ownerLoans: allCapitalContributions.filter(c => c.type === 'Liability').map(c => ({ id: c.id, userId: c.userId, shopId: c.shopId, date: c.date, description: c.description, amount: c.amount, repaid: 0 })),
             expenses,
             payrollHistory,
             purchaseOrders,
@@ -1852,7 +1852,7 @@ export const FinancialProvider: React.FC<{ children: ReactNode }> = ({ children 
         allShops, activeShop, activeShopId, companyName, allProducts, allDamagedGoods, allStockRequests,
         initialAssets, allCapitalContributions, allExpenses, employees, allPayrollHistory,
         allPurchaseOrders, allInvoices, allFundTransfers, transactions, payables, prepayments, customers,
-        shops, products, damagedGoods, stockRequests, assets, capitalContributions, ownerLoans,
+        shops, products, damagedGoods, stockRequests, assets, capitalContributions, 
         expenses, payrollHistory, purchaseOrders, invoices, fundTransfers, cashBalances
     ]);
 
@@ -1897,5 +1897,6 @@ export const useFinancials = (): FinancialContextType => {
 
 
     
+
 
 
