@@ -32,7 +32,6 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
         companyName, 
         allExpenses, 
         activeShopId,
-        allPurchaseOrders,
         allOwnerLoans
     } = useFinancials();
     const [currentDate, setCurrentDate] = React.useState('');
@@ -41,7 +40,7 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
         setCurrentDate(new Date().toLocaleDateString('en-GB'));
     }, []);
 
-    if (!allTransactions || !allExpenses || !allPurchaseOrders || !allProducts || !allPayables || !allCapitalContributions || !initialAssets || !allOwnerLoans) {
+    if (!allTransactions || !allExpenses || !allProducts || !allPayables || !allCapitalContributions || !initialAssets || !allOwnerLoans) {
         return (
             <Card>
                 <CardHeader>
@@ -61,18 +60,21 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
     const capitalContributions = activeShopId ? allCapitalContributions.filter(c => c.shopId === activeShopId) : allCapitalContributions;
     const ownerLoans = activeShopId ? allOwnerLoans.filter(l => l.shopId === activeShopId) : allOwnerLoans;
     const expenses = activeShopId ? allExpenses.filter(e => e.shopId === activeShopId) : allExpenses;
-    const purchaseOrders = activeShopId ? allPurchaseOrders.filter(po => po.shopId === activeShopId) : allPurchaseOrders;
     const assets = activeShopId ? initialAssets.filter(a => a.shopId === activeShopId) : initialAssets;
 
-
-    // RETAINED EARNINGS CALCULATION
     const historicalTransactions = transactions.filter(t => new Date(t.date) <= endDate);
     const historicalExpenses = expenses.filter(e => e.status === 'Approved' && new Date(e.date) <= endDate);
     
+    // RETAINED EARNINGS & EQUITY CALCULATION (User's new logic)
     const revenue = historicalTransactions.reduce((sum, t) => sum + t.amount, 0);
     const operatingExpenses = historicalExpenses.reduce((sum, e) => sum + e.amount, 0);
-    const vatExpense = revenue * 0.15;
-    const retainedEarnings = revenue - operatingExpenses - vatExpense;
+    const shareCapital = capitalContributions
+        .filter(c => c.type !== 'Liability' && new Date(c.date) <= endDate)
+        .reduce((sum, c) => sum + c.amount, 0);
+
+    // According to user logic: Equity = Initial Capital - Expenses written off
+    const totalEquity = shareCapital - operatingExpenses;
+
 
     // --- ASSETS ---
     const nonCurrentAssets = assets
@@ -83,10 +85,8 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
         return allProducts.reduce((totalValue, product) => {
             let stockQuantity = 0;
             if (activeShopId) {
-                // If a shop is active, use its current stock.
                 stockQuantity = product.stockByShop?.[activeShopId] || 0;
             } else {
-                // Otherwise (HQ view), use the total stock (main + all shops)
                 stockQuantity = (product.mainStock || 0) + Object.values(product.stockByShop || {}).reduce((a, b) => a + b, 0);
             }
             return totalValue + (stockQuantity * product.purchasePrice);
@@ -112,13 +112,6 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
         .reduce((sum, loan) => sum + (loan.amount - loan.repaid), 0);
 
     const totalLiabilities = currentLiabilities + nonCurrentLiabilities;
-
-    // --- EQUITY ---
-    const shareCapital = capitalContributions
-        .filter(c => c.type !== 'Liability' && new Date(c.date) <= endDate)
-        .reduce((sum, c) => sum + c.amount, 0);
-
-    const totalEquity = shareCapital + retainedEarnings;
     
     const totalLiabilitiesAndEquity = totalLiabilities + totalEquity;
 
@@ -160,8 +153,7 @@ export default function BalanceSheet({ dateRange }: ReportProps) {
                         <TableRow><TableCell colSpan={2}>&nbsp;</TableCell></TableRow>
 
                         <ReportRow label="EQUITY" isBold />
-                        <ReportRow label="Share Capital" value={shareCapital} isSub />
-                        <ReportRow label="Retained Earnings" value={retainedEarnings} isSub />
+                        <ReportRow label="Owner's Capital" value={totalEquity} isSub />
                         <ReportRow label="Total Equity" value={totalEquity} isBold />
 
                         <TableRow><TableCell colSpan={2}>&nbsp;</TableCell></TableRow>
